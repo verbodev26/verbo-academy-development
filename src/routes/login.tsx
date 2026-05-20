@@ -100,7 +100,7 @@ function LoginPage() {
 
       {/* Visual side */}
       <div className="hidden bg-primary lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <Logo className="[&_*]:text-primary-foreground [&_div:first-child]:bg-primary-foreground [&_div:first-child]:text-primary" />
+        <Logo className="[&_span]:text-primary-foreground [&_span.text-muted-foreground]:text-primary-foreground/60" />
         <div>
           <div className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/60">A note from our team</div>
           <p className="mt-4 max-w-md text-2xl font-medium leading-snug tracking-tight text-primary-foreground">
