@@ -217,10 +217,8 @@ function StudentDashboard() {
       {ratingSession && (
         <RatingModal
           session={ratingSession}
-          onSubmit={() => {
-            setDismissed((prev) => new Set(prev).add(ratingSession.id));
-            setRatingSession(null);
-          }}
+          onSubmit={(rating) => handleSubmit(rating)}
+          onClose={handleClose}
         />
       )}
     </div>
