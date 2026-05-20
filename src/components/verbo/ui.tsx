@@ -36,7 +36,7 @@ export function PrimaryButton({ children, className = "", ...rest }: React.Butto
   return (
     <button
       {...rest}
-      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-40 ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-40 shadow-sm ${className}`}
     >
       {children}
     </button>
