@@ -28,6 +28,7 @@ import { Route as AdminSessionsRouteImport } from './routes/admin.sessions'
 import { Route as AdminMaterialsRouteImport } from './routes/admin.materials'
 import { Route as AdminKpisRouteImport } from './routes/admin.kpis'
 import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
+import { Route as AdminClubsRouteImport } from './routes/admin.clubs'
 
 const TeacherRoute = TeacherRouteImport.update({
   id: '/teacher',
@@ -124,6 +125,11 @@ const AdminCoursesRoute = AdminCoursesRouteImport.update({
   path: '/courses',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminClubsRoute = AdminClubsRouteImport.update({
+  id: '/clubs',
+  path: '/clubs',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -131,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/student': typeof StudentRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
+  '/admin/clubs': typeof AdminClubsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/kpis': typeof AdminKpisRoute
   '/admin/materials': typeof AdminMaterialsRoute
@@ -149,6 +156,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/admin/clubs': typeof AdminClubsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/kpis': typeof AdminKpisRoute
   '/admin/materials': typeof AdminMaterialsRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/student': typeof StudentRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
+  '/admin/clubs': typeof AdminClubsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/kpis': typeof AdminKpisRoute
   '/admin/materials': typeof AdminMaterialsRoute
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/student'
     | '/teacher'
+    | '/admin/clubs'
     | '/admin/courses'
     | '/admin/kpis'
     | '/admin/materials'
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/admin/clubs'
     | '/admin/courses'
     | '/admin/kpis'
     | '/admin/materials'
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/student'
     | '/teacher'
+    | '/admin/clubs'
     | '/admin/courses'
     | '/admin/kpis'
     | '/admin/materials'
@@ -392,10 +404,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCoursesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/clubs': {
+      id: '/admin/clubs'
+      path: '/clubs'
+      fullPath: '/admin/clubs'
+      preLoaderRoute: typeof AdminClubsRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
+  AdminClubsRoute: typeof AdminClubsRoute
   AdminCoursesRoute: typeof AdminCoursesRoute
   AdminKpisRoute: typeof AdminKpisRoute
   AdminMaterialsRoute: typeof AdminMaterialsRoute
@@ -406,6 +426,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminClubsRoute: AdminClubsRoute,
   AdminCoursesRoute: AdminCoursesRoute,
   AdminKpisRoute: AdminKpisRoute,
   AdminMaterialsRoute: AdminMaterialsRoute,
