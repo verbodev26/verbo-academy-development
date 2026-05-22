@@ -142,7 +142,7 @@ function Page() {
   useEffect(() => setEvents(initial), [initial]);
 
   // Cancellation tracking (per-student, persisted)
-  const [cancelMap, setCancelMap] = useState<Record<string, number>>(readCancels);
+  const [cancelMap, setCancelMap] = useState<Record<string, number>>(() => readCancels(user?.id));
   const cancelCount = cancelMap[user?.id ?? "guest"] ?? 0;
   const blocked = cancelCount >= CANCEL_LIMIT;
 
@@ -189,7 +189,9 @@ function Page() {
       return;
     }
     alert(`Cancellation ${next} of ${CANCEL_LIMIT}. Please remember that club spots are highly limited for your team.`);
-    persistCancels(next);
+    const nextMap = { ...cancelMap, [user?.id ?? "guest"]: next };
+    setCancelMap(nextMap);
+    if (typeof window !== "undefined") localStorage.setItem(CANCEL_KEY, JSON.stringify(nextMap));
     updateEvent(ev.id, { user_booked: false, spots_booked: Math.max(0, (ev.spots_booked ?? 1) - 1) });
     setSelected({ ...ev, user_booked: false, spots_booked: Math.max(0, (ev.spots_booked ?? 1) - 1) });
   };
