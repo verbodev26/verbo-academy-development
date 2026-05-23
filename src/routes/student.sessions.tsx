@@ -183,17 +183,25 @@ function Page() {
 
   const cancelClub = (ev: CalEvent) => {
     if (!ev.user_booked) return;
+
+    // Always free the spot immediately so a teammate can take it
+    const freedSpots = Math.max(0, (ev.spots_booked ?? 1) - 1);
+    updateEvent(ev.id, { user_booked: false, spots_booked: freedSpots });
+    setSelected({ ...ev, user_booked: false, spots_booked: freedSpots });
+
+    // If already blocked, release silently — counter stays at max, no extra alert
+    if (blocked) return;
+
     const next = cancelCount + 1;
-    if (next > CANCEL_LIMIT) {
-      alert("You have exceeded your cancellation limit. You have been permanently excluded from booking further club sessions. Please contact your organization's administrator.");
-      return;
-    }
-    alert(`Cancellation ${next} of ${CANCEL_LIMIT}. Please remember that club spots are highly limited for your team.`);
     const nextMap = { ...cancelMap, [user?.id ?? "guest"]: next };
     setCancelMap(nextMap);
-    if (typeof window !== "undefined") localStorage.setItem(CANCEL_KEY, JSON.stringify(nextMap));
-    updateEvent(ev.id, { user_booked: false, spots_booked: Math.max(0, (ev.spots_booked ?? 1) - 1) });
-    setSelected({ ...ev, user_booked: false, spots_booked: Math.max(0, (ev.spots_booked ?? 1) - 1) });
+    persistCancels(nextMap);
+
+    if (next >= CANCEL_LIMIT) {
+      alert("You have reached your cancellation limit (3/3). You have been excluded from booking further club sessions. Please contact your organization's administrator.");
+    } else {
+      alert(`Cancellation ${next} of ${CANCEL_LIMIT}. Please remember that club spots are highly limited for your team.`);
+    }
   };
 
   // ---------- Calendar grid ----------
