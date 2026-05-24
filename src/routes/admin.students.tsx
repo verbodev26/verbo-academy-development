@@ -1,14 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
-import { USERS, SESSIONS, userById, type User } from "@/lib/mock-data";
+import { USERS, SESSIONS, ASSIGNMENTS, userById, type User } from "@/lib/mock-data";
 import { Card, GhostButton, Pill, PrimaryButton } from "@/components/verbo/ui";
-import { Plus, Lock, Unlock, X, Eye, EyeOff, KeyRound, Mail, Building2, CalendarDays, GraduationCap, History } from "lucide-react";
+import { Plus, Lock, Unlock, X, Eye, EyeOff, KeyRound, Mail, Building2, CalendarDays, GraduationCap, History, Users } from "lucide-react";
 
 export const Route = createFileRoute("/admin/students")({ component: Page });
 
 const CANCEL_LIMIT = 3;
 const STORAGE_KEY = "verbo:club-cancels-v2";
 const PROFILE_KEY = "verbo:student-profile-overrides";
+const REGISTERED_KEY = "verbo:registered-students";
 
 function readCancels(): Record<string, number> {
   if (typeof window === "undefined") return {};
@@ -42,6 +43,22 @@ function writeProfileOverrides(map: Record<string, Partial<User>>) {
   }
 }
 
+function readRegisteredStudents(): User[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(REGISTERED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRegisteredStudents(list: User[]) {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(REGISTERED_KEY, JSON.stringify(list));
+  }
+}
+
 const PLAN_OPTIONS = [
   "Trial",
   "Standard Quarterly",
@@ -55,18 +72,26 @@ function Page() {
   const [, forceTick] = useState(0);
   const [cancels, setCancels] = useState<Record<string, number>>(readCancels);
   const [editing, setEditing] = useState<User | null>(null);
+  const [registering, setRegistering] = useState(false);
 
-  // Apply persisted overrides to the in-memory USERS array on mount
+  // Apply persisted overrides and registered students on mount
   useEffect(() => {
     const overrides = readProfileOverrides();
     USERS.forEach((u) => {
       if (overrides[u.id]) Object.assign(u, overrides[u.id]);
+    });
+    const registered = readRegisteredStudents();
+    registered.forEach((u) => {
+      if (!USERS.find((x) => x.id === u.id)) {
+        USERS.push(u);
+      }
     });
     setCancels(readCancels());
     forceTick((n) => n + 1);
   }, []);
 
   const students = USERS.filter((u) => u.role === "student");
+  const teachers = USERS.filter((u) => u.role === "teacher");
 
   const resetStudent = (studentId: string) => {
     const next = { ...cancels, [studentId]: 0 };
@@ -93,6 +118,18 @@ function Page() {
     forceTick((n) => n + 1);
   };
 
+  const handleRegister = (newUser: User, teacherId?: string) => {
+    USERS.push(newUser);
+    if (teacherId) {
+      ASSIGNMENTS.push({ teacher_id: teacherId, student_id: newUser.id });
+    }
+    const registered = readRegisteredStudents();
+    registered.push(newUser);
+    writeRegisteredStudents(registered);
+    setRegistering(false);
+    forceTick((n) => n + 1);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -100,7 +137,10 @@ function Page() {
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Students</h1>
           <p className="mt-1 text-sm text-muted-foreground">Register, list and suspend students.</p>
         </div>
-        <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-40 shadow-sm">
+        <button
+          onClick={() => setRegistering(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-40 shadow-sm"
+        >
           <Plus className="h-4 w-4" /> Register student
         </button>
       </div>
@@ -181,11 +221,213 @@ function Page() {
           onSave={handleSave}
         />
       )}
+
+      {registering && (
+        <RegisterModal
+          teachers={teachers}
+          onClose={() => setRegistering(false)}
+          onSave={handleRegister}
+        />
+      )}
     </div>
   );
 }
 
-// ---------- Modal ----------
+// ---------- Register Modal ----------
+function RegisterModal({
+  teachers,
+  onClose,
+  onSave,
+}: {
+  teachers: User[];
+  onClose: () => void;
+  onSave: (user: User, teacherId?: string) => void;
+}) {
+  const [form, setForm] = useState({
+    name: "",
+    company: "",
+    email: "",
+    password: "",
+    hired_plan: "",
+    member_since: "",
+    hired_sessions: 0,
+    remaining_sessions: 0,
+    teacher_id: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
+    setForm((prev) => ({ ...prev, [k]: v }));
+
+  const isValid =
+    form.name.trim() &&
+    form.email.trim() &&
+    form.password.trim();
+
+  const handleSave = () => {
+    if (!isValid) return;
+    const newUser: User = {
+      id: `u${Date.now()}`,
+      name: form.name.trim(),
+      email: form.email.trim(),
+      password: form.password,
+      role: "student",
+      company: form.company.trim() || undefined,
+      hired_plan: form.hired_plan || undefined,
+      member_since: form.member_since || undefined,
+      hired_sessions: Number(form.hired_sessions) || 0,
+      remaining_sessions: Number(form.remaining_sessions) || 0,
+    };
+    onSave(newUser, form.teacher_id || undefined);
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-card shadow-floating"
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-border px-6 py-5" style={{ background: "linear-gradient(135deg, #01304a 0%, #02466b 100%)" }}>
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">New registration</div>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Register Student</h2>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="max-h-[70vh] overflow-y-auto px-6 py-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <Field label="Student Name">
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+                placeholder="Full name"
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label="Company" icon={<Building2 className="h-3.5 w-3.5" />}>
+              <input
+                type="text"
+                value={form.company}
+                onChange={(e) => set("company", e.target.value)}
+                placeholder="Organization"
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label="Email" icon={<Mail className="h-3.5 w-3.5" />}>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => set("email", e.target.value)}
+                placeholder="student@company.com"
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label="Initial Password" icon={<KeyRound className="h-3.5 w-3.5" />}>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={form.password}
+                  onChange={(e) => set("password", e.target.value)}
+                  placeholder="Set a password"
+                  className={`${inputCls} pr-9`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </Field>
+
+            <Field label="Hired Plan" icon={<GraduationCap className="h-3.5 w-3.5" />}>
+              <select
+                value={form.hired_plan}
+                onChange={(e) => set("hired_plan", e.target.value)}
+                className={inputCls}
+              >
+                <option value="">Select a plan</option>
+                {PLAN_OPTIONS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Member since" icon={<CalendarDays className="h-3.5 w-3.5" />}>
+              <input
+                type="date"
+                value={form.member_since}
+                onChange={(e) => set("member_since", e.target.value)}
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label="Hired Sessions">
+              <input
+                type="number"
+                min={0}
+                value={form.hired_sessions}
+                onChange={(e) => set("hired_sessions", Number(e.target.value))}
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label="Remaining Sessions">
+              <input
+                type="number"
+                min={0}
+                value={form.remaining_sessions}
+                onChange={(e) => set("remaining_sessions", Number(e.target.value))}
+                className={inputCls}
+              />
+            </Field>
+
+            <Field label="Assign Initial Teacher" icon={<Users className="h-3.5 w-3.5" />} className="md:col-span-2">
+              <select
+                value={form.teacher_id}
+                onChange={(e) => set("teacher_id", e.target.value)}
+                className={inputCls}
+              >
+                <option value="">Select a teacher (optional)</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 border-t border-border bg-secondary/30 px-6 py-4">
+          <GhostButton onClick={onClose}>Cancel</GhostButton>
+          <PrimaryButton onClick={handleSave} disabled={!isValid}>
+            Save
+          </PrimaryButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Edit Modal ----------
 function StudentModal({
   student,
   onClose,
@@ -395,13 +637,15 @@ function Field({
   label,
   icon,
   children,
+  className,
 }: {
   label: string;
   icon?: React.ReactNode;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div>
+    <div className={className}>
       <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {icon}
         {label}
