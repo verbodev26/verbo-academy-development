@@ -31,6 +31,58 @@ import {
   isUnitUnlocked,
 } from "@/lib/activities-store";
 
+function getYouTubeEmbed(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes("youtube.com")) return `https://www.youtube.com/embed/${u.searchParams.get("v")}`;
+    if (u.hostname.includes("youtu.be")) return `https://www.youtube.com/embed/${u.pathname.slice(1)}`;
+  } catch { /* noop */ }
+  return null;
+}
+
+function isVimeo(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.hostname.includes("vimeo.com");
+  } catch { return false; }
+}
+
+function UnitVideoPlayer({ url }: { url: string }) {
+  const yt = getYouTubeEmbed(url);
+  const vimeo = isVimeo(url);
+  if (yt) {
+    return (
+      <iframe
+        src={yt}
+        title="Lesson video"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        className="absolute inset-0 h-full w-full border-0"
+      />
+    );
+  }
+  if (vimeo) {
+    return (
+      <iframe
+        src={url.replace("vimeo.com", "player.vimeo.com/video")}
+        title="Lesson video"
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowFullScreen
+        className="absolute inset-0 h-full w-full border-0"
+      />
+    );
+  }
+  return (
+    <video
+      src={url}
+      controls
+      className="absolute inset-0 h-full w-full object-cover"
+      controlsList="nodownload"
+      onContextMenu={(e) => e.preventDefault()}
+    />
+  );
+}
+
 export const Route = createFileRoute("/student/courses")({ component: Page });
 
 type View =
