@@ -96,20 +96,37 @@ function Page() {
   const { user } = useAuth();
   const [view, setView] = useState<View>({ kind: "levels" });
   const [rev, setRev] = useState(0); // bump when completion / attempts change
+  const [levels, setLevels] = useState<Level[]>(() => loadLevels());
 
+  useEffect(() => {
+    setLevels(loadLevels());
+    return subscribeLevels(() => {
+      setLevels(loadLevels());
+      setRev((r) => r + 1);
+    });
+  }, []);
+
+  // Re-resolve level/unit from the live store so admin edits flow through.
   if (view.kind === "unit") {
-    return <PreUnitView key={rev} level={view.level} unit={view.unit} onBack={() => setView({ kind: "units", level: view.level })} onChange={() => setRev((r) => r + 1)} />;
+    const liveLevel = levels.find((l) => l.id === view.level.id) ?? view.level;
+    const liveUnit = liveLevel.units.find((u) => u.id === view.unit.id);
+    if (!liveUnit) {
+      // Unit was deleted by admin — fall back to units list.
+      return <UnitsView key={rev} levels={levels} level={liveLevel} currentLevel={user?.current_level} onBack={() => setView({ kind: "levels" })} onOpen={(unit) => setView({ kind: "unit", level: liveLevel, unit })} />;
+    }
+    return <PreUnitView key={rev} level={liveLevel} unit={liveUnit} onBack={() => setView({ kind: "units", level: liveLevel })} onChange={() => setRev((r) => r + 1)} />;
   }
   if (view.kind === "units") {
-    return <UnitsView key={rev} level={view.level} currentLevel={user?.current_level} onBack={() => setView({ kind: "levels" })} onOpen={(unit) => setView({ kind: "unit", level: view.level, unit })} />;
+    const liveLevel = levels.find((l) => l.id === view.level.id) ?? view.level;
+    return <UnitsView key={rev} levels={levels} level={liveLevel} currentLevel={user?.current_level} onBack={() => setView({ kind: "levels" })} onOpen={(unit) => setView({ kind: "unit", level: liveLevel, unit })} />;
   }
-  return <LevelsView key={rev} currentLevel={user?.current_level} onOpen={(level) => setView({ kind: "units", level })} />;
+  return <LevelsView key={rev} levels={levels} currentLevel={user?.current_level} onOpen={(level) => setView({ kind: "units", level })} />;
 }
 
 /* ---------------- Levels ---------------- */
 
-function LevelsView({ currentLevel, onOpen }: { currentLevel?: string; onOpen: (l: Level) => void }) {
-  const currentIdx = useMemo(() => LEVELS.findIndex((l) => l.id === currentLevel), [currentLevel]);
+function LevelsView({ levels, currentLevel, onOpen }: { levels: Level[]; currentLevel?: string; onOpen: (l: Level) => void }) {
+  const currentIdx = useMemo(() => levels.findIndex((l) => l.id === currentLevel), [levels, currentLevel]);
   const completion = loadCompletion();
 
   return (
