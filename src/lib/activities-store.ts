@@ -111,6 +111,32 @@ export function resetAttempts(unitId: string) {
   safeWrite(ATTEMPTS_KEY, a);
 }
 
+export function renameUnitReferences(oldUnitId: string, newUnitId: string) {
+  const activities = loadActivities();
+  let changed = false;
+  for (const a of activities) {
+    if (a.unit_id === oldUnitId) {
+      a.unit_id = newUnitId;
+      changed = true;
+    }
+  }
+  if (changed) saveActivities(activities);
+
+  const completion = loadCompletion();
+  if (oldUnitId in completion) {
+    completion[newUnitId] = completion[oldUnitId];
+    delete completion[oldUnitId];
+    safeWrite(COMPLETION_KEY, completion);
+  }
+
+  const attempts = loadAttempts();
+  if (oldUnitId in attempts) {
+    attempts[newUnitId] = attempts[oldUnitId];
+    delete attempts[oldUnitId];
+    safeWrite(ATTEMPTS_KEY, attempts);
+  }
+}
+
 /** A unit is unlocked if it's the first of its level, the previous unit is completed,
  *  or it has already been completed itself. */
 export function isUnitUnlocked(unitId: string): boolean {
