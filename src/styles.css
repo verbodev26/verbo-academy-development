@@ -132,3 +132,34 @@
     letter-spacing: -0.02em;
   }
 }
+
+@layer base {
+  /* Global pointer cursor for all interactive elements */
+  button:not(:disabled),
+  a[href],
+  [role="button"]:not([aria-disabled="true"]),
+  [role="link"],
+  [role="menuitem"],
+  [role="tab"],
+  [role="option"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="switch"],
+  summary,
+  label[for],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="button"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  input[type="file"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  [disabled] {
+    cursor: not-allowed;
+  }
+}
