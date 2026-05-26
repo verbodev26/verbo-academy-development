@@ -58,11 +58,11 @@ function Page() {
 
   const allActivities = useMemo(() => loadActivities(), [activityRev]);
 
-  const createUnit = (lvlId: string, title: string, unitNumber: number) => {
+  const createUnit = (lvlId: string, title: string, unitNumber: number, videoUrl: string, pdfUrl: string) => {
     setLevels((prev) => {
       const next = prev.map((l) =>
         l.id === lvlId
-          ? { ...l, units: [...l.units, { id: `${lvlId}-U${unitNumber}`, title, video_url: "", pdf_url: "" }] }
+          ? { ...l, units: [...l.units, { id: `${lvlId}-U${unitNumber}`, title, video_url: videoUrl, pdf_url: pdfUrl }] }
           : l,
       );
       persistLevels(next);
@@ -136,7 +136,7 @@ function Page() {
           level={unitModalLevel}
           levels={levels}
           onClose={() => setUnitModalLevel(null)}
-          onCreate={(lvlId, title, num) => { createUnit(lvlId, title, num); setUnitModalLevel(null); }}
+          onCreate={(lvlId, title, num, videoUrl, pdfUrl) => { createUnit(lvlId, title, num, videoUrl, pdfUrl); setUnitModalLevel(null); }}
         />
       )}
       {actModalUnit && (
@@ -156,12 +156,14 @@ function UnitModal({ level, levels, onClose, onCreate }: {
   level: LocalLevel;
   levels: LocalLevel[];
   onClose: () => void;
-  onCreate: (levelId: string, title: string, unitNumber: number) => void;
+  onCreate: (levelId: string, title: string, unitNumber: number, videoUrl: string, pdfUrl: string) => void;
 }) {
   const [title, setTitle] = useState("");
   const [levelId, setLevelId] = useState(level.id);
   const selected = levels.find((l) => l.id === levelId) ?? level;
   const [unitNumber, setUnitNumber] = useState(selected.units.length + 1);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [pdfUrl, setPdfUrl] = useState("");
 
   useEffect(() => { setUnitNumber((levels.find((l) => l.id === levelId)?.units.length ?? 0) + 1); }, [levelId, levels]);
 
@@ -181,10 +183,16 @@ function UnitModal({ level, levels, onClose, onCreate }: {
             <input type="number" min={1} value={unitNumber} onChange={(e) => setUnitNumber(Number(e.target.value))} className={inputCls} />
           </Field>
         </div>
+        <Field label="Lesson Video URL" hint="Paste a YouTube, Vimeo, or direct video link.">
+          <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} className={inputCls} placeholder="e.g., https://youtube.com/watch?v=... or vimeo link" />
+        </Field>
+        <Field label="Study Guide PDF URL" hint="Paste a public document or cloud storage link.">
+          <input value={pdfUrl} onChange={(e) => setPdfUrl(e.target.value)} className={inputCls} placeholder="e.g., https://supabase.storage/... or public document link" />
+        </Field>
       </div>
       <ModalFooter>
         <GhostButton onClick={onClose}>Cancel</GhostButton>
-        <PrimaryButton disabled={!title.trim()} onClick={() => onCreate(levelId, title.trim(), unitNumber)}>Create unit</PrimaryButton>
+        <PrimaryButton disabled={!title.trim()} onClick={() => onCreate(levelId, title.trim(), unitNumber, videoUrl.trim(), pdfUrl.trim())}>Create unit</PrimaryButton>
       </ModalFooter>
     </ModalShell>
   );

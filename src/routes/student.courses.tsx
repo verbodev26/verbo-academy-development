@@ -208,25 +208,34 @@ function PreUnitView({ level, unit, onBack, onChange }: { level: Level; unit: Un
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Card className="p-0 overflow-hidden">
           <div className="group relative aspect-video w-full bg-primary">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-black/40" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <button aria-label="Play video" className="flex h-20 w-20 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[0_10px_30px_-8px_rgba(243,137,52,0.55)] transition-all hover:bg-[#d9731f] hover:scale-105 active:scale-100">
-                <Play className="h-8 w-8 translate-x-0.5 fill-current" />
-              </button>
-            </div>
-            <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 p-4">
-              <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/15">
-                <div className="h-full w-[18%] rounded-full bg-accent" />
+            {unit.video_url ? (
+              <UnitVideoPlayer url={unit.video_url} />
+            ) : (
+              <>
+                <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-black/40" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm">
+                    <Play className="h-7 w-7 text-white/60" />
+                  </div>
+                  <span className="text-xs font-medium text-white/50">No video assigned yet</span>
+                </div>
+              </>
+            )}
+            {!unit.video_url && (
+              <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 p-4">
+                <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/15">
+                  <div className="h-full w-[0%] rounded-full bg-accent" />
+                </div>
+                <span className="text-xs font-medium text-white/80">--:-- / --:--</span>
               </div>
-              <span className="text-xs font-medium text-white/80">02:14 / 12:30</span>
-            </div>
+            )}
           </div>
           <div className="flex items-center justify-between p-5">
             <div>
               <div className="text-sm font-semibold text-foreground">Introduction · {unit.title}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">HD · English subtitles available</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">{unit.video_url ? "HD · English subtitles available" : "Video not available — check back soon"}</div>
             </div>
-            <span className="text-xs font-medium text-muted-foreground">12 min</span>
+            <span className="text-xs font-medium text-muted-foreground">{unit.video_url ? "12 min" : "--"}</span>
           </div>
         </Card>
 
@@ -236,12 +245,23 @@ function PreUnitView({ level, unit, onBack, onChange }: { level: Level; unit: Un
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-foreground"><BookOpen className="h-4 w-4" /></div>
               <div className="flex-1">
                 <div className="text-sm font-semibold text-foreground">PDF Guide</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">Complete unit reference</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">{unit.pdf_url ? "Complete unit reference" : "Guide not uploaded yet"}</div>
               </div>
             </div>
-            <button className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-secondary">
-              <Download className="h-4 w-4" /> Download PDF Guide
-            </button>
+            {unit.pdf_url ? (
+              <a
+                href={unit.pdf_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-secondary"
+              >
+                <Download className="h-4 w-4" /> Download PDF Guide
+              </a>
+            ) : (
+              <button disabled className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-muted-foreground shadow-sm opacity-50">
+                <Download className="h-4 w-4" /> Download PDF Guide
+              </button>
+            )}
           </Card>
 
           <Card>
