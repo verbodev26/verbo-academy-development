@@ -406,6 +406,7 @@ function EventModal({
             {event.teams_link && (
               <div className="flex justify-between"><span className="text-muted-foreground">MS Teams</span><span className="truncate text-foreground">link ready</span></div>
             )}
+            <LessonPlanBlock sessionId={event.id} />
           </div>
         )}
 
