@@ -292,10 +292,6 @@ function BulkScheduler({
         </button>
       </div>
 
-      <style>{`
-        .select{ margin-top:.375rem; width:100%; border-radius:.5rem; border:1px solid var(--input); background:var(--background); padding:.55rem .75rem; font-size:.875rem; color:var(--foreground); outline:none; cursor:pointer; }
-        .select:focus{ box-shadow:0 0 0 2px var(--ring); }
-      `}</style>
     </div>
   );
 }
