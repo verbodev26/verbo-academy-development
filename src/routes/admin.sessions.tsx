@@ -434,9 +434,18 @@ function SessionRow({
   const [date, setDate] = useState(dateInput);
   const [teacherId, setTeacherId] = useState(session.teacher_id);
 
-  const statusStyle = (s: ExtSessionStatus): React.CSSProperties => {
-    if (s === "rearranged") return { backgroundColor: AMBER, color: "white" };
-    return {};
+  const renderStatus = (s: ExtSessionStatus) => {
+    if (s === "rearranged") {
+      return (
+        <span
+          className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+          style={{ backgroundColor: AMBER, color: "white" }}
+        >
+          rearranged
+        </span>
+      );
+    }
+    return <Pill tone={statusTone(s)}>{s}</Pill>;
   };
 
   if (!editing) {
