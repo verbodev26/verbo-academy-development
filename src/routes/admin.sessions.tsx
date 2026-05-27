@@ -212,26 +212,26 @@ function BulkScheduler({
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Field label="Student">
-          <select className="select" value={studentId} onChange={(e) => setStudentId(e.target.value)}>
+          <select className="mt-1.5 w-full cursor-pointer rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring" value={studentId} onChange={(e) => setStudentId(e.target.value)}>
             {students.map((s) => <option key={s.id} value={s.id}>{s.name} — {s.company}</option>)}
           </select>
         </Field>
         <Field label="Teacher">
-          <select className="select" value={teacherId} onChange={(e) => setTeacherId(e.target.value)}>
+          <select className="mt-1.5 w-full cursor-pointer rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring" value={teacherId} onChange={(e) => setTeacherId(e.target.value)}>
             {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </Field>
         <Field label="MS Teams link (auto)">
-          <input className="select" value={teamsLink} readOnly />
+          <input className="mt-1.5 w-full cursor-pointer rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring" value={teamsLink} readOnly />
         </Field>
         <Field label="Start date">
-          <input type="date" className="select" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input type="date" className="mt-1.5 w-full cursor-pointer rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </Field>
         <Field label="End date">
-          <input type="date" className="select" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <input type="date" className="mt-1.5 w-full cursor-pointer rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
         </Field>
         <Field label="Session start time">
-          <input type="time" className="select" value={time} onChange={(e) => setTime(e.target.value)} />
+          <input type="time" className="mt-1.5 w-full cursor-pointer rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring" value={time} onChange={(e) => setTime(e.target.value)} />
         </Field>
       </div>
 
@@ -292,10 +292,6 @@ function BulkScheduler({
         </button>
       </div>
 
-      <style>{`
-        .select{ margin-top:.375rem; width:100%; border-radius:.5rem; border:1px solid var(--input); background:var(--background); padding:.55rem .75rem; font-size:.875rem; color:var(--foreground); outline:none; cursor:pointer; }
-        .select:focus{ box-shadow:0 0 0 2px var(--ring); }
-      `}</style>
     </div>
   );
 }
