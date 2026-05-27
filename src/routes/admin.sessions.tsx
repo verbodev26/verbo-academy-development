@@ -415,7 +415,7 @@ function StudentSessionsModal({
           />
         )}
 
-        <div className="overflow-hidden rounded-xl border border-border">
+        <div className="mt-5 overflow-hidden rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead className="bg-secondary text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
