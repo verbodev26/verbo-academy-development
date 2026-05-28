@@ -9,7 +9,7 @@ export const Route = createFileRoute("/student")({
 function StudentLayout() {
   return (
     <RoleGuard allow="student">
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen" style={{ backgroundColor: "#f4f6f8" }}>
         <TopNav
           items={[
             { to: "/student", label: "Dashboard" },
