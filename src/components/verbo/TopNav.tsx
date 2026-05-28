@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
 import { ProfileModal } from "./ProfileModal";
+import { useAvatar } from "@/lib/avatar-store";
 
 interface NavItem { to: string; label: string }
 
@@ -12,6 +13,7 @@ export function TopNav({ items }: { items: NavItem[] }) {
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const isStudent = user?.role === "student";
+  const avatar = useAvatar(user?.id);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-xl">
@@ -40,10 +42,14 @@ export function TopNav({ items }: { items: NavItem[] }) {
             type="button"
             onClick={() => isStudent && setProfileOpen(true)}
             disabled={!isStudent}
-            className={`flex h-9 w-9 items-center justify-center rounded-full bg-secondary text-sm font-medium text-foreground transition-all ${isStudent ? "cursor-pointer hover:ring-2 hover:ring-[#f38934]/60 hover:shadow-md" : ""}`}
+            className={`flex h-9 w-9 overflow-hidden items-center justify-center rounded-full bg-secondary text-sm font-medium text-foreground transition-all ${isStudent ? "cursor-pointer hover:ring-2 hover:ring-[#f38934]/60 hover:shadow-md" : ""}`}
             aria-label="Open profile"
           >
-            {user?.name?.[0] ?? "?"}
+            {avatar ? (
+              <img src={avatar} alt="" className="h-full w-full object-cover" />
+            ) : (
+              user?.name?.[0] ?? "?"
+            )}
           </button>
           <button
             onClick={() => { logout(); navigate({ to: "/" }); }}
