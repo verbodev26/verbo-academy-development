@@ -27,9 +27,22 @@ export function loadSessions(): ExtSession[] {
   return SEED_SESSIONS as ExtSession[];
 }
 
+let cached: ExtSession[] | null = null;
+const SSR_SNAPSHOT: ExtSession[] = SEED_SESSIONS as ExtSession[];
+
+export function getSessionsSnapshot(): ExtSession[] {
+  if (cached === null) cached = loadSessions();
+  return cached;
+}
+
+export function getServerSessionsSnapshot(): ExtSession[] {
+  return SSR_SNAPSHOT;
+}
+
 export function persistSessions(sessions: ExtSession[]) {
   if (typeof window === "undefined") return;
   try {
+    cached = sessions;
     localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
     window.dispatchEvent(new CustomEvent(SESSIONS_EVENT));
   } catch { /* noop */ }
@@ -37,14 +50,16 @@ export function persistSessions(sessions: ExtSession[]) {
 
 export function subscribeSessions(cb: () => void): () => void {
   if (typeof window === "undefined") return () => {};
-  const onStorage = (e: StorageEvent) => { if (e.key === SESSIONS_KEY) cb(); };
-  window.addEventListener(SESSIONS_EVENT, cb);
+  const invalidate = () => { cached = null; cb(); };
+  const onStorage = (e: StorageEvent) => { if (e.key === SESSIONS_KEY) invalidate(); };
+  window.addEventListener(SESSIONS_EVENT, invalidate);
   window.addEventListener("storage", onStorage);
   return () => {
-    window.removeEventListener(SESSIONS_EVENT, cb);
+    window.removeEventListener(SESSIONS_EVENT, invalidate);
     window.removeEventListener("storage", onStorage);
   };
 }
+
 
 export function statusTone(s: ExtSessionStatus): "default" | "success" | "warning" | "danger" | "muted" {
   switch (s) {

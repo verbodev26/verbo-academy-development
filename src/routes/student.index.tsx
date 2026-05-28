@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
 import { LEVELS, QUOTES, userById } from "@/lib/mock-data";
-import { loadSessions, persistSessions, subscribeSessions, type ExtSession } from "@/lib/sessions-store";
+import { persistSessions, subscribeSessions, getSessionsSnapshot, getServerSessionsSnapshot, type ExtSession } from "@/lib/sessions-store";
 import { Card as PlainCard, GhostButton, MetricCard, Pill, PrimaryButton, ProgressBar, SectionTitle, SuccessButton } from "@/components/verbo/ui";
 import { CalendarClock, Download, Flame, Quote, Video, X } from "lucide-react";
 import { RatingModal } from "@/components/verbo/RatingModal";
@@ -51,9 +51,10 @@ function StudentDashboard() {
   // Live sessions store (persisted)
   const sessions = useSyncExternalStore(
     subscribeSessions,
-    () => loadSessions(),
-    () => loadSessions(),
+    getSessionsSnapshot,
+    getServerSessionsSnapshot,
   );
+
 
   // Local cancellation count (for the warning copy)
   const [cancelCount, setCancelCount] = useState<number>(() => {
