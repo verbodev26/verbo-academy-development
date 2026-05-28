@@ -2,6 +2,8 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Logo } from "./Logo";
 import { useAuth } from "@/lib/auth";
 import { LogOut } from "lucide-react";
+import { useState } from "react";
+import { ProfileModal } from "./ProfileModal";
 
 interface NavItem { to: string; label: string }
 
