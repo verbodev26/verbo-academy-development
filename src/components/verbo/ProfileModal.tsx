@@ -45,9 +45,20 @@ const CATALOG = [
 export function ProfileModal({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const [gallery, setGallery] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const avatar = useAvatar(user?.id);
 
   if (!user) return null;
   const initial = user.name?.[0] ?? "?";
+
+  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setAvatar(user.id, String(reader.result));
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
   return (
     <>
@@ -59,14 +70,29 @@ export function ProfileModal({ open, onOpenChange }: Props) {
               <DialogTitle className="text-base font-semibold text-foreground">My Profile</DialogTitle>
 
               <div className="mt-5 flex flex-col items-center">
-                <div className="group relative h-24 w-24 cursor-pointer">
-                  <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-[#01304a] to-[#0a4a6e] text-3xl font-semibold text-white shadow-md">
-                    {initial}
-                  </div>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full bg-black/60 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                <div
+                  className="group relative h-24 w-24 cursor-pointer overflow-hidden rounded-full shadow-md"
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {avatar ? (
+                    <img src={avatar} alt={user.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#01304a] to-[#0a4a6e] text-3xl font-semibold text-white">
+                      {initial}
+                    </div>
+                  )}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
                     <Camera className="mb-1 h-4 w-4" />
                     Change Photo
                   </div>
+                  <input
+                    ref={fileRef}
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={onPick}
+                  />
                 </div>
                 <div className="mt-3 text-center">
                   <div className="text-base font-semibold text-foreground">{user.name}</div>
