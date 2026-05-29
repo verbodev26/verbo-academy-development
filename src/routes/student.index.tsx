@@ -61,6 +61,12 @@ function StudentDashboard() {
     getSessionsSnapshot,
     getServerSessionsSnapshot,
   );
+  const performance = useSyncExternalStore(
+    subscribePerformance,
+    getPerformanceSnapshot,
+    getServerPerformanceSnapshot,
+  );
+  const [perfDetail, setPerfDetail] = useState<{ session: ExtSession; rating: PerformanceRating } | null>(null);
 
 
   // Local cancellation count (for the warning copy)
