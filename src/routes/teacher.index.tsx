@@ -149,7 +149,24 @@ function TeacherDashboard() {
         </Card>
       </section>
 
-      {editing && <ReportModal session={editing} onClose={() => setEditing(null)} onSubmit={handleSubmit} />}
+      {evaluating && (
+        <PerformanceEvaluationModal
+          session={evaluating}
+          onClose={() => setEvaluating(null)}
+          onContinue={(perf) => {
+            setEditing({ session: evaluating, perf });
+            setEvaluating(null);
+          }}
+        />
+      )}
+      {editing && (
+        <ReportModal
+          session={editing.session}
+          perf={editing.perf}
+          onClose={() => setEditing(null)}
+          onSubmit={handleSubmit}
+        />
+      )}
     </div>
   );
 }
