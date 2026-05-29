@@ -48,8 +48,9 @@ function TeacherDashboard() {
   const upcoming = mySessions.filter((s) => s.status === "scheduled").sort((a, b) => +new Date(a.date_time) - +new Date(b.date_time));
   const recent = mySessions.filter((s) => s.status !== "scheduled").slice(0, 5);
 
-  const handleSubmit = (sessionId: string, status: SessionStatus) => {
+  const handleSubmit = (sessionId: string, status: SessionStatus, perf: PerformanceRating) => {
     setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, status, _noReport: false } : s)));
+    if (status !== "absent") savePerformance(sessionId, perf);
     setEditing(null);
   };
 
