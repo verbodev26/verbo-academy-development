@@ -376,7 +376,7 @@ function RegisterModal({
               <select
                 value={form.hired_plan}
                 onChange={(e) => set("hired_plan", e.target.value)}
-                className={inputCls}
+                className={`${inputCls} cursor-pointer`}
               >
                 <option value="">Select a plan</option>
                 {PLAN_OPTIONS.map((p) => (
@@ -432,7 +432,7 @@ function RegisterModal({
               <select
                 value={form.teacher_id}
                 onChange={(e) => set("teacher_id", e.target.value)}
-                className={inputCls}
+                className={`${inputCls} cursor-pointer`}
               >
                 <option value="">Select a teacher (optional)</option>
                 {teachers.map((t) => (
@@ -581,7 +581,7 @@ function StudentModal({
               <select
                 value={form.hired_plan ?? ""}
                 onChange={(e) => set("hired_plan", e.target.value)}
-                className={inputCls}
+                className={`${inputCls} cursor-pointer`}
               >
                 <option value="">Select a plan</option>
                 {PLAN_OPTIONS.map((p) => (
