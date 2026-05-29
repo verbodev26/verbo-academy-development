@@ -59,9 +59,9 @@ export const USERS: User[] = [
   { id: "u1", name: "Admin Verbo", email: "admin@verbo.com", password: "admin123", role: "admin" },
   { id: "u2", name: "Sarah Mitchell", email: "sarah@verbo.com", password: "teacher123", role: "teacher" },
   { id: "u3", name: "James Carter", email: "james@verbo.com", password: "teacher123", role: "teacher" },
-  { id: "u4", name: "Elena Ruiz", email: "elena@student.com", password: "student123", role: "student", current_level: "B1", attendance_percentage: 92, company: "Nubank", hired_plan: "Premium Annual", member_since: "2024-09-15", hired_sessions: 48, remaining_sessions: 31 },
-  { id: "u5", name: "Marco Silva", email: "marco@student.com", password: "student123", role: "student", current_level: "A2", attendance_percentage: 78, company: "Itaú", hired_plan: "Standard Quarterly", member_since: "2025-02-01", hired_sessions: 24, remaining_sessions: 9 },
-  { id: "u6", name: "Yuki Tanaka", email: "yuki@student.com", password: "student123", role: "student", current_level: "B2", attendance_percentage: 88, company: "Rakuten", hired_plan: "Premium Annual", member_since: "2024-11-20", hired_sessions: 48, remaining_sessions: 22 },
+  { id: "u4", name: "Elena Ruiz", email: "elena@student.com", password: "student123", role: "student", current_level: "B1", attendance_percentage: 92, company: "Nubank", hired_plan: "Verbo Elite", member_since: "2024-09-15", hired_sessions: 48, remaining_sessions: 31 },
+  { id: "u5", name: "Marco Silva", email: "marco@student.com", password: "student123", role: "student", current_level: "A2", attendance_percentage: 78, company: "Itaú", hired_plan: "Verbo Core Lite", member_since: "2025-02-01", hired_sessions: 24, remaining_sessions: 9 },
+  { id: "u6", name: "Yuki Tanaka", email: "yuki@student.com", password: "student123", role: "student", current_level: "B2", attendance_percentage: 88, company: "Rakuten", hired_plan: "Verbo Signature", member_since: "2024-11-20", hired_sessions: 48, remaining_sessions: 22 },
 ];
 
 // Assignments: teacher -> students

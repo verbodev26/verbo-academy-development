@@ -60,12 +60,21 @@ function writeRegisteredStudents(list: User[]) {
 }
 
 const PLAN_OPTIONS = [
-  "Trial",
-  "Standard Quarterly",
-  "Standard Annual",
-  "Premium Quarterly",
-  "Premium Annual",
-  "Enterprise",
+  "Verbo Core Lite",
+  "Verbo Core",
+  "Verbo Advance Lite",
+  "Verbo Advance",
+  "Verbo Elite",
+  "Verbo Signature",
+];
+
+const LEVEL_OPTIONS: { value: string; label: string }[] = [
+  { value: "A1", label: "A1 — Beginner" },
+  { value: "A2", label: "A2 — Elementary" },
+  { value: "B1", label: "B1 — Intermediate" },
+  { value: "B2", label: "B2 — Upper Intermediate" },
+  { value: "C1", label: "C1 — Advanced" },
+  { value: "C2", label: "C2 — Mastery" },
 ];
 
 function Page() {
