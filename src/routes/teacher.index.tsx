@@ -188,7 +188,7 @@ function makeEntry(): Entry {
   return { id: Math.random().toString(36).slice(2), type: "New word", content: "" };
 }
 
-function ReportModal({ session, onClose, onSubmit }: { session: Session; onClose: () => void; onSubmit: (id: string, status: SessionStatus) => void }) {
+function ReportModal({ session, perf, onClose, onSubmit }: { session: Session; perf: PerformanceRating; onClose: () => void; onSubmit: (id: string, status: SessionStatus, perf: PerformanceRating) => void }) {
   const student = userById(session.student_id);
   const [status, setStatus] = useState<SessionStatus>("completed");
   const [notes, setNotes] = useState("");
