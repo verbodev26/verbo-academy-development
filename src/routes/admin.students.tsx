@@ -118,6 +118,7 @@ function Page() {
       password: updated.password,
       company: updated.company,
       hired_plan: updated.hired_plan,
+      current_level: updated.current_level,
       member_since: updated.member_since,
       hired_sessions: updated.hired_sessions,
       remaining_sessions: updated.remaining_sessions,
@@ -258,6 +259,7 @@ function RegisterModal({
     email: "",
     password: "",
     hired_plan: "",
+    current_level: "",
     member_since: "",
     hired_sessions: 0,
     remaining_sessions: 0,
@@ -271,7 +273,9 @@ function RegisterModal({
   const isValid =
     form.name.trim() &&
     form.email.trim() &&
-    form.password.trim();
+    form.password.trim() &&
+    form.current_level &&
+    form.hired_plan;
 
   const handleSave = () => {
     if (!isValid) return;
@@ -283,6 +287,7 @@ function RegisterModal({
       role: "student",
       company: form.company.trim() || undefined,
       hired_plan: form.hired_plan || undefined,
+      current_level: form.current_level || undefined,
       member_since: form.member_since || undefined,
       hired_sessions: Number(form.hired_sessions) || 0,
       remaining_sessions: Number(form.remaining_sessions) || 0,
