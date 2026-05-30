@@ -229,6 +229,7 @@ function Page() {
 
   const oneOnOnes = events.filter((e) => e.kind === "one-on-one");
   const upcoming = oneOnOnes
+    .filter((s) => s.status !== "absent" && s.status !== "cancelled" && s.status !== "completed")
     .filter((s) => s.status === "scheduled" || s.status === "ready" || s.status === "pending-reschedule" || liveState(s) === "live")
     .sort((a, b) => +new Date(a.date) - +new Date(b.date));
   const past = oneOnOnes
