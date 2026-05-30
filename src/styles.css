@@ -191,5 +191,22 @@
     animation: verbo-badge-spin 3s ease-in-out infinite;
     transform-style: preserve-3d;
   }
+
+  @keyframes verbo-live-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.55), 0 0 0 0 rgba(243, 137, 52, 0.45); }
+    50% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0), 0 0 14px 4px rgba(243, 137, 52, 0.35); }
+  }
+  .verbo-live-pulse {
+    animation: verbo-live-pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes verbo-live-breath {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+  .verbo-live-dot {
+    animation: verbo-live-breath 1.2s ease-in-out infinite;
+  }
 }
+
 
