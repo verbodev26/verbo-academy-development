@@ -448,7 +448,15 @@ function BoardingPass({ s, onOpen }: { s: CalEvent; onOpen: () => void }) {
             </div>
             <div className="flex items-center gap-2">
               <Pill tone={tone as "default" | "success" | "warning" | "danger" | "muted"}>{statusLabel(s.status)}</Pill>
-              {s.status === "ready" ? (
+              {locked ? (
+                <button
+                  disabled
+                  className="inline-flex items-center gap-2 rounded-lg bg-muted px-4 py-2 text-sm font-medium text-muted-foreground shadow-soft"
+                  style={{ cursor: "not-allowed" }}
+                >
+                  Cancelled
+                </button>
+              ) : s.status === "ready" ? (
                 <button
                   onClick={onOpen}
                   className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#01304a] px-4 py-2 text-sm font-medium text-white shadow-soft transition-transform hover:-translate-y-0.5 hover:shadow-md"
