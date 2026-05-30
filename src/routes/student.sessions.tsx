@@ -171,6 +171,7 @@ function Page() {
 
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [selected, setSelected] = useState<CalEvent | null>(null);
+  const [lateCancel, setLateCancel] = useState<CalEvent | null>(null);
 
   const updateEvent = (id: string, patch: Partial<CalEvent>) =>
     setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -179,11 +180,16 @@ function Page() {
     const hoursUntil = (new Date(ev.date).getTime() - Date.now()) / 36e5;
     if (hoursUntil > 24) {
       updateEvent(ev.id, { status: "pending-reschedule" });
-      alert("Cancellation confirmed. Your session is now Pending Reschedule — our team will reach out shortly to set a new time.");
+      setSelected(null);
     } else {
-      updateEvent(ev.id, { status: "absent" });
-      alert("⚠ Cancellation received with less than 24 hours notice. The session has been marked as Absent and forfeited — no reschedule is available.");
+      setLateCancel(ev);
     }
+  };
+
+  const confirmLateCancel = () => {
+    if (!lateCancel) return;
+    updateEvent(lateCancel.id, { status: "absent" });
+    setLateCancel(null);
     setSelected(null);
   };
 
