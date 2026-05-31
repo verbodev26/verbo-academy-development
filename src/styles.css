@@ -347,4 +347,31 @@
   .verbo-glass-card:hover::before {
     opacity: 1;
   }
+
+  /* Login: kinetic input focus */
+  .verbo-login-input {
+    transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
+  }
+  .verbo-login-input:focus {
+    border-color: #f38934;
+    box-shadow: 0 0 0 3px rgba(243, 137, 52, 0.1);
+  }
+
+  /* Login: light glass sandbox card */
+  .verbo-glass-light {
+    background: rgba(1, 48, 74, 0.03);
+    border: 1px solid rgba(1, 48, 74, 0.08);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  /* Login: ambient breathing orange aura */
+  @keyframes verbo-ambient-breath {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+  .verbo-ambient-aura {
+    background: radial-gradient(circle at 50% 55%, rgba(243, 137, 52, 0.18), rgba(243, 137, 52, 0.03) 35%, transparent 65%);
+    animation: verbo-ambient-breath 7s ease-in-out infinite;
+  }
 }
