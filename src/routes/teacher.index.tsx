@@ -290,7 +290,7 @@ function ReportModal({ session, perf, onClose, onSubmit }: { session: Session; p
                     </span>
                   </div>
                   <div className="mt-2 space-y-2">
-                    {entries.map((e, idx) => (
+                    {entries.map((e) => (
                       <div key={e.id} className="flex items-start gap-2">
                         <select
                           value={e.type}
