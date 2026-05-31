@@ -319,4 +319,32 @@
   .verbo-pre-gold {
     animation: verbo-pre-gold-flow 4s ease-in-out infinite;
   }
+
+  /* Dark glassmorphic pillar card */
+  .verbo-glass-card {
+    background: rgba(13, 20, 30, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: transform 300ms ease, border-color 300ms ease, box-shadow 300ms ease, background 300ms ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .verbo-glass-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(243, 137, 52, 0.12), transparent 60%);
+    opacity: 0;
+    transition: opacity 300ms ease;
+    pointer-events: none;
+  }
+  .verbo-glass-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(243, 137, 52, 0.25);
+    box-shadow: 0 18px 40px -12px rgba(0, 0, 0, 0.55), 0 0 30px -6px rgba(243, 137, 52, 0.15);
+  }
+  .verbo-glass-card:hover::before {
+    opacity: 1;
+  }
 }
