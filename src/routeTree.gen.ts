@@ -22,7 +22,9 @@ import { Route as TeacherMaterialsRouteImport } from './routes/teacher.materials
 import { Route as TeacherCalendarRouteImport } from './routes/teacher.calendar'
 import { Route as StudentSessionsRouteImport } from './routes/student.sessions'
 import { Route as StudentResourcesRouteImport } from './routes/student.resources'
+import { Route as StudentPerformanceRouteImport } from './routes/student.performance'
 import { Route as StudentCoursesRouteImport } from './routes/student.courses'
+import { Route as StudentBoostRouteImport } from './routes/student.boost'
 import { Route as AdminTeachersRouteImport } from './routes/admin.teachers'
 import { Route as AdminStudentsRouteImport } from './routes/admin.students'
 import { Route as AdminSessionsRouteImport } from './routes/admin.sessions'
@@ -96,9 +98,19 @@ const StudentResourcesRoute = StudentResourcesRouteImport.update({
   path: '/resources',
   getParentRoute: () => StudentRoute,
 } as any)
+const StudentPerformanceRoute = StudentPerformanceRouteImport.update({
+  id: '/performance',
+  path: '/performance',
+  getParentRoute: () => StudentRoute,
+} as any)
 const StudentCoursesRoute = StudentCoursesRouteImport.update({
   id: '/courses',
   path: '/courses',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentBoostRoute = StudentBoostRouteImport.update({
+  id: '/boost',
+  path: '/boost',
   getParentRoute: () => StudentRoute,
 } as any)
 const AdminTeachersRoute = AdminTeachersRouteImport.update({
@@ -151,7 +163,9 @@ export interface FileRoutesByFullPath {
   '/admin/sessions': typeof AdminSessionsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/teachers': typeof AdminTeachersRoute
+  '/student/boost': typeof StudentBoostRoute
   '/student/courses': typeof StudentCoursesRoute
+  '/student/performance': typeof StudentPerformanceRoute
   '/student/resources': typeof StudentResourcesRoute
   '/student/sessions': typeof StudentSessionsRoute
   '/teacher/calendar': typeof TeacherCalendarRoute
@@ -171,7 +185,9 @@ export interface FileRoutesByTo {
   '/admin/sessions': typeof AdminSessionsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/teachers': typeof AdminTeachersRoute
+  '/student/boost': typeof StudentBoostRoute
   '/student/courses': typeof StudentCoursesRoute
+  '/student/performance': typeof StudentPerformanceRoute
   '/student/resources': typeof StudentResourcesRoute
   '/student/sessions': typeof StudentSessionsRoute
   '/teacher/calendar': typeof TeacherCalendarRoute
@@ -195,7 +211,9 @@ export interface FileRoutesById {
   '/admin/sessions': typeof AdminSessionsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/teachers': typeof AdminTeachersRoute
+  '/student/boost': typeof StudentBoostRoute
   '/student/courses': typeof StudentCoursesRoute
+  '/student/performance': typeof StudentPerformanceRoute
   '/student/resources': typeof StudentResourcesRoute
   '/student/sessions': typeof StudentSessionsRoute
   '/teacher/calendar': typeof TeacherCalendarRoute
@@ -220,7 +238,9 @@ export interface FileRouteTypes {
     | '/admin/sessions'
     | '/admin/students'
     | '/admin/teachers'
+    | '/student/boost'
     | '/student/courses'
+    | '/student/performance'
     | '/student/resources'
     | '/student/sessions'
     | '/teacher/calendar'
@@ -240,7 +260,9 @@ export interface FileRouteTypes {
     | '/admin/sessions'
     | '/admin/students'
     | '/admin/teachers'
+    | '/student/boost'
     | '/student/courses'
+    | '/student/performance'
     | '/student/resources'
     | '/student/sessions'
     | '/teacher/calendar'
@@ -263,7 +285,9 @@ export interface FileRouteTypes {
     | '/admin/sessions'
     | '/admin/students'
     | '/admin/teachers'
+    | '/student/boost'
     | '/student/courses'
+    | '/student/performance'
     | '/student/resources'
     | '/student/sessions'
     | '/teacher/calendar'
@@ -375,11 +399,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentResourcesRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/student/performance': {
+      id: '/student/performance'
+      path: '/performance'
+      fullPath: '/student/performance'
+      preLoaderRoute: typeof StudentPerformanceRouteImport
+      parentRoute: typeof StudentRoute
+    }
     '/student/courses': {
       id: '/student/courses'
       path: '/courses'
       fullPath: '/student/courses'
       preLoaderRoute: typeof StudentCoursesRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/boost': {
+      id: '/student/boost'
+      path: '/boost'
+      fullPath: '/student/boost'
+      preLoaderRoute: typeof StudentBoostRouteImport
       parentRoute: typeof StudentRoute
     }
     '/admin/teachers': {
@@ -459,14 +497,18 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface StudentRouteChildren {
+  StudentBoostRoute: typeof StudentBoostRoute
   StudentCoursesRoute: typeof StudentCoursesRoute
+  StudentPerformanceRoute: typeof StudentPerformanceRoute
   StudentResourcesRoute: typeof StudentResourcesRoute
   StudentSessionsRoute: typeof StudentSessionsRoute
   StudentIndexRoute: typeof StudentIndexRoute
 }
 
 const StudentRouteChildren: StudentRouteChildren = {
+  StudentBoostRoute: StudentBoostRoute,
   StudentCoursesRoute: StudentCoursesRoute,
+  StudentPerformanceRoute: StudentPerformanceRoute,
   StudentResourcesRoute: StudentResourcesRoute,
   StudentSessionsRoute: StudentSessionsRoute,
   StudentIndexRoute: StudentIndexRoute,
