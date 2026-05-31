@@ -375,3 +375,22 @@
     animation: verbo-ambient-breath 7s ease-in-out infinite;
   }
 }
+
+/* Ultra-thin scrollbar for Session Report modal */
+.report-modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.report-modal-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.report-modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.report-modal-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+.report-modal-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
