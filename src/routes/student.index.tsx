@@ -319,7 +319,7 @@ function StudentDashboard() {
               Linguistic Asset Performance
             </h3>
             <Link
-              to="/student"
+              to="/student/performance"
               className="inline-flex items-center gap-1 text-xs font-semibold transition-colors hover:opacity-80"
               style={{ color: "#f38934" }}
             >
