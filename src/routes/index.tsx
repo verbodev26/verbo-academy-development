@@ -163,45 +163,73 @@ function Landing() {
             </div>
           </section>
 
-          {/* Pillars */}
-          <section id="how" style={{ backgroundColor: "#f4f6f8" }}>
-            <div className="mx-auto max-w-7xl px-6 py-24">
-              <div className="mx-auto mb-14 max-w-2xl text-center">
-                <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                  How it works
+          {/* Pillars — dark glassmorphic */}
+          <section
+            id="how"
+            className="relative overflow-hidden"
+            style={{
+              background:
+                "radial-gradient(circle at 50% 0%, rgba(243,137,52,0.06), transparent 55%), radial-gradient(circle at 50% 100%, rgba(1,48,74,0.5), transparent 60%), linear-gradient(180deg, #01304a 0%, #0a0f14 30%, #0a0f14 100%)",
+            }}
+          >
+            <div className="verbo-tech-grid absolute inset-0 opacity-50" />
+            <div className="relative mx-auto max-w-7xl px-6 py-24">
+              <div className="mx-auto mb-16 max-w-2xl text-center">
+                <div className="verbo-fade-up inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-white/80 backdrop-blur-sm shadow-[0_0_24px_rgba(243,137,52,0.15)]">
+                  The Student Experience
                 </div>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground text-slate-50 md:text-4xl">
-                  A complete platform engineered for measurable outcomes.
+                <h2
+                  className="verbo-fade-up mt-5 text-3xl font-semibold tracking-tight text-white md:text-4xl"
+                  style={{ animationDelay: "120ms" }}
+                >
+                  Engineered for Your Autonomy and Growth
                 </h2>
               </div>
-              <div className="grid gap-6 md:grid-cols-3">
-                <Pillar
-                  icon={<Users className="h-5 w-5" />}
-                  title="One-to-one teaching"
-                  delay="120ms"
-                >
-                  Every learner is paired with a dedicated teacher. Sessions run live on Microsoft
-                  Teams and are tracked end-to-end.
-                </Pillar>
-                <Pillar
-                  icon={<BarChart3 className="h-5 w-5" />}
-                  title="Measurable progress"
-                  delay="240ms"
-                >
-                  Attendance, level progression and post-session ratings feed a single source of
-                  truth for HR and L&amp;D teams.
-                </Pillar>
-                <Pillar
-                  icon={<ShieldCheck className="h-5 w-5" />}
-                  title="Private by design"
-                  delay="360ms"
-                >
-                  No social logins, no public sign-up. Accounts are provisioned manually, scoped by
-                  role, and isolated per tenant.
-                </Pillar>
+
+              <div className="relative">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute left-[12%] right-[12%] top-1/2 hidden -translate-y-1/2 md:block"
+                  style={{
+                    height: 1,
+                    backgroundImage:
+                      "linear-gradient(90deg, rgba(255,255,255,0.18) 50%, transparent 50%)",
+                    backgroundSize: "10px 1px",
+                  }}
+                />
+                <div className="relative grid gap-6 md:grid-cols-3">
+                  <Pillar
+                    icon={<CalendarClock className="h-5 w-5 text-cyan-300" />}
+                    title="01. Total Control, 24/7/365"
+                    delay="120ms"
+                  >
+                    You decide when and how fast you advance. Schedule your sessions, review your
+                    personal materials, and manage your learning calendar anytime, anywhere, 365
+                    days a year.
+                  </Pillar>
+                  <Pillar
+                    icon={<Trophy className="h-5 w-5" style={{ color: "#f38934" }} />}
+                    title="02. Gamified Growth & Prizes"
+                    delay="240ms"
+                  >
+                    Earn custom badges, unlock achievements, and win premium rewards as you level
+                    up your communication skills. Monitor your live performance metrics after
+                    every single session.
+                  </Pillar>
+                  <Pillar
+                    icon={<Network className="h-5 w-5 text-cyan-300" />}
+                    title="03. Connect & Engage"
+                    delay="360ms"
+                  >
+                    Access exclusive conversation clubs and connect with other ambitious
+                    professionals in the network. Share insights, practice real-world scenarios,
+                    and grow together.
+                  </Pillar>
+                </div>
               </div>
             </div>
           </section>
+
 
           {/* Footer */}
           <footer className="border-t border-border bg-background">
