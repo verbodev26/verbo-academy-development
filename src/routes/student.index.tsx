@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
-import { LEVELS, QUOTES, userById } from "@/lib/mock-data";
+import { LEVELS, userById } from "@/lib/mock-data";
 import { persistSessions, subscribeSessions, getSessionsSnapshot, getServerSessionsSnapshot, type ExtSession } from "@/lib/sessions-store";
 import {
   averagePerformance,
@@ -10,8 +11,23 @@ import {
   subscribePerformance,
   type PerformanceRating,
 } from "@/lib/performance-store";
-import { Card as PlainCard, GhostButton, MetricCard, Pill, PrimaryButton, ProgressBar, SectionTitle, SuccessButton } from "@/components/verbo/ui";
-import { BarChart3, CalendarClock, Download, Flame, Quote, Star, Video, X } from "lucide-react";
+import { GhostButton, Pill, PrimaryButton, SectionTitle, SuccessButton } from "@/components/verbo/ui";
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  CalendarClock,
+  Download,
+  Ear,
+  Flame,
+  Mic,
+  PenLine,
+  Sparkles,
+  Star,
+  Users,
+  Video,
+  X,
+} from "lucide-react";
 import { RatingModal } from "@/components/verbo/RatingModal";
 import {
   Dialog,
@@ -34,16 +50,13 @@ function fmt(iso: string) {
     minute: "2-digit",
   });
 }
-
 function fmtDay(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, { weekday: "long" });
 }
-
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
-/** Soft white card with deep-blue depth shadow + orange hover glow lift. */
 function PremiumCard({ children, className = "", hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
   return (
     <div className={`rounded-2xl border border-border p-6 verbo-card ${hover ? "verbo-card-hover" : ""} ${className}`}>
@@ -52,10 +65,51 @@ function PremiumCard({ children, className = "", hover = false }: { children: Re
   );
 }
 
+/** Minimal SVG circular progress ring (right-aligned inside KPI cards). */
+function ProgressRing({
+  value,
+  size = 64,
+  stroke = 6,
+  label,
+}: { value: number; size?: number; stroke?: number; label?: string }) {
+  const pct = Math.max(0, Math.min(100, value));
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c - (pct / 100) * c;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="rgba(1, 48, 74, 0.08)"
+          strokeWidth={stroke}
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="#f38934"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          style={{ transition: "stroke-dashoffset 700ms ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tabular-nums" style={{ color: "#01304a" }}>
+        {label ?? `${Math.round(pct)}%`}
+      </div>
+    </div>
+  );
+}
+
 function StudentDashboard() {
   const { user } = useAuth();
 
-  // Live sessions store (persisted)
   const sessions = useSyncExternalStore(
     subscribeSessions,
     getSessionsSnapshot,
@@ -68,13 +122,9 @@ function StudentDashboard() {
   );
   const [perfDetail, setPerfDetail] = useState<{ session: ExtSession; rating: PerformanceRating } | null>(null);
 
-
-  // Local cancellation count (for the warning copy)
   const [cancelCount, setCancelCount] = useState<number>(() => {
     if (typeof window === "undefined") return 0;
-    try {
-      return Number(localStorage.getItem("verbo:cancel-count") ?? "1");
-    } catch { return 1; }
+    try { return Number(localStorage.getItem("verbo:cancel-count") ?? "1"); } catch { return 1; }
   });
 
   const [toCancel, setToCancel] = useState<ExtSession | null>(null);
@@ -94,7 +144,36 @@ function StudentDashboard() {
   const currentUnit = level?.units[1] ?? level?.units[0];
   const levelProgress = 64;
 
-  // Rating popup logic (unchanged)
+  // Map 0-5 perf scale onto 4 macro-skills (kept derivative of existing data).
+  const pct = (v: number) => Math.round((v / 5) * 100);
+  const macroSkills = [
+    { key: "Speaking", icon: Mic, value: pct(perfAvg.fluency || 0) },
+    { key: "Writing", icon: PenLine, value: pct(perfAvg.grammar || 0) },
+    { key: "Listening", icon: Ear, value: pct(perfAvg.confidence || 0) },
+    { key: "Reading", icon: BookOpen, value: pct(perfAvg.vocabulary || 0) },
+  ];
+
+  // Pull a few recent feedback items from completed history.
+  const recentFeedback = useMemo(() => {
+    return history
+      .filter((s) => performance[s.id])
+      .slice(0, 3)
+      .map((s) => ({
+        id: s.id,
+        teacher: userById(s.teacher_id)?.name ?? "Teacher",
+        date: new Date(s.date_time).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        tip:
+          performance[s.id].fluency < 3
+            ? "Focus on connecting clauses with linking phrases."
+            : performance[s.id].vocabulary < 3
+              ? "Expand vocabulary on negotiation idioms."
+              : performance[s.id].grammar < 3
+                ? "Review conditional tenses in professional contexts."
+                : "Excellent delivery — keep practicing executive summaries.",
+      }));
+  }, [history, performance]);
+
+  // Rating popup logic (untouched)
   const [ratingSession, setRatingSession] = useState<ExtSession | null>(null);
   const [handled, setHandled] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
@@ -137,8 +216,6 @@ function StudentDashboard() {
     setRatingSession(null);
   };
 
-  const quote = useMemo(() => QUOTES[new Date().getDate() % QUOTES.length], []);
-
   const confirmCancel = () => {
     if (!toCancel) return;
     const next = sessions.filter((s) => s.id !== toCancel.id);
@@ -156,6 +233,24 @@ function StudentDashboard() {
     return `${n}${s}`;
   };
 
+  // Status badge tone classes (polished).
+  const statusBadge = (status: string) => {
+    const base = "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold tracking-wide capitalize";
+    switch (status) {
+      case "completed":
+        return `${base} bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200`;
+      case "absent":
+        return `${base} bg-rose-50 text-rose-700 ring-1 ring-rose-200`;
+      case "delayed":
+        return `${base} bg-amber-50 text-amber-800 ring-1 ring-amber-200`;
+      case "rescheduled":
+      case "rearranged":
+        return `${base} bg-sky-50 text-sky-700 ring-1 ring-sky-200`;
+      default:
+        return `${base} bg-slate-100 text-slate-700 ring-1 ring-slate-200`;
+    }
+  };
+
   return (
     <div className="space-y-10">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -165,7 +260,6 @@ function StudentDashboard() {
             <h1 className="text-3xl font-semibold tracking-tight" style={{ color: "#01304a" }}>
               {user.name.split(" ")[0]}
             </h1>
-            {/* Equipped badge */}
             <div
               title="Equipped: On Fire"
               className="flex h-11 w-11 items-center justify-center rounded-full shadow-md verbo-badge-spin"
@@ -177,126 +271,209 @@ function StudentDashboard() {
         </div>
       </header>
 
-      {/* Metrics */}
+      {/* KPI Metrics with circular SVG progress */}
       <section className="grid gap-4 md:grid-cols-3">
         <PremiumCard hover>
-          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Current Level</div>
-          <div className="mt-3 text-3xl font-semibold tracking-tight" style={{ color: "#01304a" }}>
-            {user.current_level ?? "—"}
-          </div>
-          <div className="mt-1 text-xs text-muted-foreground">{level?.title}</div>
-        </PremiumCard>
-        <PremiumCard hover>
-          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Level Progress</div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-semibold tracking-tight" style={{ color: "#01304a" }}>{levelProgress}%</span>
-            <span className="text-xs text-muted-foreground">of {user.current_level}</span>
-          </div>
-          <div className="mt-4"><ProgressBar value={levelProgress} /></div>
-        </PremiumCard>
-        <PremiumCard hover>
-          <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Overall Attendance</div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-semibold tracking-tight" style={{ color: "#01304a" }}>{user.attendance_percentage}%</span>
-            <span className="text-xs text-muted-foreground">last 90 days</span>
-          </div>
-          <div className="mt-4"><ProgressBar value={user.attendance_percentage ?? 0} /></div>
-        </PremiumCard>
-      </section>
-
-      {/* Performance Metrics */}
-      <section>
-        <SectionTitle>Performance Metrics</SectionTitle>
-        <PremiumCard>
-          {perfAvg.count === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              No teacher evaluations yet. Your performance averages will appear here after your first rated session.
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Current Level</div>
+              <div className="mt-3 text-3xl font-semibold tracking-tight" style={{ color: "#01304a" }}>
+                {user.current_level ?? "—"}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{level?.title}</div>
             </div>
-          ) : (
-            <>
-              <div className="mb-5 flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  Historical averages across {perfAvg.count} rated session{perfAvg.count === 1 ? "" : "s"}.
-                </p>
-                <span className="text-xs font-medium" style={{ color: "#01304a" }}>Scale 0 – 5</span>
-              </div>
-              <div className="grid gap-5 sm:grid-cols-2">
-                <PerfBar label="Fluency" value={perfAvg.fluency} />
-                <PerfBar label="Vocabulary Range" value={perfAvg.vocabulary} />
-                <PerfBar label="Confidence" value={perfAvg.confidence} />
-                <PerfBar label="Grammar Accuracy" value={perfAvg.grammar} />
-              </div>
-            </>
-          )}
-        </PremiumCard>
-      </section>
-
-      {/* Current course */}
-      <section>
-        <SectionTitle>Current Course</SectionTitle>
-        <PremiumCard hover className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
-          <div>
-            <Pill tone="muted">{level?.title}</Pill>
-            <h3 className="mt-3 text-xl font-semibold tracking-tight" style={{ color: "#01304a" }}>{currentUnit?.title}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Pick up exactly where you left off. Video, materials and practice activities included.
-            </p>
+            <ProgressRing value={levelProgress} label={user.current_level ?? "—"} />
           </div>
-          <PrimaryButton className="verbo-btn-glow">Continue unit</PrimaryButton>
+        </PremiumCard>
+        <PremiumCard hover>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Level Progress</div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-3xl font-semibold tracking-tight" style={{ color: "#01304a" }}>{levelProgress}%</span>
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">of {user.current_level}</div>
+            </div>
+            <ProgressRing value={levelProgress} />
+          </div>
+        </PremiumCard>
+        <PremiumCard hover>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Overall Attendance</div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="text-3xl font-semibold tracking-tight" style={{ color: "#01304a" }}>{user.attendance_percentage}%</span>
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">last 90 days</div>
+            </div>
+            <ProgressRing value={user.attendance_percentage ?? 0} />
+          </div>
         </PremiumCard>
       </section>
 
-      {/* Upcoming sessions — horizontal grid of cards */}
+      {/* Linguistic Asset Performance — replaces Performance Metrics + Quote of the Week */}
       <section>
-        <SectionTitle>Upcoming Sessions</SectionTitle>
-        {upcoming.length === 0 ? (
-          <PremiumCard><div className="text-sm text-muted-foreground">No upcoming sessions scheduled.</div></PremiumCard>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {upcoming.map((s) => {
-              const teacher = userById(s.teacher_id);
-              return (
-                <PremiumCard
-                  key={s.id}
-                  hover
-                  className="flex flex-col gap-4 border-l-4"
+        <PremiumCard>
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <h3 className="text-base font-semibold tracking-tight" style={{ color: "#01304a" }}>
+              Linguistic Asset Performance
+            </h3>
+            <Link
+              to="/student"
+              className="inline-flex items-center gap-1 text-xs font-semibold transition-colors hover:opacity-80"
+              style={{ color: "#f38934" }}
+            >
+              View Detailed Analytics <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {macroSkills.map(({ key, icon: Icon, value }) => (
+              <div
+                key={key}
+                className="flex items-center gap-3 rounded-xl border border-border/70 bg-white/60 px-4 py-3"
+              >
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-lg"
+                  style={{ background: "rgba(1, 48, 74, 0.06)", color: "#01304a" }}
                 >
-                  <div
-                    className="-m-6 mb-0 rounded-t-2xl p-4"
-                    style={{ background: "linear-gradient(135deg, #01304a, #014a6e)" }}
-                  >
-                    <div className="flex items-center gap-3 text-white">
-                      <CalendarClock className="h-5 w-5" />
-                      <div>
-                        <div className="text-sm font-semibold capitalize">{fmtDay(s.date_time)}</div>
-                        <div className="text-xs opacity-80">{fmt(s.date_time)}</div>
-                      </div>
-                    </div>
+                  <Icon className="h-4.5 w-4.5" strokeWidth={1.6} />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{key}</div>
+                  <div className="text-base font-semibold tabular-nums" style={{ color: "#01304a" }}>
+                    {value}%
                   </div>
-
-                  <div className="space-y-1 pt-2">
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground">Teacher</div>
-                    <div className="text-sm font-semibold" style={{ color: "#01304a" }}>{teacher?.name}</div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{fmtTime(s.date_time)} · {s.duration_minutes} min</span>
-                    <Pill tone="muted">{s.status}</Pill>
-                  </div>
-
-                  <div className="mt-auto flex items-center gap-2 pt-2">
-                    <GhostButton className="flex-1" onClick={() => setToCancel(s)}>
-                      <X className="h-3.5 w-3.5" /> Can't attend
-                    </GhostButton>
-                    <SuccessButton className="flex-1 verbo-btn-glow bg-lime-500" onClick={() => window.open(s.teams_link, "_blank")}>
-                      <Video className="h-4 w-4" /> Connect
-                    </SuccessButton>
-                  </div>
-                </PremiumCard>
-              );
-            })}
+                </div>
+              </div>
+            ))}
           </div>
-        )}
+        </PremiumCard>
+      </section>
+
+      {/* Two-column productivity layout */}
+      <section className="grid gap-6 lg:grid-cols-[1.85fr_1fr]">
+        {/* LEFT COLUMN ~65% */}
+        <div className="space-y-8">
+          {/* Current Course */}
+          <div>
+            <SectionTitle>Current Course</SectionTitle>
+            <PremiumCard hover className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+              <div>
+                <Pill tone="muted">{level?.title}</Pill>
+                <h3 className="mt-3 text-xl font-semibold tracking-tight" style={{ color: "#01304a" }}>
+                  {currentUnit?.title}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Pick up exactly where you left off. Video, materials and practice activities included.
+                </p>
+              </div>
+              <PrimaryButton className="verbo-btn-glow">Continue unit</PrimaryButton>
+            </PremiumCard>
+          </div>
+
+          {/* Upcoming Sessions */}
+          <div>
+            <SectionTitle>Upcoming Sessions</SectionTitle>
+            {upcoming.length === 0 ? (
+              <PremiumCard><div className="text-sm text-muted-foreground">No upcoming sessions scheduled.</div></PremiumCard>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {upcoming.map((s) => {
+                  const teacher = userById(s.teacher_id);
+                  return (
+                    <PremiumCard key={s.id} hover className="flex flex-col gap-4 border-l-4">
+                      <div
+                        className="-m-6 mb-0 rounded-t-2xl p-4"
+                        style={{ background: "linear-gradient(135deg, #01304a, #014a6e)" }}
+                      >
+                        <div className="flex items-center gap-3 text-white">
+                          <CalendarClock className="h-5 w-5" />
+                          <div>
+                            <div className="text-sm font-semibold capitalize">{fmtDay(s.date_time)}</div>
+                            <div className="text-xs opacity-80">{fmt(s.date_time)}</div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-1 pt-2">
+                        <div className="text-xs uppercase tracking-wider text-muted-foreground">Teacher</div>
+                        <div className="text-sm font-semibold" style={{ color: "#01304a" }}>{teacher?.name}</div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{fmtTime(s.date_time)} · {s.duration_minutes} min</span>
+                        <Pill tone="muted">{s.status}</Pill>
+                      </div>
+                      <div className="mt-auto flex items-center gap-2 pt-2">
+                        <GhostButton className="flex-1" onClick={() => setToCancel(s)}>
+                          <X className="h-3.5 w-3.5" /> Can't attend
+                        </GhostButton>
+                        <SuccessButton className="flex-1 verbo-btn-glow bg-lime-500" onClick={() => window.open(s.teams_link, "_blank")}>
+                          <Video className="h-4 w-4" /> Connect
+                        </SuccessButton>
+                      </div>
+                    </PremiumCard>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT SIDEBAR ~35% */}
+        <aside className="space-y-6">
+          {/* Verbo Experiences */}
+          <PremiumCard hover className="relative overflow-hidden">
+            <div
+              className="absolute inset-0 opacity-[0.07] pointer-events-none"
+              style={{ background: "radial-gradient(circle at top right, #f38934, transparent 65%)" }}
+            />
+            <div className="relative">
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-lg"
+                  style={{ background: "rgba(243, 137, 52, 0.12)", color: "#f38934" }}
+                >
+                  <Users className="h-4 w-4" />
+                </div>
+                <h3 className="text-base font-semibold tracking-tight" style={{ color: "#01304a" }}>
+                  Verbo Experiences
+                </h3>
+              </div>
+              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                Join today's live conversation clubs and immerse yourself with peers across the network.
+              </p>
+              <PrimaryButton className="verbo-btn-glow mt-4 w-full">
+                <Sparkles className="h-3.5 w-3.5" /> View Active Clubs
+              </PrimaryButton>
+            </div>
+          </PremiumCard>
+
+          {/* Quick Review Dock */}
+          <PremiumCard>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold tracking-tight" style={{ color: "#01304a" }}>
+                Quick Review Dock
+              </h3>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Latest</span>
+            </div>
+            {recentFeedback.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Your teacher's notes and vocabulary tips will appear here after your first rated session.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {recentFeedback.map((f) => (
+                  <li key={f.id} className="rounded-lg border border-border/70 bg-white/70 p-3">
+                    <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <span>{f.teacher}</span>
+                      <span>{f.date}</span>
+                    </div>
+                    <p className="mt-1.5 text-xs leading-relaxed text-foreground">{f.tip}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </PremiumCard>
+        </aside>
       </section>
 
       {/* History */}
@@ -317,15 +494,14 @@ function StudentDashboard() {
             <tbody>
               {history.map((s) => {
                 const teacher = userById(s.teacher_id);
-                const tone = s.status === "completed" ? "success"
-                  : s.status === "absent" ? "danger"
-                  : s.status === "delayed" ? "warning" : "default";
                 const rating = performance[s.id];
                 return (
                   <tr key={s.id} className="border-b border-border last:border-0">
                     <td className="px-6 py-4 text-foreground">{fmt(s.date_time)}</td>
                     <td className="px-6 py-4 text-muted-foreground">{teacher?.name}</td>
-                    <td className="px-6 py-4"><Pill tone={tone as any}>{s.status}</Pill></td>
+                    <td className="px-6 py-4">
+                      <span className={statusBadge(s.status)}>{s.status}</span>
+                    </td>
                     <td className="px-6 py-4 text-muted-foreground">{s.student_rating ? `${s.student_rating}★` : "—"}</td>
                     <td className="px-6 py-4">
                       <button
@@ -356,19 +532,6 @@ function StudentDashboard() {
         </PremiumCard>
       </section>
 
-      {/* Quote */}
-      <section>
-        <PlainCard className="bg-secondary/40">
-          <div className="flex items-start gap-4">
-            <Quote className="h-5 w-5 shrink-0 text-muted-foreground" />
-            <div>
-              <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Quote of the Week</div>
-              <div className="mt-2 text-base text-foreground">{quote}</div>
-            </div>
-          </div>
-        </PlainCard>
-      </section>
-
       {ratingSession && (
         <RatingModal
           session={ratingSession as any}
@@ -381,7 +544,7 @@ function StudentDashboard() {
       <Dialog open={!!toCancel} onOpenChange={(o) => !o && setToCancel(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle style={{ color: "#01304a" }}>Cancelación de Sesión</DialogTitle>
+            <DialogTitle style={{ color: "#01304a" }}>Session Cancellation</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-foreground">
             We're sorry you can't be there 😢 Remember that consistency is key to mastering your
@@ -433,29 +596,6 @@ function StudentDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function PerfBar({ label, value }: { label: string; value: number }) {
-  const pct = Math.max(0, Math.min(100, (value / 5) * 100));
-  return (
-    <div>
-      <div className="flex items-baseline justify-between">
-        <span className="text-sm font-medium" style={{ color: "#01304a" }}>{label}</span>
-        <span className="text-xs font-semibold tabular-nums" style={{ color: "#01304a" }}>
-          {value.toFixed(1)}<span className="text-muted-foreground"> / 5</span>
-        </span>
-      </div>
-      <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "rgba(1, 48, 74, 0.1)" }}>
-        <div
-          className="h-full rounded-full transition-all"
-          style={{
-            width: `${pct}%`,
-            background: "linear-gradient(90deg, #01304a, #f38934)",
-          }}
-        />
-      </div>
     </div>
   );
 }
