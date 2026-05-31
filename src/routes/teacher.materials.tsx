@@ -8,7 +8,7 @@ export const Route = createFileRoute("/teacher/materials")({ component: Page });
 function Page() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">Materials</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Materials</h1>
       <p className="text-sm text-muted-foreground">View-only core educational resources.</p>
       <div className="grid gap-3 md:grid-cols-2">
         {MATERIALS.map((m) => (

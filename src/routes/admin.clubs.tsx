@@ -65,7 +65,7 @@ function Page() {
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Manage Clubs</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Manage Clubs</h1>
           <p className="mt-1 text-sm text-muted-foreground">Create and curate Verbo Insights and Book Clubs that appear on the student calendar.</p>
         </div>
         <PrimaryButton onClick={onCreate}>
@@ -160,7 +160,7 @@ function ClubFormPanel({
       <div onClick={(e) => e.stopPropagation()} className="flex h-full w-full max-w-xl flex-col bg-background shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div>
-            <h2 className="text-base font-semibold tracking-tight text-foreground">{initial ? "Edit Club Event" : "Create New Club Event"}</h2>
+            <h2 className="text-base font-semibold tracking-tight text-foreground text-slate-50">{initial ? "Edit Club Event" : "Create New Club Event"}</h2>
             <p className="text-xs text-muted-foreground">Configure how it appears on the student calendar.</p>
           </div>
           <button onClick={onClose} aria-label="Close" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground">

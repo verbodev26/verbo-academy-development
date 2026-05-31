@@ -10,7 +10,7 @@ export function Logo({ className = "", showWordmark = true }: { className?: stri
       />
       {showWordmark && (
         <div className="flex flex-col leading-none">
-          <span className="font-semibold tracking-tight text-foreground">Verbo</span>
+          <span className="font-semibold tracking-tight text-foreground text-slate-50">Verbo</span>
           <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Language Solutions</span>
         </div>
       )}

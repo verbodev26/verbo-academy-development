@@ -17,7 +17,7 @@ function Page() {
 
   return (
     <div className="space-y-10">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">Resources</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Resources</h1>
       {Object.entries(grouped).map(([cat, items]) => (
         <section key={cat}>
           <SectionTitle>{cat}</SectionTitle>

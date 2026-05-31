@@ -132,7 +132,7 @@ function LevelsView({ levels, currentLevel, onOpen }: { levels: Level[]; current
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Your learning path</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Your learning path</h1>
         <p className="mt-1.5 text-sm text-muted-foreground">Choose a level to explore its units and start your activities.</p>
       </div>
 
@@ -202,7 +202,7 @@ function UnitsView({ level, currentLevel, onBack, onOpen }: { level: Level; curr
       <div className="flex items-end justify-between">
         <div>
           <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">Level {level.id}</div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{level.title}</h1>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground text-slate-50">{level.title}</h1>
         </div>
         {level.id === currentLevel && <Pill tone="success">Current level</Pill>}
       </div>
@@ -265,7 +265,7 @@ function PreUnitView({ level, unit, onBack, onChange }: { level: Level; unit: Un
       <div className="flex items-start justify-between gap-6">
         <div>
           <div className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">{level.id} · Pre-unit</div>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">{unit.title}</h1>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground text-slate-50">{unit.title}</h1>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             Watch the introduction video, review the PDF guide, then start the interactive activities.
           </p>
@@ -449,7 +449,7 @@ function ActivityRunner({ unit, activities, onClose }: { unit: Unit; activities:
           {phase === "playing" && current && (
             <div key={current.id} className="mx-auto max-w-2xl animate-in fade-in slide-in-from-bottom-2 duration-300 px-6 py-8">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">{EXERCISE_LABELS[current.type]}</div>
-              <h3 className="mt-1 text-xl font-semibold tracking-tight text-foreground">{current.name}</h3>
+              <h3 className="mt-1 text-xl font-semibold tracking-tight text-foreground text-slate-50">{current.name}</h3>
               <div className="mt-6">
                 <ExerciseBody activity={current} value={draft[current.id] ?? ""} onChange={(v) => setDraft((d) => ({ ...d, [current.id]: v }))} />
               </div>
@@ -514,7 +514,7 @@ function ResultScreen({ icon, tone, title, subtitle, primary, secondary }: {
   return (
     <div className="flex h-full flex-col items-center justify-center px-6 text-center">
       <div className={`flex h-20 w-20 items-center justify-center rounded-2xl ${toneCls}`}>{icon}</div>
-      <h3 className="mt-6 text-2xl font-semibold tracking-tight text-foreground">{title}</h3>
+      <h3 className="mt-6 text-2xl font-semibold tracking-tight text-foreground text-slate-50">{title}</h3>
       <p className="mt-2 max-w-md text-sm text-muted-foreground">{subtitle}</p>
       <div className="mt-8 flex items-center gap-3">
         {secondary && (

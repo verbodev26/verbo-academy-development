@@ -11,7 +11,7 @@ function Overview() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Admin overview</h1>
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground text-slate-50">Admin overview</h1>
         <p className="mt-1 text-sm text-muted-foreground">Operational snapshot across the platform.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-4">

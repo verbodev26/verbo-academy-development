@@ -96,7 +96,7 @@ function Page() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Courses</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Courses</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage levels, units, and interactive activities.</p>
         </div>
       </div>

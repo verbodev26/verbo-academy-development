@@ -21,7 +21,7 @@ function Page() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Teachers</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Teachers</h1>
         <p className="mt-1 text-sm text-muted-foreground">Roster and student assignments.</p>
       </div>
 

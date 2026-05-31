@@ -16,7 +16,7 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Verbo Language Solutions</div>
-        <h1 className="mt-4 text-6xl font-semibold tracking-tight text-foreground">404</h1>
+        <h1 className="mt-4 text-6xl font-semibold tracking-tight text-foreground text-slate-50">404</h1>
         <p className="mt-3 text-sm text-muted-foreground">The page you're looking for doesn't exist.</p>
         <Link to="/" className="mt-6 inline-flex rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-soft">
           Back home

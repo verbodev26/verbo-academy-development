@@ -170,7 +170,7 @@ function Landing() {
                 <div className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
                   How it works
                 </div>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground text-slate-50 md:text-4xl">
                   A complete platform engineered for measurable outcomes.
                 </h2>
               </div>
@@ -235,7 +235,7 @@ function Pillar({
       <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#01304a] text-white">
         {icon}
       </div>
-      <h3 className="mt-5 text-base font-semibold tracking-tight text-foreground">{title}</h3>
+      <h3 className="mt-5 text-base font-semibold tracking-tight text-foreground text-slate-50">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{children}</p>
     </div>
   );

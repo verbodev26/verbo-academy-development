@@ -42,7 +42,7 @@ function LoginPage() {
 
         <div className="m-auto w-full max-w-sm">
           <Logo className="mb-10" />
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sign in</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Sign in</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">Enter the credentials provided by your administrator.</p>
 
           <form onSubmit={onSubmit} className="mt-8 space-y-4">

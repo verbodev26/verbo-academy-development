@@ -140,7 +140,7 @@ function Page() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Calendar</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Calendar</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
           Monthly overview of your assigned sessions. Click any pending or rearranged session
           to prepare its pedagogical plan.
@@ -151,7 +151,7 @@ function Page() {
       <Card>
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold tracking-tight text-foreground">{monthLabel}</h2>
+            <h2 className="text-base font-semibold tracking-tight text-foreground text-slate-50">{monthLabel}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">Click a session badge to plan or review it.</p>
           </div>
           <div className="flex items-center gap-2">
@@ -302,7 +302,7 @@ function PlanModal({
           <X className="h-4 w-4" />
         </button>
 
-        <h3 className="text-lg font-semibold tracking-tight text-foreground">Lesson Plan</h3>
+        <h3 className="text-lg font-semibold tracking-tight text-foreground text-slate-50">Lesson Plan</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">Prepare the pedagogical plan for this session.</p>
 
         {/* Read-only context */}

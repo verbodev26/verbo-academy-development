@@ -11,7 +11,7 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="mb-4 flex items-end justify-between">
-      <h2 className="text-base font-semibold tracking-tight text-foreground">{children}</h2>
+      <h2 className="text-base font-semibold tracking-tight text-foreground text-slate-50">{children}</h2>
       {action}
     </div>
   );
@@ -69,7 +69,7 @@ export function MetricCard({ label, value, sub }: { label: string; value: string
   return (
     <Card>
       <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-3 text-3xl font-semibold tracking-tight text-foreground">{value}</div>
+      <div className="mt-3 text-3xl font-semibold tracking-tight text-foreground text-slate-50">{value}</div>
       {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
     </Card>
   );

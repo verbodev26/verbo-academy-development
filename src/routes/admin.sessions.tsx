@@ -35,7 +35,7 @@ function Page() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sessions</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Sessions</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Bulk-schedule live classes and manage each student's calendar from a single executive view.
         </p>
@@ -393,7 +393,7 @@ function StudentSessionsModal({
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3 pr-10">
           <div>
             <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Student Calendar</div>
-            <h3 className="mt-1 text-xl font-semibold tracking-tight text-foreground">{student?.name}</h3>
+            <h3 className="mt-1 text-xl font-semibold tracking-tight text-foreground text-slate-50">{student?.name}</h3>
             <div className="mt-0.5 text-sm text-muted-foreground">{student?.company} · {student?.hired_plan}</div>
           </div>
           <button

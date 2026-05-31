@@ -23,7 +23,7 @@ function Page() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">KPIs</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">KPIs</h1>
         <p className="mt-1 text-sm text-muted-foreground">Punctuality, report submission and student ratings across the teaching team.</p>
       </div>
 

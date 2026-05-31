@@ -58,7 +58,7 @@ function TeacherDashboard() {
     <div className="space-y-10">
       <header>
         <div className="text-sm text-muted-foreground">Good day,</div>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">{user.name}</h1>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground text-slate-50">{user.name}</h1>
       </header>
 
       <section className="grid gap-4 md:grid-cols-3">
@@ -218,7 +218,7 @@ function ReportModal({ session, perf, onClose, onSubmit }: { session: Session; p
         <div className="flex items-start justify-between">
           <div>
             <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{submitted ? "Final report preview" : "Session report"}</div>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">{student?.name}</h2>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground text-slate-50">{student?.name}</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">{fmt(session.date_time)}</p>
           </div>
           <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary"><X className="h-4 w-4" /></button>
@@ -358,7 +358,7 @@ function ReportPreview({ studentName, dateLabel, status, notes, entries, onClose
         <div className="flex items-start justify-between border-b border-border pb-4">
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em]" style={{ color: "#01304a" }}>Verbo Language Solutions</div>
-            <h3 className="mt-1 text-lg font-semibold tracking-tight text-foreground">Final Session Report</h3>
+            <h3 className="mt-1 text-lg font-semibold tracking-tight text-foreground text-slate-50">Final Session Report</h3>
           </div>
           <div className="text-right text-xs text-muted-foreground">
             <div>{dateLabel}</div>

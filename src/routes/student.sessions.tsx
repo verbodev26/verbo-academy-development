@@ -243,7 +243,7 @@ function Page() {
     <div className="-mx-4 -my-6 min-h-screen bg-[#f4f6f8] px-4 py-6 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
       <div className="space-y-8">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Live Sessions</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Live Sessions</h1>
         </div>
 
         {/* Hero card */}
@@ -282,7 +282,7 @@ function Page() {
         <div className="rounded-2xl border border-border bg-white p-6" style={{ boxShadow: "0 4px 20px -2px rgba(1, 48, 74, 0.05)" }}>
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <h2 className="text-base font-semibold tracking-tight text-foreground">{monthLabel}</h2>
+              <h2 className="text-base font-semibold tracking-tight text-foreground text-slate-50">{monthLabel}</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">Click any event to view details.</p>
             </div>
             <div className="flex items-center gap-2">
@@ -538,7 +538,7 @@ function EventModal({
           )}
         </div>
 
-        <h3 className="mt-2 text-lg font-semibold tracking-tight text-foreground">
+        <h3 className="mt-2 text-lg font-semibold tracking-tight text-foreground text-slate-50">
           {isClub ? event.topic : `Session with ${teacher?.name ?? "Teacher"}`}
         </h3>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -682,7 +682,7 @@ function LateCancelModal({ onClose, onConfirm }: { onClose: () => void; onConfir
             <AlertTriangle className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-semibold tracking-tight text-foreground">Late Cancellation Warning!</h3>
+            <h3 className="text-lg font-semibold tracking-tight text-foreground text-slate-50">Late Cancellation Warning!</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               Cancellation received with less than 24 hours notice. The session has been marked as Absent and forfeited. No reschedule is available.
             </p>
