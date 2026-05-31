@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSyncExternalStore } from "react";
-import { ArrowLeft, BookOpen, Ear, Mic, PenLine, Zap, type LucideIcon } from "lucide-react";
+import { ArrowLeft, BookOpen, Ear, Mic, PenLine, Rocket, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
   getPerformanceSnapshot,
@@ -199,10 +199,19 @@ function BoostButton({ slug, compact = false }: { slug: string; compact?: boolea
       }`}
       style={{ background: "#f38934" }}
     >
-      <Zap className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
+      <Rocket className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
       Boost Skill
     </Link>
   );
+}
+
+function scoreClasses(value: number) {
+  if (value < 50) return "text-red-600 bg-red-50 border-red-200";
+  if (value < 60) return "text-orange-600 bg-orange-50 border-orange-200";
+  if (value < 70) return "text-amber-600 bg-amber-50 border-amber-200";
+  if (value < 80) return "text-lime-600 bg-lime-50 border-lime-200";
+  if (value < 90) return "text-emerald-500 bg-emerald-50 border-emerald-200";
+  return "text-emerald-700 bg-emerald-100 border-emerald-300";
 }
 
 function ScoreBadge({ value }: { value: number | null }) {
@@ -213,16 +222,9 @@ function ScoreBadge({ value }: { value: number | null }) {
       </span>
     );
   }
-  const low = value < 70;
   return (
     <span
-      className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold tabular-nums ring-1"
-      style={{
-        background: low ? "rgba(243, 137, 52, 0.12)" : "rgba(16, 185, 129, 0.10)",
-        color: low ? "#b3590f" : "#047857",
-        boxShadow: "inset 0 0 0 1px transparent",
-        borderColor: low ? "rgba(243, 137, 52, 0.3)" : "rgba(16, 185, 129, 0.25)",
-      }}
+      className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold tabular-nums ${scoreClasses(value)}`}
     >
       {value}%
     </span>
