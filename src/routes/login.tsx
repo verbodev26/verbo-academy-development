@@ -1,13 +1,21 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/lib/auth";
 import { Logo } from "@/components/verbo/Logo";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Sign in — Verbo Language Solutions" }] }),
   component: LoginPage,
 });
+
+const EXECUTIVE_PHRASES = [
+  "Language is not a benefit. It's the operating system of a global organization.",
+  "Global market expansion requires decisive, fluent, and functional professional minds.",
+  "Forget passive grammar memorization. Communication is a practical corporate asset.",
+  "Bridging executive leadership with native execution across international frontiers.",
+  "Engineering high-fidelity linguistic synchronization for elite enterprise teams.",
+];
 
 function LoginPage() {
   const { user, login } = useAuth();
@@ -15,6 +23,12 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const phrase = useMemo(
+    () => EXECUTIVE_PHRASES[Math.floor(Math.random() * EXECUTIVE_PHRASES.length)],
+    [],
+  );
 
   useEffect(() => {
     if (user) {
@@ -26,45 +40,54 @@ function LoginPage() {
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const res = login(email.trim(), password);
-    if (!res.ok) { setError(res.error); return; }
-    const dest = res.role === "admin" ? "/admin" : res.role === "teacher" ? "/teacher" : "/student";
-    navigate({ to: dest });
+    setSubmitting(true);
+    setTimeout(() => {
+      const res = login(email.trim(), password);
+      if (!res.ok) {
+        setError(res.error);
+        setSubmitting(false);
+        return;
+      }
+      const dest = res.role === "admin" ? "/admin" : res.role === "teacher" ? "/teacher" : "/student";
+      navigate({ to: dest });
+    }, 900);
   };
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
       {/* Form side */}
-      <div className="flex flex-col bg-background px-6 py-8">
-        <Link to="/" className="inline-flex w-fit items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+      <div className="flex flex-col bg-white px-6 py-8">
+        <Link to="/" className="inline-flex w-fit items-center gap-2 text-sm text-[#01304a]/60 transition-colors hover:text-[#01304a]">
           <ArrowLeft className="h-3.5 w-3.5" /> Back to home
         </Link>
 
         <div className="m-auto w-full max-w-sm">
-          <Logo className="mb-10" />
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Sign in</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">Enter the credentials provided by your administrator.</p>
+          <Logo className="mb-10 [&_span]:text-[#01304a] [&_span.text-muted-foreground]:text-[#01304a]/70" />
+          <h1 className="text-3xl font-semibold tracking-tight text-[#01304a]">Sign in</h1>
+          <p className="mt-1.5 text-sm text-[#01304a]/70">Enter the credentials provided by your administrator.</p>
 
           <form onSubmit={onSubmit} className="mt-8 space-y-4">
             <div>
-              <label className="text-xs font-medium text-foreground">Email</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-[#01304a]">Email</label>
               <input
                 type="email"
                 required
+                disabled={submitting}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="verbo-login-input mt-1.5 w-full rounded-lg border border-[#01304a]/15 bg-white px-3 py-2.5 text-sm text-[#01304a] placeholder:text-[#01304a]/40 focus:outline-none"
                 placeholder="name@company.com"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-foreground">Password</label>
+              <label className="text-xs font-semibold uppercase tracking-wider text-[#01304a]">Password</label>
               <input
                 type="password"
                 required
+                disabled={submitting}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className="verbo-login-input mt-1.5 w-full rounded-lg border border-[#01304a]/15 bg-white px-3 py-2.5 text-sm text-[#01304a] placeholder:text-[#01304a]/40 focus:outline-none"
                 placeholder="••••••••"
               />
             </div>
@@ -75,38 +98,60 @@ function LoginPage() {
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-accent-foreground shadow-soft transition-opacity hover:opacity-90"
+              disabled={submitting}
+              className="verbo-cta-shimmer verbo-btn-glow flex w-full items-center justify-center gap-2 rounded-lg bg-[#f38934] px-4 py-3 text-sm font-semibold text-white shadow-soft disabled:opacity-80"
             >
-              Sign in
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                  Authenticating...
+                </>
+              ) : (
+                "Sign in"
+              )}
             </button>
           </form>
 
-          <div className="mt-8 rounded-xl border border-border bg-secondary/40 p-4">
-            <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-              <Lock className="h-3.5 w-3.5" /> Demo credentials
+          <div className="verbo-glass-light mt-8 rounded-2xl p-4">
+            <div className="inline-flex items-center rounded-md bg-[#01304a]/5 px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.15em] text-[#01304a]/70">
+              DEVELOPER SANDBOX
             </div>
-            <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">
-              <li><span className="font-medium text-foreground">Student:</span> elena@student.com / student123</li>
-              <li><span className="font-medium text-foreground">Teacher:</span> sarah@verbo.com / teacher123</li>
-              <li><span className="font-medium text-foreground">Admin:</span> admin@verbo.com / admin123</li>
+            <ul className="mt-3 space-y-1.5 text-xs text-[#01304a]/75">
+              <li><span className="font-semibold text-[#01304a]">Student:</span> elena@student.com / student123</li>
+              <li><span className="font-semibold text-[#01304a]">Teacher:</span> sarah@verbo.com / teacher123</li>
+              <li><span className="font-semibold text-[#01304a]">Admin:</span> admin@verbo.com / admin123</li>
             </ul>
           </div>
         </div>
 
-        <div className="text-center text-xs text-muted-foreground">
+        <div className="text-center text-xs text-[#01304a]/50">
           Verbo Language Solutions · Private platform · No self-registration
         </div>
       </div>
 
       {/* Visual side */}
-      <div className="hidden bg-primary lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <Logo className="[&_span]:text-primary-foreground [&_span.text-muted-foreground]:text-primary-foreground/60" />
-        <div>
-          <div className="text-xs font-medium uppercase tracking-[0.2em] text-primary-foreground/60">A note from our team</div>
-          <p className="mt-4 max-w-md text-2xl font-medium leading-snug tracking-tight text-primary-foreground">
-            "Language is not a benefit. It's the operating system of a global organization."
+      <div className="relative hidden overflow-hidden bg-[#01304a] lg:flex lg:flex-col lg:justify-between lg:p-12">
+        {/* Tech grid overlay */}
+        <div className="verbo-tech-grid pointer-events-none absolute inset-0" style={{ opacity: 0.2 }} />
+        {/* Ambient pulse aura */}
+        <div className="verbo-ambient-aura pointer-events-none absolute inset-0" />
+
+        <div className="relative z-10">
+          <Logo className="[&_span]:text-white [&_span.text-muted-foreground]:text-white/60" />
+        </div>
+        <div className="relative z-10">
+          <div className="verbo-fade-up text-xs font-medium uppercase tracking-[0.25em] text-white/60" style={{ animationDelay: "120ms" }}>
+            A note from our team
+          </div>
+          <p
+            className="verbo-fade-up mt-4 max-w-md text-2xl font-medium leading-snug tracking-tight text-white antialiased"
+            style={{ animationDelay: "320ms", WebkitFontSmoothing: "antialiased" }}
+          >
+            "{phrase}"
           </p>
-          <div className="mt-6 text-sm text-primary-foreground/70">— The Verbo team</div>
+          <div className="verbo-fade-up mt-6 text-sm text-white/70" style={{ animationDelay: "520ms" }}>
+            — The Verbo team
+          </div>
         </div>
       </div>
     </div>
