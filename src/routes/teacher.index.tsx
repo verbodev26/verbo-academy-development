@@ -348,9 +348,11 @@ function ReportModal({ session, perf, onClose, onSubmit }: { session: Session; p
             <div className="mt-6 flex items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
                 {isAbsent
-                  ? "Comments required to submit."
+                  ? (notesFilled ? "Ready to submit." : "Comments required to submit.")
                   : filledCount < MIN_ENTRIES
                   ? `Add ${MIN_ENTRIES - filledCount} more entr${MIN_ENTRIES - filledCount === 1 ? "y" : "ies"} to submit.`
+                  : !notesFilled
+                  ? "Class notes are required to submit."
                   : "Ready to submit."}
               </p>
               <div className="flex gap-2">
