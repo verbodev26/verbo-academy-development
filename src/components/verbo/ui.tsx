@@ -69,7 +69,7 @@ export function MetricCard({ label, value, sub }: { label: string; value: string
   return (
     <Card>
       <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-3 text-3xl font-semibold tracking-tight text-foreground text-slate-50">{value}</div>
+      <div className="mt-3 text-3xl font-semibold tracking-tight text-black">{value}</div>
       {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}
     </Card>
   );
