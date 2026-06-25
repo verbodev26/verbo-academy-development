@@ -1,36 +1,38 @@
-# Fix `/student` crash — stable snapshot for sessions store
+## Audit results
 
-## Root cause
-`src/routes/student.index.tsx` calls `useSyncExternalStore(subscribeSessions, () => loadSessions(), () => loadSessions())`. `loadSessions()` returns a fresh array each call, so React throws "getSnapshot should be cached", the root `errorComponent` catches it, and the page renders the generic "Something went wrong" fallback.
+TypeScript build is clean (`tsgo --noEmit` passes). No broken routes, no JSX/syntax errors. Below are the real issues I found, grouped by severity, plus the proposed surgical fixes.
 
-## Fix (single file: `src/lib/sessions-store.ts`)
-Add a cached snapshot so repeated reads return the same reference until data actually changes:
+### 1. Dead buttons (no handler, no navigation)
 
-1. Keep a module-level `cached: ExtSession[] | null = null`.
-2. Add `getSessionsSnapshot()`:
-   - If `cached` is `null`, set `cached = loadSessions()` and return it.
-   - Otherwise return the same `cached` reference.
-3. In `persistSessions(next)`, set `cached = next` before dispatching the event so subscribers see the new reference on the next snapshot read.
-4. In `subscribeSessions`, invalidate `cached = null` when the `verbo:sessions-updated` event or cross-tab `storage` event fires, then call the listener (so the next `getSnapshot` re-reads from localStorage with a new reference).
-5. Add a stable SSR snapshot constant (e.g. `const SSR_SNAPSHOT = SEED_SESSIONS as ExtSession[]`) and export `getServerSessionsSnapshot = () => SSR_SNAPSHOT` so SSR always returns the same reference.
+| # | File / line | Button | Problem |
+|---|---|---|---|
+| A | `src/routes/student.boost.tsx:121` | "Start exercise" on each drill card | No `onClick`, no `Link`. Clicking does nothing. |
+| B | `src/routes/student.index.tsx:519` | Download icon in recent sessions table | `disabled` flag works, but enabled state has no `onClick` — clicking the row's download does nothing even when `report_pdf_url` exists. |
+| C | `src/routes/student.courses.tsx:555` | Audio Play button inside `listen_select` activity | No `onClick` and no audio element wired. |
 
-## Fix (consumer: `src/routes/student.index.tsx`)
-Replace the inline arrow callbacks with the new stable functions:
+**Fixes**
+- A: Make the card-level "Start exercise" a no-op toast ("Exercise coming soon") consistent with other mock-only actions, OR wire it to scroll/focus the first available drill. Recommendation: simple `alert("This drill will launch soon.")` to match the mock-app pattern already used elsewhere.
+- B: Add `onClick={() => window.open(s.report_pdf_url!, "_blank")}` so the existing `report_pdf_url` mock link is honored (matches the same pattern used in the teacher "Mock download" button).
+- C: Add `onClick={() => alert("Audio playback is mocked in this demo.")}` and an `aria-label="Play audio clip"`, matching the existing mock-alert convention used throughout student.courses / student.sessions.
 
-```ts
-const sessions = useSyncExternalStore(
-  subscribeSessions,
-  getSessionsSnapshot,
-  getServerSessionsSnapshot,
-);
-```
+### 2. Minor cleanup
 
-No other behavior changes — cancellation flow, upcoming/history filtering, and the cancellation modal stay exactly as built.
+- `src/routes/student.boost.tsx` imports `Target` from lucide but never uses it — remove the unused import.
+- `RatingModal` star buttons have no `type="button"` — harmless today (no surrounding `<form>`) but good practice; add `type="button"` to prevent accidental form submits if ever embedded.
 
-## Verification
-- Reload `/student` — dashboard renders, no error fallback.
-- Click "Can't attend" → confirm in modal → the session disappears and stays gone after reload (snapshot cache invalidated correctly).
-- Check `code--read_runtime_errors` afterward to confirm no "getSnapshot should be cached" warning.
+### 3. Verified OK (no change needed)
 
-## Scope
-Two files touched: `src/lib/sessions-store.ts` and `src/routes/student.index.tsx`. No visual/UX changes from the last design pass.
+- All other `<button>` elements without `onClick` are intentionally `disabled` (e.g. "Cancelled" pill, "Overdue (Locked)", locked download row) — correct behavior.
+- All `alert(...)` calls are intentional mock placeholders (PDF download, mic access, club booking limits, cancellation messages). Keeping them is consistent with the demo-data architecture.
+- `/student/boost` route is properly registered and reachable from `/student/performance` Boost Skill buttons.
+- TopNav links, role guards, logout flow, and route tree all wire up correctly.
+- Performance percentage calc, color thresholds, and Rocket-icon Boost button match the earlier specs.
+
+### Technical changes (one diff per fix)
+
+1. `src/routes/student.boost.tsx` — add `onClick` to "Start exercise" button + drop unused `Target` import.
+2. `src/routes/student.index.tsx` — add `onClick` to the recent-sessions download icon button using `s.report_pdf_url`.
+3. `src/routes/student.courses.tsx` — add `onClick` + `aria-label` to the listen_select Play button.
+4. `src/components/verbo/RatingModal.tsx` — add `type="button"` to the star buttons.
+
+No business logic, no styling, no route changes.

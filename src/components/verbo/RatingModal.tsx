@@ -42,6 +42,7 @@ export function RatingModal({ session, onSubmit, onClose }: Props) {
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
+              type="button"
               onMouseEnter={() => setHover(n)}
               onMouseLeave={() => setHover(0)}
               onClick={() => setRating(n)}

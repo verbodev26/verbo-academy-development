@@ -518,8 +518,10 @@ function StudentDashboard() {
                     <td className="px-6 py-4 text-right">
                       <button
                         disabled={!s.report_pdf_url}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-30"
+                        onClick={() => s.report_pdf_url && window.open(s.report_pdf_url, "_blank")}
+                        className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-30"
                         aria-label="Download report"
+                        title="Download report"
                       >
                         <Download className="h-3.5 w-3.5" />
                       </button>

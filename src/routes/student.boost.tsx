@@ -119,7 +119,9 @@ function BoostHub() {
             </h3>
             <p className="text-xs leading-relaxed text-muted-foreground">{d.description}</p>
             <button
-              className="mt-auto inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:brightness-110"
+              type="button"
+              onClick={() => alert(`"${d.title}" will launch soon.`)}
+              className="mt-auto inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:brightness-110"
               style={{ background: "#f38934" }}
             >
               <Zap className="h-3.5 w-3.5" />

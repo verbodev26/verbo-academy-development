@@ -552,7 +552,7 @@ function ExerciseBody({ activity, value, onChange }: { activity: Activity; value
       <div className="space-y-4">
         {activity.type === "listen_select" ? (
           <div className="flex items-center gap-3 rounded-xl bg-secondary/50 p-4">
-            <button className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-accent-foreground"><Play className="h-4 w-4" /></button>
+            <button type="button" onClick={() => alert("Audio playback is mocked in this demo.")} aria-label="Play audio clip" className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-accent text-accent-foreground transition-transform hover:scale-105"><Play className="h-4 w-4" /></button>
             <div className="flex-1">
               <div className="text-xs font-medium text-muted-foreground">Audio clip</div>
               <div className="text-sm text-foreground">{activity.audioName || "Sample audio"}</div>
