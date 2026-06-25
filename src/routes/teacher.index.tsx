@@ -58,7 +58,7 @@ function TeacherDashboard() {
     <div className="space-y-10">
       <header>
         <div className="text-sm text-muted-foreground">Good day,</div>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground text-slate-50">{user.name}</h1>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-black">{user.name}</h1>
       </header>
 
       <section className="grid gap-4 md:grid-cols-3">
