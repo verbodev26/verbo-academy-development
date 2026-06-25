@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Sparkles, Target, Zap } from "lucide-react";
+import { ArrowLeft, Sparkles, Zap } from "lucide-react";
 
 interface BoostSearch {
   skill?: string;
