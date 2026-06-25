@@ -11,7 +11,7 @@ export function Logo({ className = "", showWordmark = true, dark = false }: { cl
       {showWordmark && (
         <div className="flex flex-col leading-none">
           <span className="font-semibold tracking-tight" style={{ color: dark ? "#ffffff" : undefined }}>Verbo</span>
-          <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dark ? "#ffffff" : "#e2e8f0" }}>Language Solutions</span>
+          <span className="text-[10px] uppercase tracking-[0.18em]" style={{ color: dark ? "#ffffff" : "#000000" }}>Language Solutions</span>
         </div>
       )}
     </div>
