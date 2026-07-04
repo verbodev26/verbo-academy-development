@@ -65,6 +65,7 @@ export interface Session {
   duration_minutes: number;
   teams_link: string;
   status: SessionStatus;
+  absent_cause?: "student" | "teacher"; // only meaningful when status is "absent"
   report_pdf_url?: string;
   student_rating?: number;
   student_comment?: string; // free-text feedback attached to the rating

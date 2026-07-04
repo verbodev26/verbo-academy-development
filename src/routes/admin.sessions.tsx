@@ -549,6 +549,7 @@ function SessionRow({
   const [date, setDate] = useState(dateInput);
   const [teacherId, setTeacherId] = useState(session.teacher_id);
   const [status, setStatus] = useState<ExtSessionStatus>(session.status);
+  const [absentCause, setAbsentCause] = useState<"student" | "teacher">(session.absent_cause ?? "student");
 
   const renderStatus = (s: ExtSessionStatus) => {
     const meta = STATUS_META[s] ?? STATUS_META.scheduled;
@@ -567,7 +568,16 @@ function SessionRow({
       <tr className="border-t border-border">
         <td className="px-4 py-3 text-foreground">{dt.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
         <td className="px-4 py-3 text-muted-foreground">{teacher?.name}</td>
-        <td className="px-4 py-3">{renderStatus(session.status)}</td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            {renderStatus(session.status)}
+            {session.status === "absent" && (
+              <span className="text-[10px] font-medium text-muted-foreground">
+                {(session.absent_cause ?? "student") === "teacher" ? "· Teacher" : "· Student"}
+              </span>
+            )}
+          </div>
+        </td>
         <td className="px-4 py-3">
           <div className="flex justify-end gap-1.5">
             <button onClick={onEdit} className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" title="Edit">
@@ -593,6 +603,18 @@ function SessionRow({
         <select value={status} onChange={(e) => setStatus(e.target.value as ExtSessionStatus)} className="w-full cursor-pointer rounded-md border border-input bg-background px-2 py-1.5 text-xs">
           {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
         </select>
+        {status === "absent" && (
+          <div className="mt-2">
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Caused by <span className="text-destructive">*</span></label>
+            <select value={absentCause} onChange={(e) => setAbsentCause(e.target.value as "student" | "teacher")} className="w-full cursor-pointer rounded-md border border-input bg-background px-2 py-1.5 text-xs">
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+            </select>
+            <p className="mt-1 text-[10px] leading-tight text-muted-foreground">
+              Mark <span className="font-medium">Teacher</span> only if the teacher didn't connect or cancelled without notice — this feeds the teacher's reliability KPIs.
+            </p>
+          </div>
+        )}
       </td>
       <td className="px-4 py-3">
         <div className="flex justify-end gap-2">
@@ -605,7 +627,12 @@ function SessionRow({
               // admin left the status untouched but moved the date.
               const statusChanged = status !== session.status;
               onSubmit(
-                { date_time: newIso, teacher_id: teacherId, status },
+                {
+                  date_time: newIso,
+                  teacher_id: teacherId,
+                  status,
+                  absent_cause: status === "absent" ? absentCause : undefined,
+                },
                 dateChanged && !statusChanged,
               );
             }}

@@ -9,11 +9,12 @@ import {
   PAYMENT_FREQUENCIES, paymentFrequency, defaultPaymentRecords, financialSummary,
   type QualifiedProduct, type TeacherStatus, type PaymentFrequency,
 } from "@/lib/teacher-model";
+import { isBonusEligible } from "@/lib/teacher-kpis";
 import { useAvatar } from "@/lib/avatar-store";
 import {
   Plus, X, Eye, EyeOff, Star, Users, Clock, KeyRound, Snowflake, Ban, Play,
   Pencil, Search, Filter, ArrowUpDown, Check, AlertTriangle, Mail, ShieldAlert,
-  CheckCircle2, CalendarClock, ChevronRight, UserX, Wallet, FileDown, CircleDollarSign,
+  CheckCircle2, CalendarClock, ChevronRight, UserX, Wallet, FileDown, CircleDollarSign, Trophy,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/teachers")({ component: Page });
@@ -642,11 +643,26 @@ function cycleLabel(base = new Date()) {
 
 function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (u: User) => void; onAddAdjustment: () => void }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [bonusAmount, setBonusAmount] = useState("");
+  const bonusEligible = isBonusEligible(t);
   const summary = financialSummary(t);
   const records = t.payment_records && t.payment_records.length > 0
     ? t.payment_records
     : defaultPaymentRecords(paymentFrequency(t));
   const adjustments = t.adjustments ?? [];
+
+  const addBonusAdjustment = () => {
+    const amount = Number(bonusAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    const adj = {
+      id: `adj-${Date.now()}`,
+      date: new Date().toISOString(),
+      amount,
+      reason: "Bono por cumplimiento de KPIs",
+    };
+    onPersist({ ...t, adjustments: [...(t.adjustments ?? []), adj] });
+    setBonusAmount("");
+  };
 
   const ensureRecords = () => {
     if (!t.payment_records || t.payment_records.length === 0) {
@@ -726,6 +742,41 @@ function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (
 
   return (
     <div className="space-y-6">
+      {/* Authorized bonus banner (only when KPIs mark the teacher as eligible) */}
+      {bonusEligible && (
+        <div className="rounded-xl border border-success/40 bg-success/10 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-success">
+            <Trophy className="h-4 w-4" /> 🎉 Bono autorizado según KPIs de este periodo
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Este teacher superó el umbral de Composite Score. Captura el monto del bono y agrégalo a los ajustes.
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <div>
+              <label className="mb-1 block text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">Bonus amount (MXN)</label>
+              <div className="flex items-center rounded-lg border border-input bg-background">
+                <span className="pl-3 text-sm text-muted-foreground">$</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={bonusAmount}
+                  onChange={(e) => setBonusAmount(e.target.value)}
+                  placeholder="e.g. 1000"
+                  className="w-28 bg-transparent px-2 py-2 text-sm text-foreground focus:outline-none"
+                />
+              </div>
+            </div>
+            <button
+              onClick={addBonusAdjustment}
+              disabled={!(Number(bonusAmount) > 0)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-success px-3 py-2 text-xs font-semibold text-success-foreground shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add as Adjustment
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Summary */}
       <div>
         <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Cycle summary · {cycleLabel()}</div>
