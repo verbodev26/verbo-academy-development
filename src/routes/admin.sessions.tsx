@@ -415,12 +415,8 @@ function StudentSessionsModal({
     [sessions, studentId],
   );
 
-  const currentTeamsLink = useMemo(() => {
-    const future = sessions.find(
-      (s) => s.student_id === studentId && !["completed", "absent"].includes(s.status) && s.teams_link,
-    );
-    return future?.teams_link ?? `https://teams.microsoft.com/l/meetup/${studentId}`;
-  }, [sessions, studentId]);
+  // Shared source of truth: the student's Video Call Link (Students profile).
+  const currentTeamsLink = getStudentVideoLink(studentId) || `https://teams.microsoft.com/l/meetup/${studentId}`;
 
   const updateSession = (id: string, patch: Partial<ExtSession>, rescheduleApplied = false) => {
     const next = sessions.map((s) => {
@@ -435,10 +431,6 @@ function StudentSessionsModal({
     onSave(next);
   };
 
-  const removeSession = (id: string) => {
-    if (!window.confirm("Delete this session?")) return;
-    onSave(sessions.filter((s) => s.id !== id));
-  };
 
   const applyBulk = (opts: { teamsLink: string; teacherId: string; time: string; days: number[] }) => {
     const [hh, mm] = opts.time.split(":").map(Number);
