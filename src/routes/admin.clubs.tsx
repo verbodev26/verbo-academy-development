@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, GhostButton, Pill, PrimaryButton, SectionTitle } from "@/components/verbo/ui";
 import { USERS } from "@/lib/mock-data";
+import {
+  type Club, type ClubType, type TimeStatus,
+  CLUB_SEED, assignmentOf, clubTeacherName as teacherName,
+} from "@/lib/clubs-store";
 import {
   Sparkles,
   BookOpen,
@@ -23,34 +27,13 @@ import {
   User as UserIcon,
 } from "lucide-react";
 
-export const Route = createFileRoute("/admin/clubs")({ component: Page });
+export const Route = createFileRoute("/admin/clubs")({
+  component: Page,
+  validateSearch: (s: Record<string, unknown>): { new?: boolean } => ({
+    new: s.new === true || s.new === "true" || s.new === "1",
+  }),
+});
 
-type ClubType = "insight" | "book";
-type TimeStatus = "upcoming" | "live" | "completed" | "cancelled";
-type AssignmentStatus = "created" | "assigned";
-
-interface Club {
-  id: string;
-  type: ClubType;
-  title: string;
-  description: string;
-  link: string;
-  material?: string;
-  cover_image?: string;
-  teacher_id?: string;
-  date: string; // ISO
-  duration_minutes: number;
-  spots_taken: number;
-  spots_total: number;
-  status: TimeStatus;
-}
-
-const SEED: Club[] = [
-  { id: "c1", type: "insight", title: "Mastering Business Idioms", description: "Live workshop on professional idioms.", link: "https://teams.microsoft.com/l/meetup-1", material: "idioms-guide.pdf", teacher_id: "u2", date: "2026-05-28T17:00:00", duration_minutes: 60, spots_taken: 12, spots_total: 30, status: "upcoming" },
-  { id: "c2", type: "book", title: "The Alchemist — Chapter 3", description: "Discussion circle on themes and vocabulary.", link: "https://teams.microsoft.com/l/meetup-2", material: "alchemist-ch3.pdf", date: "2026-05-25T18:30:00", duration_minutes: 60, spots_taken: 4, spots_total: 4, status: "upcoming" },
-  { id: "c3", type: "insight", title: "Pronunciation Lab: TH Sounds", description: "Drills and pair practice.", link: "https://teams.microsoft.com/l/meetup-3", teacher_id: "u3", date: "2026-05-18T16:00:00", duration_minutes: 45, spots_taken: 22, spots_total: 25, status: "completed" },
-  { id: "c4", type: "book", title: "Atomic Habits — Intro", description: "Kickoff session for the new club cycle.", link: "https://teams.microsoft.com/l/meetup-4", date: "2026-06-02T17:30:00", duration_minutes: 60, spots_taken: 1, spots_total: 4, status: "upcoming" },
-];
 
 const STATUS_TONE: Record<TimeStatus, "default" | "success" | "warning" | "danger" | "muted"> = {
   upcoming: "default",
@@ -59,14 +42,6 @@ const STATUS_TONE: Record<TimeStatus, "default" | "success" | "warning" | "dange
   cancelled: "danger",
 };
 
-function assignmentOf(c: Club): AssignmentStatus {
-  return c.teacher_id ? "assigned" : "created";
-}
-
-function teacherName(id?: string) {
-  if (!id) return null;
-  return USERS.find((u) => u.id === id)?.name ?? null;
-}
 
 function formatDate(iso: string) {
   const d = new Date(iso);
@@ -98,10 +73,21 @@ function similarTitle(a: string, b: string) {
 type ViewMode = "list" | "calendar" | "history";
 
 function Page() {
-  const [clubs, setClubs] = useState<Club[]>(SEED);
+  const { new: openNew } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [clubs, setClubs] = useState<Club[]>(CLUB_SEED);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Club | null>(null);
   const [view, setView] = useState<ViewMode>("list");
+
+  // Open the create modal when arriving from a Quick Action (?new=1).
+  useEffect(() => {
+    if (openNew) {
+      setEditing(null);
+      setOpen(true);
+      navigate({ search: {}, replace: true });
+    }
+  }, [openNew, navigate]);
 
   const onCreate = () => { setEditing(null); setOpen(true); };
   const onEdit = (c: Club) => { setEditing(c); setOpen(true); };

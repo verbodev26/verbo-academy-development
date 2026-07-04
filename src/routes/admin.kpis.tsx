@@ -12,7 +12,12 @@ import {
 import { MetricCard, SectionTitle } from "@/components/verbo/ui";
 import { Star, AlertTriangle, Trophy, X, TrendingUp, SlidersHorizontal } from "lucide-react";
 
-export const Route = createFileRoute("/admin/kpis")({ component: Page });
+export const Route = createFileRoute("/admin/kpis")({
+  component: Page,
+  validateSearch: (s: Record<string, unknown>): { teacher?: string } => ({
+    teacher: typeof s.teacher === "string" ? s.teacher : undefined,
+  }),
+});
 
 // Persistence keys shared with the Teachers view (apply the same overrides so
 // KPIs reflect edits made there).
@@ -26,10 +31,13 @@ function read<T>(key: string, fallback: T): T {
 }
 
 function Page() {
+  const { teacher: focusTeacher } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [, forceTick] = useState(0);
   const [threshold, setThreshold] = useState(85);
   const [onlyReview, setOnlyReview] = useState(false);
   const [chartFor, setChartFor] = useState<User | null>(null);
+
 
   useEffect(() => {
     // Hydrate teacher profile overrides + registered teachers + review overrides.
@@ -44,7 +52,18 @@ function Page() {
     forceTick((n) => n + 1);
   }, []);
 
+  // Deep-link from the Admin Overview snapshot — open the rating chart.
+  useEffect(() => {
+    if (focusTeacher) {
+      const t = USERS.find((u) => u.id === focusTeacher && u.role === "teacher");
+      if (t) setChartFor(t);
+      navigate({ search: {}, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTeacher]);
+
   const teachers = USERS.filter((u) => u.role === "teacher");
+
 
   const rows = useMemo(
     () => teachers.map((t) => ({

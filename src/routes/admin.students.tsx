@@ -20,7 +20,13 @@ import {
   Search, ArrowUpDown, Filter,
 } from "lucide-react";
 
-export const Route = createFileRoute("/admin/students")({ component: Page });
+export const Route = createFileRoute("/admin/students")({
+  component: Page,
+  validateSearch: (s: Record<string, unknown>): { new?: boolean; student?: string } => ({
+    new: s.new === true || s.new === "true" || s.new === "1",
+    student: typeof s.student === "string" ? s.student : undefined,
+  }),
+});
 
 // ---------------------------------------------------------------------------
 // Persistence (localStorage — swap for Lovable Cloud later)
@@ -68,6 +74,8 @@ function computeNextPayment(u: User): Date | null {
 // PAGE
 // ===========================================================================
 function Page() {
+  const { new: openNew, student: focusStudent } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [, forceTick] = useState(0);
   const [detail, setDetail] = useState<User | null>(null);
   const [formFor, setFormFor] = useState<User | "new" | null>(null);
@@ -80,6 +88,19 @@ function Page() {
     });
     forceTick((n) => n + 1);
   }, []);
+
+  // Deep-link handling from the Admin Overview Quick Actions / snapshot links.
+  useEffect(() => {
+    if (openNew) {
+      setFormFor("new");
+      navigate({ search: {}, replace: true });
+    } else if (focusStudent) {
+      const s = USERS.find((u) => u.id === focusStudent && u.role === "student");
+      if (s) setDetail(s);
+      navigate({ search: {}, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openNew, focusStudent]);
 
   const allStudents = USERS.filter((u) => u.role === "student");
   const teachers = USERS.filter((u) => u.role === "teacher");

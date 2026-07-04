@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/verbo/RoleGuard";
 import { TopNav } from "@/components/verbo/TopNav";
+import { AnnouncementBanner } from "@/components/verbo/AnnouncementBanner";
 
 export const Route = createFileRoute("/student")({
   component: StudentLayout,
@@ -19,6 +20,7 @@ function StudentLayout() {
             { to: "/student/resources", label: "Resources" },
           ]}
         />
+        <AnnouncementBanner />
         <main className="mx-auto max-w-7xl px-6 py-10">
           <Outlet />
         </main>
