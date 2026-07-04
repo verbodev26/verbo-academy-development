@@ -594,6 +594,18 @@ function SessionRow({
         <select value={status} onChange={(e) => setStatus(e.target.value as ExtSessionStatus)} className="w-full cursor-pointer rounded-md border border-input bg-background px-2 py-1.5 text-xs">
           {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
         </select>
+        {status === "absent" && (
+          <div className="mt-2">
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Caused by <span className="text-destructive">*</span></label>
+            <select value={absentCause} onChange={(e) => setAbsentCause(e.target.value as "student" | "teacher")} className="w-full cursor-pointer rounded-md border border-input bg-background px-2 py-1.5 text-xs">
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+            </select>
+            <p className="mt-1 text-[10px] leading-tight text-muted-foreground">
+              Mark <span className="font-medium">Teacher</span> only if the teacher didn't connect or cancelled without notice — this feeds the teacher's reliability KPIs.
+            </p>
+          </div>
+        )}
       </td>
       <td className="px-4 py-3">
         <div className="flex justify-end gap-2">
