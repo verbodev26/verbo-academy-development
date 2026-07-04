@@ -383,6 +383,15 @@
   .verbo-pay-glow {
     animation: verbo-pay-glow 1.8s ease-in-out infinite;
   }
+
+  /* Low-rating attention glow (pulsing red) for teacher cards needing review */
+  @keyframes verbo-review-glow {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.35), 0 0 8px 0 rgba(220, 38, 38, 0.25); }
+    50% { box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.6), 0 0 24px 5px rgba(220, 38, 38, 0.42); }
+  }
+  .verbo-review-glow {
+    animation: verbo-review-glow 1.7s ease-in-out infinite;
+  }
 }
 
 /* Ultra-thin scrollbar for Session Report modal */

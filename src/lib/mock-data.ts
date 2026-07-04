@@ -37,7 +37,18 @@ export interface User {
   admin_notes?: string;
   freeze_start?: string;
   freeze_end?: string;
+  // ----- Teacher profile (see src/lib/teacher-model.ts) -----
+  qualified_products?: ("enterprise" | "go" | "international" | "vip")[];
+  hourly_rate?: number; // MXN per hour
+  teacher_status?: "active" | "frozen" | "removed";
+  rating?: number; // avg student rating (0–5)
+  plan_punctuality?: number; // % lesson plans submitted on time
+  report_punctuality?: number; // % post-class reports submitted on time
+  hours_month?: number; // accumulated teaching hours this month
+  availability?: { day: string; slots: string[] }[];
+  availability_request?: { note: string; requested_on: string } | null;
 }
+
 
 export type SessionStatus = "scheduled" | "completed" | "absent" | "delayed";
 
@@ -51,6 +62,9 @@ export interface Session {
   status: SessionStatus;
   report_pdf_url?: string;
   student_rating?: number;
+  student_comment?: string; // free-text feedback attached to the rating
+  review_status?: "pending" | "reviewed"; // admin review state for low ratings
+  review_note?: string; // admin resolution note
   notes?: string;
 }
 
@@ -78,8 +92,10 @@ export interface Material {
 
 export const USERS: User[] = [
   { id: "u1", name: "Admin Verbo", email: "admin@verbo.com", password: "admin123", role: "admin" },
-  { id: "u2", name: "Sarah Mitchell", email: "sarah@verbo.com", password: "teacher123", role: "teacher" },
-  { id: "u3", name: "James Carter", email: "james@verbo.com", password: "teacher123", role: "teacher" },
+  { id: "u2", name: "Sarah Mitchell", email: "sarah@verbo.com", password: "teacher123", role: "teacher", qualified_products: ["enterprise", "go", "international", "vip"], hourly_rate: 140, teacher_status: "active", rating: 4.6, plan_punctuality: 96, report_punctuality: 92, hours_month: 48, availability: [{ day: "Monday", slots: ["09:00–12:00", "16:00–19:00"] }, { day: "Wednesday", slots: ["09:00–13:00"] }, { day: "Friday", slots: ["15:00–19:00"] }], availability_request: { note: "Solicito mover mi bloque de los viernes a los jueves por la tarde.", requested_on: "2026-06-28" } },
+  { id: "u3", name: "James Carter", email: "james@verbo.com", password: "teacher123", role: "teacher", qualified_products: ["go", "vip"], hourly_rate: 120, teacher_status: "active", rating: 4.9, plan_punctuality: 100, report_punctuality: 98, hours_month: 32, availability: [{ day: "Tuesday", slots: ["08:00–12:00"] }, { day: "Thursday", slots: ["10:00–14:00", "17:00–20:00"] }], availability_request: null },
+  { id: "u7", name: "Sofía Herrera", email: "sofia@verbo.com", password: "teacher123", role: "teacher", qualified_products: ["go", "international"], hourly_rate: 110, teacher_status: "frozen", rating: 4.3, plan_punctuality: 88, report_punctuality: 90, hours_month: 0, availability: [{ day: "Monday", slots: ["14:00–18:00"] }, { day: "Wednesday", slots: ["14:00–18:00"] }], availability_request: null },
+  { id: "u8", name: "David Chen", email: "david@verbo.com", password: "teacher123", role: "teacher", qualified_products: ["enterprise"], hourly_rate: 150, teacher_status: "removed", rating: 4.1, plan_punctuality: 82, report_punctuality: 79, hours_month: 0, availability: [], availability_request: null },
   { id: "u4", name: "Elena Ruiz", email: "elena@student.com", password: "student123", role: "student", current_level: "B1", attendance_percentage: 92, company: "Nubank", hired_plan: "Elite", member_since: "2024-09-15", hired_sessions: 90, remaining_sessions: 61, product: "enterprise", access_plan: "Elite", contracted_levels: ["Core Foundations", "Strategic Fluency", "Executive Presence"], current_roadmap_level: "Strategic Fluency", sessions_per_week: 2, session_duration: 60, reschedule_policy: "6h de anticipación, máx. 70% de sesiones del mes", payment_day: 15, cycle_start: "2024-09-15", video_call_link: "https://teams.microsoft.com/l/meetup-join/elena", status: "active", insights_strikes: 1, sessions_auto: true },
   { id: "u5", name: "Marco Silva", email: "marco@student.com", password: "student123", role: "student", current_level: "A2", attendance_percentage: 78, company: "Itaú", hired_plan: "Advance", member_since: "2025-02-01", hired_sessions: 60, remaining_sessions: 9, product: "international", focus: "Supervivencia", access_plan: "Advance", contracted_levels: ["Survival Basics", "Travel Ready"], current_roadmap_level: "Survival Basics", sessions_per_week: 3, session_duration: 40, reschedule_policy: "12h de anticipación, máx. 40% de sesiones del mes", payment_day: 6, cycle_start: "2025-02-01", video_call_link: "https://teams.microsoft.com/l/meetup-join/marco", status: "active", insights_strikes: 3, sessions_auto: true },
   { id: "u6", name: "Yuki Tanaka", email: "yuki@student.com", password: "student123", role: "student", current_level: "B2", attendance_percentage: 88, company: "Rakuten", hired_plan: "Core", member_since: "2024-11-20", hired_sessions: 120, remaining_sessions: 82, product: "go", focus: "Experiencia Global", access_plan: "Core", contracted_levels: ["Kickstart", "Everyday Flow", "Confident Voice", "Culture Master"], current_roadmap_level: "Everyday Flow", sessions_per_week: 2, session_duration: 60, reschedule_policy: "24h de anticipación, máx. 25% de sesiones del mes", payment_day: 20, cycle_start: "2024-11-20", video_call_link: "https://teams.microsoft.com/l/meetup-join/yuki", status: "active", insights_strikes: 0, sessions_auto: true },
@@ -107,6 +123,10 @@ export const SESSIONS: Session[] = [
   { id: "s6", student_id: "u4", teacher_id: "u2", date_time: daysAgo(5), duration_minutes: 60, teams_link: "", status: "completed", report_pdf_url: "/mock-report.pdf", student_rating: 4 },
   { id: "s7", student_id: "u4", teacher_id: "u2", date_time: daysAgo(9), duration_minutes: 60, teams_link: "", status: "absent" },
   { id: "s8", student_id: "u5", teacher_id: "u2", date_time: daysAgo(3), duration_minutes: 60, teams_link: "", status: "completed", report_pdf_url: "/mock-report.pdf", student_rating: 4 },
+  // Low ratings (flagged reviews)
+  { id: "s9", student_id: "u4", teacher_id: "u2", date_time: daysAgo(6), duration_minutes: 60, teams_link: "", status: "completed", report_pdf_url: "/mock-report.pdf", student_rating: 2, student_comment: "El profesor llegó 10 minutos tarde y sentí que no tenía la clase preparada. Perdimos tiempo valioso.", review_status: "pending" },
+  { id: "s10", student_id: "u5", teacher_id: "u2", date_time: daysAgo(11), duration_minutes: 60, teams_link: "", status: "completed", report_pdf_url: "/mock-report.pdf", student_rating: 1, student_comment: "Problemas de audio durante toda la sesión y no cubrimos el material que estaba planeado.", review_status: "pending" },
+  { id: "s11", student_id: "u6", teacher_id: "u3", date_time: daysAgo(14), duration_minutes: 60, teams_link: "", status: "completed", report_pdf_url: "/mock-report.pdf", student_rating: 2, student_comment: "Sentí la clase muy apresurada, quería más práctica de conversación.", review_status: "reviewed", review_note: "Hablé con James. Ajustó el ritmo y agregó 10 min de speaking libre. Seguimiento en 2 semanas." },
 ];
 
 export const LEVELS: Level[] = [
