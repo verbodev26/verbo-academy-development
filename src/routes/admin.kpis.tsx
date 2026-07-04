@@ -31,10 +31,13 @@ function read<T>(key: string, fallback: T): T {
 }
 
 function Page() {
+  const { teacher: focusTeacher } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [, forceTick] = useState(0);
   const [threshold, setThreshold] = useState(85);
   const [onlyReview, setOnlyReview] = useState(false);
   const [chartFor, setChartFor] = useState<User | null>(null);
+
 
   useEffect(() => {
     // Hydrate teacher profile overrides + registered teachers + review overrides.
