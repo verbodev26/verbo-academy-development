@@ -433,6 +433,8 @@ function StudentSessionsModal({
 
 
   const applyBulk = (opts: { teamsLink: string; teacherId: string; time: string; days: number[] }) => {
+    // Sync the link back to the student's shared Video Call Link field.
+    setStudentVideoLink(studentId, opts.teamsLink);
     const [hh, mm] = opts.time.split(":").map(Number);
     const next = sessions.map((s) => {
       if (s.student_id !== studentId) return s;
