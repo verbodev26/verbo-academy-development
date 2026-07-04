@@ -17,7 +17,7 @@ export interface User {
   hired_sessions?: number;
   remaining_sessions?: number;
   // ----- Commercial model (see src/lib/student-model.ts) -----
-  product?: "enterprise" | "go" | "international";
+  product?: "enterprise" | "go" | "international" | "vip";
   focus?: string; // enfoque name (GO / International only)
   access_plan?: "Core" | "Advance" | "Elite" | "Signature";
   contracted_levels?: string[]; // commercial level names from the product roadmap
