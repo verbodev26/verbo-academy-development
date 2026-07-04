@@ -29,32 +29,6 @@ import {
 
 export const Route = createFileRoute("/admin/clubs")({ component: Page });
 
-type ClubType = "insight" | "book";
-type TimeStatus = "upcoming" | "live" | "completed" | "cancelled";
-type AssignmentStatus = "created" | "assigned";
-
-interface Club {
-  id: string;
-  type: ClubType;
-  title: string;
-  description: string;
-  link: string;
-  material?: string;
-  cover_image?: string;
-  teacher_id?: string;
-  date: string; // ISO
-  duration_minutes: number;
-  spots_taken: number;
-  spots_total: number;
-  status: TimeStatus;
-}
-
-const SEED: Club[] = [
-  { id: "c1", type: "insight", title: "Mastering Business Idioms", description: "Live workshop on professional idioms.", link: "https://teams.microsoft.com/l/meetup-1", material: "idioms-guide.pdf", teacher_id: "u2", date: "2026-05-28T17:00:00", duration_minutes: 60, spots_taken: 12, spots_total: 30, status: "upcoming" },
-  { id: "c2", type: "book", title: "The Alchemist — Chapter 3", description: "Discussion circle on themes and vocabulary.", link: "https://teams.microsoft.com/l/meetup-2", material: "alchemist-ch3.pdf", date: "2026-05-25T18:30:00", duration_minutes: 60, spots_taken: 4, spots_total: 4, status: "upcoming" },
-  { id: "c3", type: "insight", title: "Pronunciation Lab: TH Sounds", description: "Drills and pair practice.", link: "https://teams.microsoft.com/l/meetup-3", teacher_id: "u3", date: "2026-05-18T16:00:00", duration_minutes: 45, spots_taken: 22, spots_total: 25, status: "completed" },
-  { id: "c4", type: "book", title: "Atomic Habits — Intro", description: "Kickoff session for the new club cycle.", link: "https://teams.microsoft.com/l/meetup-4", date: "2026-06-02T17:30:00", duration_minutes: 60, spots_taken: 1, spots_total: 4, status: "upcoming" },
-];
 
 const STATUS_TONE: Record<TimeStatus, "default" | "success" | "warning" | "danger" | "muted"> = {
   upcoming: "default",
