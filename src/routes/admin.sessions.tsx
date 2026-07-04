@@ -9,8 +9,33 @@ import {
   type ExtSession,
   type ExtSessionStatus,
 } from "@/lib/sessions-store";
+import {
+  hydrateStudents,
+  getStudentVideoLink,
+  setStudentVideoLink,
+  subscribeStudents,
+} from "@/lib/students-store";
 import { Card, Pill, PrimaryButton, GhostButton, SectionTitle } from "@/components/verbo/ui";
-import { CalendarPlus, ChevronDown, ChevronUp, X, Pencil, Trash2, AlertTriangle, Users, Building2 } from "lucide-react";
+import { CalendarPlus, ChevronDown, ChevronUp, X, Pencil, AlertTriangle, Users, Building2 } from "lucide-react";
+
+// Status → dropdown options + distinct badge colors (no overlap).
+const STATUS_META: Record<ExtSessionStatus, { label: string; bg: string; color: string }> = {
+  scheduled: { label: "Scheduled", bg: "#f1f5f9", color: "#475569" },
+  ready: { label: "Ready", bg: "#ede9fe", color: "#7c3aed" },
+  completed: { label: "Completed", bg: "#dcfce7", color: "#15803d" },
+  absent: { label: "Absent", bg: "#fee2e2", color: "#dc2626" },
+  cancelled: { label: "Cancelled", bg: "#fce7f3", color: "#be185d" },
+  pending_reschedule: { label: "Pending Reschedule", bg: "#fef3c7", color: "#b45309" },
+  no_show: { label: "No Show", bg: "#334155", color: "#ffffff" },
+  rescheduled: { label: "Rescheduled", bg: "#f1f5f9", color: "#475569" },
+  rearranged: { label: "Rearranged", bg: "#fde68a", color: "#92400e" },
+  delayed: { label: "Delayed", bg: "#fde68a", color: "#92400e" },
+};
+
+// The 7 statuses offered in the edit dropdown.
+const STATUS_OPTIONS: ExtSessionStatus[] = [
+  "scheduled", "ready", "completed", "absent", "cancelled", "pending_reschedule", "no_show",
+];
 
 export const Route = createFileRoute("/admin/sessions")({ component: Page });
 
