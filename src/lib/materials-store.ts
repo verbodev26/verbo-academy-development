@@ -148,21 +148,37 @@ export function visibleForStudent(
 // ---- React bindings -------------------------------------------------------
 function subscribe(cb: () => void): () => void {
   if (typeof window === "undefined") return () => {};
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === MATERIALS_KEY || e.key === CATEGORIES_KEY) cb();
+  const onEvent = () => {
+    invalidateCache();
+    cb();
   };
-  window.addEventListener(MATERIALS_EVENT, cb);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === MATERIALS_KEY || e.key === CATEGORIES_KEY) onEvent();
+  };
+  window.addEventListener(MATERIALS_EVENT, onEvent);
   window.addEventListener("storage", onStorage);
   return () => {
-    window.removeEventListener(MATERIALS_EVENT, cb);
+    window.removeEventListener(MATERIALS_EVENT, onEvent);
     window.removeEventListener("storage", onStorage);
   };
 }
 
+const SERVER_MATERIALS = seedMaterials();
+
+function getMaterialsSnapshot(): StoredMaterial[] {
+  if (matCache === null) matCache = loadMaterials();
+  return matCache;
+}
+function getCategoriesSnapshot(): string[] {
+  if (catCache === null) catCache = loadCategories();
+  return catCache;
+}
+
 export function useMaterials(): StoredMaterial[] {
-  return useSyncExternalStore(subscribe, loadMaterials, seedMaterials);
+  return useSyncExternalStore(subscribe, getMaterialsSnapshot, () => SERVER_MATERIALS);
 }
 
 export function useCategories(): string[] {
-  return useSyncExternalStore(subscribe, loadCategories, () => SEED_CATEGORIES);
+  return useSyncExternalStore(subscribe, getCategoriesSnapshot, () => SEED_CATEGORIES);
 }
+
