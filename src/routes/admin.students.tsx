@@ -16,6 +16,7 @@ import {
   Plus, X, Eye, EyeOff, KeyRound, Mail, Building2, CalendarDays, GraduationCap,
   Users, Briefcase, Compass, Globe, Crown, Copy, Check, Snowflake, Ban, Play, Unlock,
   Sparkles, Wand2, Pencil, Video, Repeat, Clock, CreditCard, ShieldAlert,
+  Search, ArrowUpDown, Filter,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/students")({ component: Page });
@@ -79,8 +80,51 @@ function Page() {
     forceTick((n) => n + 1);
   }, []);
 
-  const students = USERS.filter((u) => u.role === "student");
+  const allStudents = USERS.filter((u) => u.role === "student");
   const teachers = USERS.filter((u) => u.role === "teacher");
+
+  // ---------------------------------------------------------------------------
+  // Filter & search state
+  // ---------------------------------------------------------------------------
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "">("");
+  const [filterCompany, setFilterCompany] = useState<string>("");
+  const [filterProduct, setFilterProduct] = useState<string>("");
+
+  const companies = useMemo(() => {
+    const set = new Set<string>();
+    allStudents.forEach((s) => { if (s.company) set.add(s.company); });
+    return Array.from(set).sort();
+  }, [allStudents]);
+
+  const filteredStudents = useMemo(() => {
+    let list = [...allStudents];
+
+    // search by name
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((s) => s.name.toLowerCase().includes(q));
+    }
+
+    // filter by company
+    if (filterCompany) {
+      list = list.filter((s) => s.company === filterCompany);
+    }
+
+    // filter by product
+    if (filterProduct) {
+      list = list.filter((s) => s.product === filterProduct);
+    }
+
+    // sort
+    if (sortBy === "name-asc") {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === "name-desc") {
+      list.sort((a, b) => b.name.localeCompare(a.name));
+    }
+
+    return list;
+  }, [allStudents, searchQuery, filterCompany, filterProduct, sortBy]);
 
   const persist = (updated: User) => {
     const idx = USERS.findIndex((u) => u.id === updated.id);
@@ -134,11 +178,102 @@ function Page() {
         </button>
       </div>
 
+      {/* Filters & search bar */}
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by student name…"
+            className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Sort */}
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "name-asc" | "name-desc" | "")}
+              className="appearance-none rounded-lg border border-border bg-background py-2 pl-3 pr-8 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">Alphabetical order</option>
+              <option value="name-asc">Name: A → Z</option>
+              <option value="name-desc">Name: Z → A</option>
+            </select>
+            <ArrowUpDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          </div>
+
+          {/* Company filter */}
+          <div className="relative">
+            <select
+              value={filterCompany}
+              onChange={(e) => setFilterCompany(e.target.value)}
+              className="appearance-none rounded-lg border border-border bg-background py-2 pl-3 pr-8 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">All companies</option>
+              {companies.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <Filter className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          </div>
+
+          {/* Product filter */}
+          <div className="relative">
+            <select
+              value={filterProduct}
+              onChange={(e) => setFilterProduct(e.target.value)}
+              className="appearance-none rounded-lg border border-border bg-background py-2 pl-3 pr-8 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="">All products</option>
+              {PRODUCTS.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <Filter className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          </div>
+
+          {/* Clear filters */}
+          {(searchQuery || sortBy || filterCompany || filterProduct) && (
+            <button
+              onClick={() => { setSearchQuery(""); setSortBy(""); setFilterCompany(""); setFilterProduct(""); }}
+              className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" /> Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Results count */}
+      <div className="text-xs text-muted-foreground">
+        Showing {filteredStudents.length} of {allStudents.length} students
+      </div>
+
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-        {students.map((s) => (
+        {filteredStudents.map((s) => (
           <StudentCard key={s.id} student={s} onOpen={() => setDetail(s)} />
         ))}
       </div>
+
+      {filteredStudents.length === 0 && (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card py-16 text-center shadow-sm">
+          <Search className="mb-3 h-8 w-8 text-muted-foreground opacity-40" />
+          <p className="text-sm font-medium text-foreground">No students found</p>
+          <p className="mt-1 text-xs text-muted-foreground">Try adjusting your filters or search query.</p>
+        </div>
+      )}
 
       {detail && (
         <StudentDetailModal
