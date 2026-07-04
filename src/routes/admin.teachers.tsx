@@ -641,6 +641,7 @@ function cycleLabel(base = new Date()) {
 }
 
 function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (u: User) => void; onAddAdjustment: () => void }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const summary = financialSummary(t);
   const records = t.payment_records && t.payment_records.length > 0
     ? t.payment_records
@@ -657,6 +658,23 @@ function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (
     const next = records.map((r) => (r.id === id ? { ...r, ...patch } : r));
     onPersist({ ...t, payment_records: next });
   };
+
+  // Close a cycle: mark the next pending payment date as paid, reset worked
+  // hours and clear manual adjustments to start a fresh cycle.
+  const closeCycle = () => {
+    const idx = records.findIndex((r) => r.status !== "paid");
+    const nextRecords = idx >= 0
+      ? records.map((r, i) => (i === idx ? { ...r, status: "paid" as const } : r))
+      : records;
+    onPersist({ ...t, payment_records: nextRecords, hours_cycle: 0, hours_month: 0, adjustments: [] });
+  };
+
+  const confirmGenerate = async () => {
+    await generatePDF();
+    closeCycle();
+    setConfirmOpen(false);
+  };
+
 
   const generatePDF = async () => {
     const { default: jsPDF } = await import("jspdf");
