@@ -13,7 +13,7 @@ import {
   type StoredMaterial,
 } from "@/lib/materials-store";
 import { Card, GhostButton, Pill, PrimaryButton, SectionTitle } from "@/components/verbo/ui";
-import { UploadCloud, Pencil, Trash2, X, Plus, Image as ImageIcon } from "lucide-react";
+import { Pencil, Trash2, X, Image as ImageIcon } from "lucide-react";
 
 export const Route = createFileRoute("/admin/materials")({ component: Page });
 
