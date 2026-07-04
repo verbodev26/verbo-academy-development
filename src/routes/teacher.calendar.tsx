@@ -33,6 +33,9 @@ const STATUS_COLOR: Record<ExtSessionStatus, string> = {
   completed: "#16a34a",     // Emerald
   absent: "#dc2626",        // Crimson
   delayed: "#eab308",
+  cancelled: "#be185d",     // Rose
+  pending_reschedule: "#b45309", // Amber-brown
+  no_show: "#334155",       // Slate
 };
 
 const STATUS_LABEL: Record<ExtSessionStatus, string> = {
@@ -43,6 +46,9 @@ const STATUS_LABEL: Record<ExtSessionStatus, string> = {
   completed: "Completed",
   absent: "Absent",
   delayed: "Delayed",
+  cancelled: "Cancelled",
+  pending_reschedule: "Pending Reschedule",
+  no_show: "No Show",
 };
 
 function dayKey(d: Date) { return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }

@@ -8,7 +8,10 @@ export type ExtSessionStatus =
   | "rearranged"
   | "completed"
   | "absent"
-  | "delayed";
+  | "delayed"
+  | "cancelled"
+  | "pending_reschedule"
+  | "no_show";
 
 export interface ExtSession extends Omit<Session, "status"> {
   status: ExtSessionStatus;
@@ -64,10 +67,12 @@ export function subscribeSessions(cb: () => void): () => void {
 export function statusTone(s: ExtSessionStatus): "default" | "success" | "warning" | "danger" | "muted" {
   switch (s) {
     case "completed": return "success";
-    case "absent": return "danger";
+    case "absent":
+    case "no_show": return "danger";
     case "delayed":
-    case "rearranged": return "warning";
+    case "rearranged":
+    case "pending_reschedule": return "warning";
     case "ready": return "default";
-    default: return "muted"; // scheduled / rescheduled — Gris Neutro
+    default: return "muted"; // scheduled / rescheduled / cancelled — Gris Neutro
   }
 }

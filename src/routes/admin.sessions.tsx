@@ -5,27 +5,59 @@ import {
   loadSessions,
   persistSessions,
   subscribeSessions,
-  statusTone,
   type ExtSession,
   type ExtSessionStatus,
 } from "@/lib/sessions-store";
+import {
+  hydrateStudents,
+  getStudentVideoLink,
+  setStudentVideoLink,
+  subscribeStudents,
+} from "@/lib/students-store";
 import { Card, Pill, PrimaryButton, GhostButton, SectionTitle } from "@/components/verbo/ui";
-import { CalendarPlus, ChevronDown, ChevronUp, X, Pencil, Trash2, AlertTriangle, Users, Building2 } from "lucide-react";
+import { CalendarPlus, ChevronDown, ChevronUp, X, Pencil, AlertTriangle, Users, Building2 } from "lucide-react";
+
+// Status → dropdown options + distinct badge colors (no overlap).
+const STATUS_META: Record<ExtSessionStatus, { label: string; bg: string; color: string }> = {
+  scheduled: { label: "Scheduled", bg: "#f1f5f9", color: "#475569" },
+  ready: { label: "Ready", bg: "#ede9fe", color: "#7c3aed" },
+  completed: { label: "Completed", bg: "#dcfce7", color: "#15803d" },
+  absent: { label: "Absent", bg: "#fee2e2", color: "#dc2626" },
+  cancelled: { label: "Cancelled", bg: "#fce7f3", color: "#be185d" },
+  pending_reschedule: { label: "Pending Reschedule", bg: "#fef3c7", color: "#b45309" },
+  no_show: { label: "No Show", bg: "#334155", color: "#ffffff" },
+  rescheduled: { label: "Rescheduled", bg: "#f1f5f9", color: "#475569" },
+  rearranged: { label: "Rearranged", bg: "#fde68a", color: "#92400e" },
+  delayed: { label: "Delayed", bg: "#fde68a", color: "#92400e" },
+};
+
+// The 7 statuses offered in the edit dropdown.
+const STATUS_OPTIONS: ExtSessionStatus[] = [
+  "scheduled", "ready", "completed", "absent", "cancelled", "pending_reschedule", "no_show",
+];
 
 export const Route = createFileRoute("/admin/sessions")({ component: Page });
 
 const BRAND = "#01304a";
 const ORANGE = "#f38934";
-const AMBER = "#eab308";
+
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_INDEX = [1, 2, 3, 4, 5, 6]; // JS getDay()
 
 function Page() {
+  // Ensure the USERS singleton has persisted profile overrides applied so the
+  // Video Call Link matches the Students view even if that page wasn't visited.
+  const [, forceTick] = useState(0);
   const students = USERS.filter((u) => u.role === "student");
   const teachers = USERS.filter((u) => u.role === "teacher");
   const [sessions, setSessions] = useState<ExtSession[]>(() => loadSessions());
 
+  useEffect(() => {
+    hydrateStudents();
+    forceTick((n) => n + 1);
+  }, []);
   useEffect(() => subscribeSessions(() => setSessions(loadSessions())), []);
+  useEffect(() => subscribeStudents(() => forceTick((n) => n + 1)), []);
 
   const save = (next: ExtSession[]) => { setSessions(next); persistSessions(next); };
 
@@ -164,7 +196,10 @@ function BulkScheduler({
   const [days, setDays] = useState<number[]>([1, 3]); // Mon, Wed
 
   const student = students.find((s) => s.id === studentId);
-  const teamsLink = student ? `https://teams.microsoft.com/l/meetup/${student.id}` : "";
+  // Shared source of truth: the student's Video Call Link (Students profile).
+  const teamsLink = student
+    ? (getStudentVideoLink(student.id) || `https://teams.microsoft.com/l/meetup/${student.id}`)
+    : "";
 
   const scheduledForStudent = existing.filter(
     (x) => x.student_id === studentId && !["completed", "absent"].includes(x.status),
@@ -190,23 +225,50 @@ function BulkScheduler({
 
   const overLimit = generated.length > remaining;
 
+  // Summary of dates skipped on the last Assign because the teacher was already
+  // booked with another student at that exact date/time.
+  const [conflictSummary, setConflictSummary] = useState<Date[]>([]);
+  useEffect(() => { setConflictSummary([]); }, [startDate, endDate, time, days, teacherId, studentId]);
+
   const toggleDay = (d: number) =>
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
 
   const assign = () => {
     if (!studentId || !teacherId || generated.length === 0 || overLimit) return;
-    const batch: ExtSession[] = generated.map((dt, i) => ({
-      id: `bulk-${Date.now()}-${i}`,
-      student_id: studentId,
-      teacher_id: teacherId,
-      date_time: dt.toISOString(),
-      duration_minutes: 60,
-      teams_link: teamsLink,
-      status: "scheduled",
-    }));
-    onCreate(batch);
-    setStartDate(""); setEndDate("");
+
+    // Teacher double-booking detection: skip any slot where the selected
+    // teacher already has an active session with a different student.
+    const isBlocking = (st: ExtSessionStatus) =>
+      !["completed", "absent", "cancelled", "no_show"].includes(st);
+    const clear: Date[] = [];
+    const conflicts: Date[] = [];
+    generated.forEach((dt) => {
+      const clash = existing.some(
+        (x) =>
+          x.teacher_id === teacherId &&
+          x.student_id !== studentId &&
+          isBlocking(x.status) &&
+          new Date(x.date_time).getTime() === dt.getTime(),
+      );
+      (clash ? conflicts : clear).push(dt);
+    });
+
+    if (clear.length > 0) {
+      const batch: ExtSession[] = clear.map((dt, i) => ({
+        id: `bulk-${Date.now()}-${i}`,
+        student_id: studentId,
+        teacher_id: teacherId,
+        date_time: dt.toISOString(),
+        duration_minutes: 60,
+        teams_link: teamsLink,
+        status: "scheduled",
+      }));
+      onCreate(batch);
+    }
+    setConflictSummary(conflicts);
+    if (conflicts.length === 0) { setStartDate(""); setEndDate(""); }
   };
+
 
   return (
     <div className="space-y-5">
@@ -281,6 +343,26 @@ function BulkScheduler({
         </div>
       )}
 
+      {conflictSummary.length > 0 && (
+        <div
+          className="flex items-start gap-3 rounded-xl border p-4 text-sm"
+          style={{ backgroundColor: "#fef2f2", borderColor: "#dc2626", color: "#7f1d1d" }}
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4" style={{ color: "#dc2626" }} />
+          <div>
+            <div className="font-semibold">
+              {conflictSummary.length} session{conflictSummary.length === 1 ? "" : "s"} could not be created — the teacher is already booked at that time.
+            </div>
+            <div className="mt-1 text-xs">
+              Conflicting slots: {conflictSummary
+                .map((d) => d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))
+                .join(" · ")}
+            </div>
+            <div className="mt-0.5 text-xs">All other dates were scheduled. Change the teacher or time to resolve these, or handle them manually.</div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-end">
         <button
           onClick={assign}
@@ -332,12 +414,8 @@ function StudentSessionsModal({
     [sessions, studentId],
   );
 
-  const currentTeamsLink = useMemo(() => {
-    const future = sessions.find(
-      (s) => s.student_id === studentId && !["completed", "absent"].includes(s.status) && s.teams_link,
-    );
-    return future?.teams_link ?? `https://teams.microsoft.com/l/meetup/${studentId}`;
-  }, [sessions, studentId]);
+  // Shared source of truth: the student's Video Call Link (Students profile).
+  const currentTeamsLink = getStudentVideoLink(studentId) || `https://teams.microsoft.com/l/meetup/${studentId}`;
 
   const updateSession = (id: string, patch: Partial<ExtSession>, rescheduleApplied = false) => {
     const next = sessions.map((s) => {
@@ -352,12 +430,10 @@ function StudentSessionsModal({
     onSave(next);
   };
 
-  const removeSession = (id: string) => {
-    if (!window.confirm("Delete this session?")) return;
-    onSave(sessions.filter((s) => s.id !== id));
-  };
 
   const applyBulk = (opts: { teamsLink: string; teacherId: string; time: string; days: number[] }) => {
+    // Sync the link back to the student's shared Video Call Link field.
+    setStudentVideoLink(studentId, opts.teamsLink);
     const [hh, mm] = opts.time.split(":").map(Number);
     const next = sessions.map((s) => {
       if (s.student_id !== studentId) return s;
@@ -437,7 +513,6 @@ function StudentSessionsModal({
                   editing={editingId === s.id}
                   onEdit={() => setEditingId(s.id)}
                   onCancelEdit={() => setEditingId(null)}
-                  onDelete={() => removeSession(s.id)}
                   onSubmit={(patch, rescheduled) => {
                     updateSession(s.id, patch, rescheduled);
                     setEditingId(null);
@@ -458,7 +533,6 @@ function SessionRow({
   editing,
   onEdit,
   onCancelEdit,
-  onDelete,
   onSubmit,
 }: {
   session: ExtSession;
@@ -466,7 +540,6 @@ function SessionRow({
   editing: boolean;
   onEdit: () => void;
   onCancelEdit: () => void;
-  onDelete: () => void;
   onSubmit: (patch: Partial<ExtSession>, rescheduled: boolean) => void;
 }) {
   const teacher = userById(session.teacher_id);
@@ -475,19 +548,18 @@ function SessionRow({
 
   const [date, setDate] = useState(dateInput);
   const [teacherId, setTeacherId] = useState(session.teacher_id);
+  const [status, setStatus] = useState<ExtSessionStatus>(session.status);
 
   const renderStatus = (s: ExtSessionStatus) => {
-    if (s === "rearranged") {
-      return (
-        <span
-          className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium"
-          style={{ backgroundColor: AMBER, color: "white" }}
-        >
-          rearranged
-        </span>
-      );
-    }
-    return <Pill tone={statusTone(s)}>{s}</Pill>;
+    const meta = STATUS_META[s] ?? STATUS_META.scheduled;
+    return (
+      <span
+        className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+        style={{ backgroundColor: meta.bg, color: meta.color }}
+      >
+        {meta.label}
+      </span>
+    );
   };
 
   if (!editing) {
@@ -500,9 +572,6 @@ function SessionRow({
           <div className="flex justify-end gap-1.5">
             <button onClick={onEdit} className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" title="Edit">
               <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button onClick={onDelete} className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive" title="Delete">
-              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
         </td>
@@ -520,7 +589,11 @@ function SessionRow({
           {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </td>
-      <td className="px-4 py-3 text-xs text-muted-foreground">{session.status}</td>
+      <td className="px-4 py-3">
+        <select value={status} onChange={(e) => setStatus(e.target.value as ExtSessionStatus)} className="w-full cursor-pointer rounded-md border border-input bg-background px-2 py-1.5 text-xs">
+          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}
+        </select>
+      </td>
       <td className="px-4 py-3">
         <div className="flex justify-end gap-2">
           <GhostButton onClick={onCancelEdit} className="!px-3 !py-1 text-xs">Cancel</GhostButton>
@@ -528,7 +601,13 @@ function SessionRow({
             onClick={() => {
               const newIso = new Date(date).toISOString();
               const dateChanged = newIso !== session.date_time;
-              onSubmit({ date_time: newIso, teacher_id: teacherId }, dateChanged);
+              // Manual status choice wins; only auto-mark rescheduled when the
+              // admin left the status untouched but moved the date.
+              const statusChanged = status !== session.status;
+              onSubmit(
+                { date_time: newIso, teacher_id: teacherId, status },
+                dateChanged && !statusChanged,
+              );
             }}
             className="!px-3 !py-1 text-xs"
             style={{ backgroundColor: ORANGE }}
@@ -540,6 +619,7 @@ function SessionRow({
     </tr>
   );
 }
+
 
 // ============== Bulk edit form (inside student modal) ==============
 function BulkEditForm({
