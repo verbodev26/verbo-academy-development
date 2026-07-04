@@ -12,10 +12,31 @@ export interface User {
   avatar?: string;
   // Corporate profile (students)
   company?: string;
-  hired_plan?: string;
+  hired_plan?: string; // legacy display alias — mirrors access_plan
   member_since?: string; // ISO date
   hired_sessions?: number;
   remaining_sessions?: number;
+  // ----- Commercial model (see src/lib/student-model.ts) -----
+  product?: "enterprise" | "go" | "international";
+  focus?: string; // enfoque name (GO / International only)
+  access_plan?: "Core" | "Advance" | "Elite" | "Signature";
+  contracted_levels?: string[]; // commercial level names from the product roadmap
+  current_roadmap_level?: string; // level currently in progress
+  sessions_per_week?: number;
+  session_duration?: number; // minutes
+  reschedule_policy?: string; // preset label or "Custom"
+  reschedule_custom_hours?: number;
+  reschedule_custom_pct?: number;
+  payment_day?: number; // 1–31
+  cycle_start?: string; // ISO date
+  next_payment?: string; // ISO date override (set when "marked as paid")
+  video_call_link?: string;
+  status?: "active" | "suspended" | "frozen";
+  insights_strikes?: number;
+  sessions_auto?: boolean; // false once sessions were edited manually
+  admin_notes?: string;
+  freeze_start?: string;
+  freeze_end?: string;
 }
 
 export type SessionStatus = "scheduled" | "completed" | "absent" | "delayed";
@@ -59,9 +80,9 @@ export const USERS: User[] = [
   { id: "u1", name: "Admin Verbo", email: "admin@verbo.com", password: "admin123", role: "admin" },
   { id: "u2", name: "Sarah Mitchell", email: "sarah@verbo.com", password: "teacher123", role: "teacher" },
   { id: "u3", name: "James Carter", email: "james@verbo.com", password: "teacher123", role: "teacher" },
-  { id: "u4", name: "Elena Ruiz", email: "elena@student.com", password: "student123", role: "student", current_level: "B1", attendance_percentage: 92, company: "Nubank", hired_plan: "Verbo Elite", member_since: "2024-09-15", hired_sessions: 48, remaining_sessions: 31 },
-  { id: "u5", name: "Marco Silva", email: "marco@student.com", password: "student123", role: "student", current_level: "A2", attendance_percentage: 78, company: "Itaú", hired_plan: "Verbo Core Lite", member_since: "2025-02-01", hired_sessions: 24, remaining_sessions: 9 },
-  { id: "u6", name: "Yuki Tanaka", email: "yuki@student.com", password: "student123", role: "student", current_level: "B2", attendance_percentage: 88, company: "Rakuten", hired_plan: "Verbo Signature", member_since: "2024-11-20", hired_sessions: 48, remaining_sessions: 22 },
+  { id: "u4", name: "Elena Ruiz", email: "elena@student.com", password: "student123", role: "student", current_level: "B1", attendance_percentage: 92, company: "Nubank", hired_plan: "Elite", member_since: "2024-09-15", hired_sessions: 90, remaining_sessions: 61, product: "enterprise", access_plan: "Elite", contracted_levels: ["Core Foundations", "Strategic Fluency", "Executive Presence"], current_roadmap_level: "Strategic Fluency", sessions_per_week: 2, session_duration: 60, reschedule_policy: "6h de anticipación, máx. 70% de sesiones del mes", payment_day: 15, cycle_start: "2024-09-15", video_call_link: "https://teams.microsoft.com/l/meetup-join/elena", status: "active", insights_strikes: 1, sessions_auto: true },
+  { id: "u5", name: "Marco Silva", email: "marco@student.com", password: "student123", role: "student", current_level: "A2", attendance_percentage: 78, company: "Itaú", hired_plan: "Advance", member_since: "2025-02-01", hired_sessions: 60, remaining_sessions: 9, product: "international", focus: "Supervivencia", access_plan: "Advance", contracted_levels: ["Survival Basics", "Travel Ready"], current_roadmap_level: "Survival Basics", sessions_per_week: 3, session_duration: 40, reschedule_policy: "12h de anticipación, máx. 40% de sesiones del mes", payment_day: 6, cycle_start: "2025-02-01", video_call_link: "https://teams.microsoft.com/l/meetup-join/marco", status: "active", insights_strikes: 3, sessions_auto: true },
+  { id: "u6", name: "Yuki Tanaka", email: "yuki@student.com", password: "student123", role: "student", current_level: "B2", attendance_percentage: 88, company: "Rakuten", hired_plan: "Core", member_since: "2024-11-20", hired_sessions: 120, remaining_sessions: 82, product: "go", focus: "Experiencia Global", access_plan: "Core", contracted_levels: ["Kickstart", "Everyday Flow", "Confident Voice", "Culture Master"], current_roadmap_level: "Everyday Flow", sessions_per_week: 2, session_duration: 60, reschedule_policy: "24h de anticipación, máx. 25% de sesiones del mes", payment_day: 20, cycle_start: "2024-11-20", video_call_link: "https://teams.microsoft.com/l/meetup-join/yuki", status: "active", insights_strikes: 0, sessions_auto: true },
 ];
 
 // Assignments: teacher -> students

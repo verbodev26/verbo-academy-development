@@ -1,74 +1,47 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
-import { USERS, SESSIONS, ASSIGNMENTS, userById, type User } from "@/lib/mock-data";
-import { Card, GhostButton, Pill, PrimaryButton } from "@/components/verbo/ui";
-import { Plus, Lock, Unlock, X, Eye, EyeOff, KeyRound, Mail, Building2, CalendarDays, GraduationCap, History, Users } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  USERS, SESSIONS, ASSIGNMENTS, userById, type User,
+} from "@/lib/mock-data";
+import {
+  PRODUCTS, FOCUSES, ACCESS_PLANS, ACCESS_PLAN_IDS, RESCHEDULE_PRESETS,
+  SESSIONS_PER_LEVEL, MAX_INSIGHT_STRIKES,
+  getProduct, focusesForProduct, getFocus, getAccessPlan,
+  suggestDuration, nextPaymentDate, daysUntil,
+  type ProductId, type AccessPlanId,
+} from "@/lib/student-model";
+import { Card, GhostButton, PrimaryButton } from "@/components/verbo/ui";
+import { useAvatar } from "@/lib/avatar-store";
+import {
+  Plus, X, Eye, EyeOff, KeyRound, Mail, Building2, CalendarDays, GraduationCap,
+  Users, Briefcase, Compass, Globe, Copy, Check, Snowflake, Ban, Play, Unlock,
+  Sparkles, Wand2, Pencil, Video, Repeat, Clock, CreditCard, ShieldAlert,
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/students")({ component: Page });
 
-const CANCEL_LIMIT = 3;
-const STORAGE_KEY = "verbo:club-cancels-v2";
+// ---------------------------------------------------------------------------
+// Persistence (localStorage — swap for Lovable Cloud later)
+// ---------------------------------------------------------------------------
 const PROFILE_KEY = "verbo:student-profile-overrides";
 const REGISTERED_KEY = "verbo:registered-students";
 
-function readCancels(): Record<string, number> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeCancels(map: Record<string, number>) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-  }
-}
-
 function readProfileOverrides(): Record<string, Partial<User>> {
   if (typeof window === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(PROFILE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(localStorage.getItem(PROFILE_KEY) || "{}"); } catch { return {}; }
 }
-
 function writeProfileOverrides(map: Record<string, Partial<User>>) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(PROFILE_KEY, JSON.stringify(map));
-  }
+  if (typeof window !== "undefined") localStorage.setItem(PROFILE_KEY, JSON.stringify(map));
 }
-
 function readRegisteredStudents(): User[] {
   if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(REGISTERED_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  try { return JSON.parse(localStorage.getItem(REGISTERED_KEY) || "[]"); } catch { return []; }
 }
-
 function writeRegisteredStudents(list: User[]) {
-  if (typeof window !== "undefined") {
-    localStorage.setItem(REGISTERED_KEY, JSON.stringify(list));
-  }
+  if (typeof window !== "undefined") localStorage.setItem(REGISTERED_KEY, JSON.stringify(list));
 }
 
-const PLAN_OPTIONS = [
-  "Verbo Core Lite",
-  "Verbo Core",
-  "Verbo Advance Lite",
-  "Verbo Advance",
-  "Verbo Elite",
-  "Verbo Signature",
-];
-
-const LEVEL_OPTIONS: { value: string; label: string }[] = [
+const LEVEL_OPTIONS = [
   { value: "A1", label: "A1 — Beginner" },
   { value: "A2", label: "A2 — Elementary" },
   { value: "B1", label: "B1 — Intermediate" },
@@ -77,583 +50,880 @@ const LEVEL_OPTIONS: { value: string; label: string }[] = [
   { value: "C2", label: "C2 — Mastery" },
 ];
 
+const PRODUCT_ICON = { briefcase: Briefcase, compass: Compass, globe: Globe } as const;
+
+function initials(name: string) {
+  return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+}
+
+function computeNextPayment(u: User): Date | null {
+  if (u.next_payment) return new Date(u.next_payment);
+  if (!u.payment_day) return null;
+  return nextPaymentDate(u.payment_day, new Date(u.cycle_start || Date.now()));
+}
+
+// ===========================================================================
+// PAGE
+// ===========================================================================
 function Page() {
   const [, forceTick] = useState(0);
-  const [cancels, setCancels] = useState<Record<string, number>>(readCancels);
-  const [editing, setEditing] = useState<User | null>(null);
-  const [registering, setRegistering] = useState(false);
+  const [detail, setDetail] = useState<User | null>(null);
+  const [formFor, setFormFor] = useState<User | "new" | null>(null);
 
-  // Apply persisted overrides and registered students on mount
   useEffect(() => {
     const overrides = readProfileOverrides();
-    USERS.forEach((u) => {
-      if (overrides[u.id]) Object.assign(u, overrides[u.id]);
+    USERS.forEach((u) => { if (overrides[u.id]) Object.assign(u, overrides[u.id]); });
+    readRegisteredStudents().forEach((u) => {
+      if (!USERS.find((x) => x.id === u.id)) USERS.push(u);
     });
-    const registered = readRegisteredStudents();
-    registered.forEach((u) => {
-      if (!USERS.find((x) => x.id === u.id)) {
-        USERS.push(u);
-      }
-    });
-    setCancels(readCancels());
     forceTick((n) => n + 1);
   }, []);
 
   const students = USERS.filter((u) => u.role === "student");
   const teachers = USERS.filter((u) => u.role === "teacher");
 
-  const resetStudent = (studentId: string) => {
-    const next = { ...cancels, [studentId]: 0 };
-    setCancels(next);
-    writeCancels(next);
-  };
-
-  const handleSave = (updated: User) => {
+  const persist = (updated: User) => {
     const idx = USERS.findIndex((u) => u.id === updated.id);
-    if (idx >= 0) USERS[idx] = updated;
+    if (idx >= 0) USERS[idx] = updated; else USERS.push(updated);
     const overrides = readProfileOverrides();
-    overrides[updated.id] = {
-      name: updated.name,
-      email: updated.email,
-      password: updated.password,
-      company: updated.company,
-      hired_plan: updated.hired_plan,
-      current_level: updated.current_level,
-      member_since: updated.member_since,
-      hired_sessions: updated.hired_sessions,
-      remaining_sessions: updated.remaining_sessions,
-    };
+    const { id, name, role, ...rest } = updated;
+    overrides[updated.id] = { name, ...rest };
     writeProfileOverrides(overrides);
-    setEditing(null);
+    // keep registered list fresh if this is a locally-created student
+    const registered = readRegisteredStudents();
+    const rIdx = registered.findIndex((u) => u.id === updated.id);
+    if (rIdx >= 0) { registered[rIdx] = updated; writeRegisteredStudents(registered); }
     forceTick((n) => n + 1);
   };
 
-  const handleRegister = (newUser: User, teacherId?: string) => {
-    USERS.push(newUser);
-    if (teacherId) {
-      ASSIGNMENTS.push({ teacher_id: teacherId, student_id: newUser.id });
-    }
+  const handleRegister = (u: User, teacherId?: string) => {
+    USERS.push(u);
+    if (teacherId) ASSIGNMENTS.push({ teacher_id: teacherId, student_id: u.id });
     const registered = readRegisteredStudents();
-    registered.push(newUser);
+    registered.push(u);
     writeRegisteredStudents(registered);
-    setRegistering(false);
+    setFormFor(null);
     forceTick((n) => n + 1);
+    setDetail(null);
+  };
+
+  const handleUpdate = (u: User, teacherId?: string) => {
+    persist(u);
+    if (teacherId) {
+      const existing = ASSIGNMENTS.find((a) => a.student_id === u.id);
+      if (existing) existing.teacher_id = teacherId;
+      else ASSIGNMENTS.push({ teacher_id: teacherId, student_id: u.id });
+    }
+    setFormFor(null);
+    // keep detail modal in sync
+    setDetail((d) => (d && d.id === u.id ? u : d));
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground text-slate-50">Students</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Register, list and suspend students.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-50">Students</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Register, manage and monitor student memberships.</p>
         </div>
         <button
-          onClick={() => setRegistering(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-soft transition-opacity hover:opacity-90 disabled:opacity-40 shadow-sm"
+          onClick={() => setFormFor("new")}
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
         >
           <Plus className="h-4 w-4" /> Register student
         </button>
       </div>
 
-      <Card className="!p-0">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-            <tr className="border-b border-border">
-              <th className="px-6 py-3 font-medium">Name</th>
-              <th className="px-6 py-3 font-medium">Company</th>
-              <th className="px-6 py-3 font-medium">Plan</th>
-              <th className="px-6 py-3 font-medium">Sessions</th>
-              <th className="px-6 py-3 font-medium">Level</th>
-              <th className="px-6 py-3 font-medium">Club Status</th>
-              <th className="px-6 py-3 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {students.map((s) => {
-              const count = cancels[s.id] ?? 0;
-              const blocked = count >= CANCEL_LIMIT;
-              return (
-                <tr key={s.id} className="border-b border-border last:border-0">
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => setEditing(s)}
-                      className="text-left font-medium text-foreground transition-colors hover:text-[#f38934]"
-                    >
-                      {s.name}
-                    </button>
-                    <div className="text-xs text-muted-foreground">{s.email}</div>
-                  </td>
-                  <td className="px-6 py-4 text-muted-foreground">{s.company ?? "—"}</td>
-                  <td className="px-6 py-4 text-muted-foreground">{s.hired_plan ?? "—"}</td>
-                  <td className="px-6 py-4 text-muted-foreground">
-                    {(s.remaining_sessions ?? 0)}/{(s.hired_sessions ?? 0)}
-                  </td>
-                  <td className="px-6 py-4"><Pill tone="muted">{s.current_level}</Pill></td>
-                  <td className="px-6 py-4">
-                    {blocked ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
-                        <Lock className="h-3 w-3" />
-                        {count}/{CANCEL_LIMIT} — BLOCKED
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
-                        <Unlock className="h-3 w-3" />
-                        {count}/{CANCEL_LIMIT} — Active
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {blocked && (
-                        <button
-                          onClick={() => resetStudent(s.id)}
-                          className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:brightness-110 active:scale-95"
-                          style={{ backgroundColor: "#f38934" }}
-                        >
-                          <Unlock className="h-3.5 w-3.5" />
-                          Unlock Clubs
-                        </button>
-                      )}
-                      <GhostButton className="!py-1.5 !text-xs">Suspend</GhostButton>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </Card>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        {students.map((s) => (
+          <StudentCard key={s.id} student={s} onOpen={() => setDetail(s)} />
+        ))}
+      </div>
 
-      {editing && (
-        <StudentModal
-          student={editing}
-          onClose={() => setEditing(null)}
-          onSave={handleSave}
+      {detail && (
+        <StudentDetailModal
+          student={detail}
+          teachers={teachers}
+          onClose={() => setDetail(null)}
+          onUpdate={handleUpdate}
+          onEdit={() => { const s = detail; setDetail(null); setFormFor(s); }}
         />
       )}
 
-      {registering && (
-        <RegisterModal
+      {formFor && (
+        <StudentFormModal
+          initial={formFor === "new" ? null : formFor}
           teachers={teachers}
-          onClose={() => setRegistering(false)}
-          onSave={handleRegister}
+          onClose={() => setFormFor(null)}
+          onSave={formFor === "new" ? handleRegister : handleUpdate}
         />
       )}
     </div>
   );
 }
 
-// ---------- Register Modal ----------
-function RegisterModal({
-  teachers,
-  onClose,
-  onSave,
+// ===========================================================================
+// STUDENT CARD
+// ===========================================================================
+function StudentCard({ student: s, onOpen }: { student: User; onOpen: () => void }) {
+  const avatar = useAvatar(s.id);
+  const product = getProduct(s.product);
+  const strikes = s.insights_strikes ?? 0;
+  const blocked = strikes >= MAX_INSIGHT_STRIKES;
+  const hired = s.hired_sessions ?? 0;
+  const remaining = s.remaining_sessions ?? 0;
+  const done = Math.max(0, hired - remaining);
+  const pct = hired > 0 ? (done / hired) * 100 : 0;
+
+  const nextPay = computeNextPayment(s);
+  const payDue = nextPay ? daysUntil(nextPay) <= 3 && daysUntil(nextPay) >= 0 : false;
+
+  const statusBadge =
+    s.status === "suspended" ? { cls: "bg-destructive/10 text-destructive", label: "Suspended" }
+    : s.status === "frozen" ? { cls: "bg-blue-500/10 text-blue-600", label: "Frozen" }
+    : { cls: "bg-success/10 text-success", label: "Active" };
+
+  return (
+    <button
+      onClick={onOpen}
+      className={`group relative flex flex-col rounded-2xl border border-border bg-card p-5 text-left shadow-soft transition-all hover:-translate-y-1 hover:shadow-elevated ${payDue ? "verbo-pay-glow" : ""}`}
+    >
+      {payDue && (
+        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+          <CreditCard className="h-3 w-3" /> Payment due
+        </span>
+      )}
+
+      <div className="flex items-center gap-3">
+        {avatar ? (
+          <img src={avatar} alt={s.name} className="h-12 w-12 rounded-full object-cover" />
+        ) : (
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+            {initials(s.name)}
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className="truncate font-semibold text-foreground">{s.name}</div>
+          {s.product === "enterprise" && s.company && (
+            <div className="truncate text-xs text-muted-foreground">{s.company}</div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {product && <Tag className="bg-primary/10 text-primary">{product.name}</Tag>}
+        {s.access_plan && <Tag className="bg-accent/10 text-accent">{s.access_plan}</Tag>}
+        {s.focus && <Tag className="bg-secondary text-secondary-foreground">{s.focus}</Tag>}
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>Sessions</span>
+          <span className="font-medium text-foreground">{remaining}/{hired}</span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+          <div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, pct)}%` }} />
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-1.5">
+        {s.current_roadmap_level && <Tag className="bg-muted text-muted-foreground">{s.current_roadmap_level}</Tag>}
+        <Tag className={statusBadge.cls}>{statusBadge.label}</Tag>
+        <Tag className={blocked ? "bg-destructive/10 text-destructive" : "bg-secondary text-secondary-foreground"}>
+          {blocked ? <>Insights Blocked</> : <>Insights {strikes}/{MAX_INSIGHT_STRIKES}</>}
+        </Tag>
+      </div>
+    </button>
+  );
+}
+
+function Tag({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+// ===========================================================================
+// REGISTER / EDIT FORM MODAL  (stepped card selection)
+// ===========================================================================
+type FormState = {
+  name: string; email: string; password: string; member_since: string;
+  company: string;
+  product: ProductId | "";
+  focus: string;
+  contracted_levels: string[];
+  access_plan: AccessPlanId | "";
+  current_level: string;
+  hired_sessions: number; remaining_sessions: number; sessions_auto: boolean;
+  sessions_per_week: number; session_duration: number;
+  reschedule_policy: string; reschedule_custom_hours: number; reschedule_custom_pct: number;
+  payment_day: number; cycle_start: string;
+  video_call_link: string;
+  teacher_id: string;
+};
+
+function StudentFormModal({
+  initial, teachers, onClose, onSave,
 }: {
+  initial: User | null;
   teachers: User[];
   onClose: () => void;
-  onSave: (user: User, teacherId?: string) => void;
+  onSave: (u: User, teacherId?: string) => void;
 }) {
-  const [form, setForm] = useState({
-    name: "",
-    company: "",
-    email: "",
-    password: "",
-    hired_plan: "",
-    current_level: "",
-    member_since: "",
-    hired_sessions: 0,
-    remaining_sessions: 0,
-    teacher_id: "",
-  });
+  const editing = !!initial;
+  const existingTeacher = initial ? ASSIGNMENTS.find((a) => a.student_id === initial.id)?.teacher_id ?? "" : "";
+
+  const [f, setF] = useState<FormState>(() => ({
+    name: initial?.name ?? "",
+    email: initial?.email ?? "",
+    password: initial?.password ?? "",
+    member_since: initial?.member_since ?? "",
+    company: initial?.company ?? "",
+    product: (initial?.product as ProductId) ?? "",
+    focus: initial?.focus ?? "",
+    contracted_levels: initial?.contracted_levels ?? [],
+    access_plan: (initial?.access_plan as AccessPlanId) ?? "",
+    current_level: initial?.current_level ?? "",
+    hired_sessions: initial?.hired_sessions ?? 0,
+    remaining_sessions: initial?.remaining_sessions ?? 0,
+    sessions_auto: initial?.sessions_auto ?? true,
+    sessions_per_week: initial?.sessions_per_week ?? 2,
+    session_duration: initial?.session_duration ?? 60,
+    reschedule_policy: initial?.reschedule_policy ?? "",
+    reschedule_custom_hours: initial?.reschedule_custom_hours ?? 24,
+    reschedule_custom_pct: initial?.reschedule_custom_pct ?? 25,
+    payment_day: initial?.payment_day ?? 1,
+    cycle_start: initial?.cycle_start ?? "",
+    video_call_link: initial?.video_call_link ?? "",
+    teacher_id: existingTeacher,
+  }));
   const [showPassword, setShowPassword] = useState(false);
+  const prevPerWeek = useRef(f.sessions_per_week);
 
-  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
-    setForm((prev) => ({ ...prev, [k]: v }));
+  const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
 
-  const isValid =
-    form.name.trim() &&
-    form.email.trim() &&
-    form.password.trim() &&
-    form.current_level &&
-    form.hired_plan;
+  const product = getProduct(f.product);
+  const isEnterprise = f.product === "enterprise";
+  const productLevels = product?.levels ?? [];
+
+  // --- Product change: reset dependent axes ---
+  const pickProduct = (id: ProductId) => {
+    const p = getProduct(id)!;
+    setF((prev) => ({
+      ...prev,
+      product: id,
+      focus: "",
+      company: id === "enterprise" ? prev.company : "",
+      contracted_levels: [],
+      access_plan: p.defaultAccessPlan ?? "",
+      reschedule_policy: getAccessPlan(p.defaultAccessPlan)?.reschedulePolicy ?? "",
+      hired_sessions: 0,
+      remaining_sessions: 0,
+      sessions_auto: true,
+    }));
+  };
+
+  // --- Focus change: pre-mark suggested levels ---
+  const pickFocus = (name: string) => {
+    const focus = getFocus(name);
+    const n = focus?.suggestedLevels ?? 0;
+    const preset = productLevels.slice(0, n);
+    setF((prev) => {
+      const hired = preset.length * SESSIONS_PER_LEVEL;
+      return {
+        ...prev, focus: name, contracted_levels: preset,
+        ...(prev.sessions_auto ? { hired_sessions: hired, remaining_sessions: editing ? prev.remaining_sessions : hired } : {}),
+      };
+    });
+  };
+
+  const toggleLevel = (lvl: string) => {
+    setF((prev) => {
+      const has = prev.contracted_levels.includes(lvl);
+      const next = has ? prev.contracted_levels.filter((l) => l !== lvl) : [...prev.contracted_levels, lvl];
+      const hired = next.length * SESSIONS_PER_LEVEL;
+      return {
+        ...prev, contracted_levels: next,
+        ...(prev.sessions_auto ? { hired_sessions: hired, remaining_sessions: editing ? prev.remaining_sessions : hired } : {}),
+      };
+    });
+  };
+
+  const pickAccessPlan = (id: AccessPlanId) => {
+    setF((prev) => ({ ...prev, access_plan: id, reschedule_policy: getAccessPlan(id)?.reschedulePolicy ?? prev.reschedule_policy }));
+  };
+
+  const changePerWeek = (val: number) => {
+    const suggested = suggestDuration(prevPerWeek.current, f.session_duration, val);
+    prevPerWeek.current = val;
+    setF((prev) => ({ ...prev, sessions_per_week: val, session_duration: suggested }));
+  };
+
+  const editSessions = (k: "hired_sessions" | "remaining_sessions", v: number) => {
+    setF((prev) => ({ ...prev, [k]: v, sessions_auto: false }));
+  };
+
+  const isCustomReschedule = f.reschedule_policy === "Custom";
+  const nextPayPreview = f.payment_day
+    ? nextPaymentDate(f.payment_day, f.cycle_start ? new Date(f.cycle_start) : new Date())
+    : null;
+
+  const isValid = f.name.trim() && f.email.trim() && f.password.trim() && f.product &&
+    f.video_call_link.trim() && (!isEnterprise || f.company.trim());
 
   const handleSave = () => {
     if (!isValid) return;
-    const newUser: User = {
-      id: `u${Date.now()}`,
-      name: form.name.trim(),
-      email: form.email.trim(),
-      password: form.password,
+    const accessPlan = (f.access_plan || undefined) as AccessPlanId | undefined;
+    const u: User = {
+      id: initial?.id ?? `u${Date.now()}`,
+      name: f.name.trim(),
+      email: f.email.trim(),
+      password: f.password,
       role: "student",
-      company: form.company.trim() || undefined,
-      hired_plan: form.hired_plan || undefined,
-      current_level: form.current_level || undefined,
-      member_since: form.member_since || undefined,
-      hired_sessions: Number(form.hired_sessions) || 0,
-      remaining_sessions: Number(form.remaining_sessions) || 0,
+      company: isEnterprise ? f.company.trim() || undefined : undefined,
+      product: f.product as ProductId,
+      focus: isEnterprise ? undefined : f.focus || undefined,
+      access_plan: accessPlan,
+      hired_plan: accessPlan, // legacy display alias
+      contracted_levels: f.contracted_levels,
+      current_roadmap_level: initial?.current_roadmap_level ?? f.contracted_levels[0],
+      current_level: f.current_level || undefined,
+      member_since: f.member_since || undefined,
+      hired_sessions: Number(f.hired_sessions) || 0,
+      remaining_sessions: Number(f.remaining_sessions) || 0,
+      sessions_auto: f.sessions_auto,
+      sessions_per_week: Number(f.sessions_per_week) || 1,
+      session_duration: Number(f.session_duration) || 60,
+      reschedule_policy: f.reschedule_policy || undefined,
+      reschedule_custom_hours: isCustomReschedule ? Number(f.reschedule_custom_hours) : undefined,
+      reschedule_custom_pct: isCustomReschedule ? Number(f.reschedule_custom_pct) : undefined,
+      payment_day: Number(f.payment_day) || undefined,
+      cycle_start: f.cycle_start || undefined,
+      video_call_link: f.video_call_link.trim(),
+      status: initial?.status ?? "active",
+      insights_strikes: initial?.insights_strikes ?? 0,
+      admin_notes: initial?.admin_notes,
+      next_payment: initial?.next_payment,
     };
-    onSave(newUser, form.teacher_id || undefined);
+    onSave(u, f.teacher_id || undefined);
   };
 
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-card shadow-floating"
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-border px-6 py-5" style={{ background: "linear-gradient(135deg, #01304a 0%, #02466b 100%)" }}>
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">New registration</div>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">Register Student</h2>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-md p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <Overlay onClose={onClose}>
+      <div className="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-card shadow-floating">
+        <ModalHeader
+          kicker={editing ? "Edit student" : "New registration"}
+          title={editing ? f.name || "Edit Student" : "Register Student"}
+          onClose={onClose}
+        />
 
-        {/* Body */}
-        <div className="max-h-[70vh] overflow-y-auto px-6 py-6">
+        <div className="max-h-[72vh] space-y-7 overflow-y-auto px-6 py-6 report-modal-scroll">
+          {/* Basic data */}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <Field label="Student Name">
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-                placeholder="Full name"
-                className={inputCls}
-              />
+              <input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="Full name" className={inputCls} />
             </Field>
-
-            <Field label="Company" icon={<Building2 className="h-3.5 w-3.5" />}>
-              <input
-                type="text"
-                value={form.company}
-                onChange={(e) => set("company", e.target.value)}
-                placeholder="Organization"
-                className={inputCls}
-              />
-            </Field>
-
             <Field label="Email" icon={<Mail className="h-3.5 w-3.5" />}>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => set("email", e.target.value)}
-                placeholder="student@company.com"
-                className={inputCls}
-              />
+              <input type="email" value={f.email} onChange={(e) => set("email", e.target.value)} placeholder="student@company.com" className={inputCls} />
             </Field>
-
             <Field label="Initial Password" icon={<KeyRound className="h-3.5 w-3.5" />}>
               <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={form.password}
-                  onChange={(e) => set("password", e.target.value)}
-                  placeholder="Set a password"
-                  className={`${inputCls} pr-9`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
-                >
+                <input type={showPassword ? "text" : "password"} value={f.password} onChange={(e) => set("password", e.target.value)} placeholder="Set a password" className={`${inputCls} pr-9`} />
+                <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground" aria-label="Toggle password">
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </Field>
-
-            <Field label="Hired Plan" icon={<GraduationCap className="h-3.5 w-3.5" />}>
-              <select
-                value={form.hired_plan}
-                onChange={(e) => set("hired_plan", e.target.value)}
-                className={`${inputCls} cursor-pointer`}
-              >
-                <option value="">Select a plan</option>
-                {PLAN_OPTIONS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
+            <Field label="Member Since" icon={<CalendarDays className="h-3.5 w-3.5" />}>
+              <input type="date" value={f.member_since} onChange={(e) => set("member_since", e.target.value)} className={inputCls} />
             </Field>
+          </div>
 
+          {/* STEP 1 — Product */}
+          <Step n={1} title="Product">
+            <div className="grid grid-cols-3 gap-3">
+              {PRODUCTS.map((p) => {
+                const Icon = PRODUCT_ICON[p.icon];
+                const active = f.product === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => pickProduct(p.id)}
+                    className={`flex flex-col items-center gap-2 rounded-xl border-2 px-3 py-4 text-center transition-all ${active ? "border-accent bg-accent/10" : "border-border bg-background hover:border-accent/40"}`}
+                  >
+                    <span className={`flex h-12 w-12 items-center justify-center rounded-full ${active ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground"}`}>
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className={`text-sm font-semibold ${active ? "text-accent" : "text-foreground"}`}>{p.name}</span>
+                    <span className="text-[10.5px] leading-tight text-muted-foreground">{p.blurb}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {isEnterprise && (
+              <div className="verbo-fade-up mt-4">
+                <Field label="Company" icon={<Building2 className="h-3.5 w-3.5" />}>
+                  <input value={f.company} onChange={(e) => set("company", e.target.value)} placeholder="Organization (required)" className={inputCls} />
+                </Field>
+              </div>
+            )}
+          </Step>
+
+          {/* STEP 2 — Focus */}
+          {product?.hasFocus && (
+            <Step n={2} title="Enfoque">
+              <div className="flex flex-wrap gap-2">
+                {focusesForProduct(f.product).map((focus) => {
+                  const active = f.focus === focus.name;
+                  return (
+                    <button
+                      key={focus.id}
+                      type="button"
+                      onClick={() => pickFocus(focus.name)}
+                      className={`rounded-full border-2 px-4 py-2 text-sm font-medium transition-all ${active ? "border-accent bg-accent/10 text-accent" : "border-border bg-background text-foreground hover:border-accent/40"}`}
+                    >
+                      {focus.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </Step>
+          )}
+
+          {/* STEP 3 — Contracted levels */}
+          {f.product && (
+            <Step n={product?.hasFocus ? 3 : 2} title="Niveles contratados (roadmap)">
+              <div className="flex flex-wrap gap-2">
+                {productLevels.map((lvl) => {
+                  const active = f.contracted_levels.includes(lvl);
+                  return (
+                    <button
+                      key={lvl}
+                      type="button"
+                      onClick={() => toggleLevel(lvl)}
+                      className={`rounded-full border-2 px-4 py-2 text-sm font-medium transition-all ${active ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-foreground hover:border-primary/40"}`}
+                    >
+                      {active && <Check className="mr-1 inline h-3.5 w-3.5" />}{lvl}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">Each level ≈ {SESSIONS_PER_LEVEL} live sessions.</p>
+            </Step>
+          )}
+
+          {/* STEP 4 — Access plan */}
+          {f.product && (
+            <Step n={product?.hasFocus ? 4 : 3} title="Plan de acceso">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {ACCESS_PLAN_IDS.map((id) => {
+                  const active = f.access_plan === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => pickAccessPlan(id)}
+                      className={`rounded-lg border-2 px-3 py-2.5 text-sm font-semibold transition-all ${active ? "border-accent bg-accent/10 text-accent" : "border-border bg-background text-foreground hover:border-accent/40"}`}
+                    >
+                      {id}
+                    </button>
+                  );
+                })}
+              </div>
+              {f.access_plan && (
+                <p className="mt-2 text-[11px] text-muted-foreground">{getAccessPlan(f.access_plan)?.blurb}</p>
+              )}
+            </Step>
+          )}
+
+          {/* Level + sessions */}
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <Field label="Initial English Level" icon={<GraduationCap className="h-3.5 w-3.5" />}>
-              <select
-                value={form.current_level}
-                onChange={(e) => set("current_level", e.target.value)}
-                className={`${inputCls} cursor-pointer`}
-                required
-              >
+              <select value={f.current_level} onChange={(e) => set("current_level", e.target.value)} className={`${inputCls} cursor-pointer`}>
                 <option value="">Select a level</option>
-                {LEVEL_OPTIONS.map((l) => (
-                  <option key={l.value} value={l.value}>{l.label}</option>
-                ))}
+                {LEVEL_OPTIONS.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
               </select>
             </Field>
 
-            <Field label="Member since" icon={<CalendarDays className="h-3.5 w-3.5" />}>
-              <input
-                type="date"
-                value={form.member_since}
-                onChange={(e) => set("member_since", e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-
-            <Field label="Hired Sessions">
-              <input
-                type="number"
-                min={0}
-                value={form.hired_sessions}
-                onChange={(e) => set("hired_sessions", Number(e.target.value))}
-                className={inputCls}
-              />
+            <Field
+              label={<span className="flex items-center gap-1.5">Hired Sessions {f.sessions_auto ? <Wand2 className="h-3 w-3 text-accent" /> : <span className="rounded bg-warning/20 px-1 text-[9px] font-semibold text-foreground">edited manually</span>}</span>}
+            >
+              <input type="number" min={0} value={f.hired_sessions} onChange={(e) => editSessions("hired_sessions", Number(e.target.value))} className={inputCls} />
             </Field>
 
             <Field label="Remaining Sessions">
-              <input
-                type="number"
-                min={0}
-                value={form.remaining_sessions}
-                onChange={(e) => set("remaining_sessions", Number(e.target.value))}
-                className={inputCls}
-              />
+              <input type="number" min={0} value={f.remaining_sessions} onChange={(e) => editSessions("remaining_sessions", Number(e.target.value))} className={inputCls} />
             </Field>
 
+            <div />
+
+            {/* Cadence */}
+            <Field label="Sesiones por semana" icon={<Repeat className="h-3.5 w-3.5" />}>
+              <input type="number" min={1} value={f.sessions_per_week} onChange={(e) => changePerWeek(Number(e.target.value))} className={inputCls} />
+            </Field>
+            <Field label="Duración por sesión (min)" icon={<Clock className="h-3.5 w-3.5" />}>
+              <input type="number" min={15} step={5} value={f.session_duration} onChange={(e) => set("session_duration", Number(e.target.value))} className={inputCls} />
+              <p className="mt-1 text-[10.5px] text-muted-foreground">{f.sessions_per_week * f.session_duration} min/semana en total.</p>
+            </Field>
+
+            {/* Reschedule policy */}
+            <Field label="Política de reagendamiento" icon={<CalendarDays className="h-3.5 w-3.5" />} className="md:col-span-2">
+              <select value={f.reschedule_policy} onChange={(e) => set("reschedule_policy", e.target.value)} className={`${inputCls} cursor-pointer`}>
+                <option value="">Select a policy</option>
+                {RESCHEDULE_PRESETS.map((p) => <option key={p} value={p}>{p}</option>)}
+                <option value="Custom">Custom…</option>
+              </select>
+            </Field>
+            {isCustomReschedule && (
+              <>
+                <Field label="Horas mínimas de anticipación">
+                  <input type="number" min={0} value={f.reschedule_custom_hours} onChange={(e) => set("reschedule_custom_hours", Number(e.target.value))} className={inputCls} />
+                </Field>
+                <Field label="% máximo de sesiones del mes">
+                  <input type="number" min={0} max={100} value={f.reschedule_custom_pct} onChange={(e) => set("reschedule_custom_pct", Number(e.target.value))} className={inputCls} />
+                </Field>
+              </>
+            )}
+
+            {/* Payment */}
+            <Field label="Día de pago (1–31)" icon={<CreditCard className="h-3.5 w-3.5" />}>
+              <input type="number" min={1} max={31} value={f.payment_day} onChange={(e) => set("payment_day", Number(e.target.value))} className={inputCls} />
+            </Field>
+            <Field label="Inicio del ciclo" icon={<CalendarDays className="h-3.5 w-3.5" />}>
+              <input type="date" value={f.cycle_start} onChange={(e) => set("cycle_start", e.target.value)} className={inputCls} />
+              {nextPayPreview && <p className="mt-1 text-[10.5px] text-muted-foreground">Próximo pago: {nextPayPreview.toLocaleDateString()}</p>}
+            </Field>
+
+            {/* Video call link */}
+            <Field label="Video Call Link" icon={<Video className="h-3.5 w-3.5" />} className="md:col-span-2">
+              <input type="url" value={f.video_call_link} onChange={(e) => set("video_call_link", e.target.value)} placeholder="https://teams.microsoft.com/..." className={inputCls} />
+              <p className="mt-1 text-[10.5px] text-muted-foreground">Este link se usará para todas las sesiones del alumno hasta que un admin lo modifique.</p>
+            </Field>
+
+            {/* Teacher */}
             <Field label="Assign Initial Teacher" icon={<Users className="h-3.5 w-3.5" />} className="md:col-span-2">
-              <select
-                value={form.teacher_id}
-                onChange={(e) => set("teacher_id", e.target.value)}
-                className={`${inputCls} cursor-pointer`}
-              >
+              <select value={f.teacher_id} onChange={(e) => set("teacher_id", e.target.value)} className={`${inputCls} cursor-pointer`}>
                 <option value="">Select a teacher (optional)</option>
-                {teachers.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
+                {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </Field>
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-end gap-2 border-t border-border bg-secondary/30 px-6 py-4">
           <GhostButton onClick={onClose}>Cancel</GhostButton>
-          <PrimaryButton onClick={handleSave} disabled={!isValid}>
-            Save
-          </PrimaryButton>
+          <PrimaryButton onClick={handleSave} disabled={!isValid}>{editing ? "Save changes" : "Save"}</PrimaryButton>
         </div>
+      </div>
+    </Overlay>
+  );
+}
+
+// ===========================================================================
+// DETAIL MODAL (tabs + actions)
+// ===========================================================================
+type Tab = "overview" | "performance" | "notes";
+
+function StudentDetailModal({
+  student, teachers, onClose, onUpdate, onEdit,
+}: {
+  student: User;
+  teachers: User[];
+  onClose: () => void;
+  onUpdate: (u: User, teacherId?: string) => void;
+  onEdit: () => void;
+}) {
+  const [tab, setTab] = useState<Tab>("overview");
+  const [notes, setNotes] = useState(student.admin_notes ?? "");
+  const [showLink, setShowLink] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [panel, setPanel] = useState<"none" | "reassign" | "freeze">("none");
+  const [teacherId, setTeacherId] = useState(ASSIGNMENTS.find((a) => a.student_id === student.id)?.teacher_id ?? "");
+  const [freezeStart, setFreezeStart] = useState(student.freeze_start ?? "");
+  const [freezeEnd, setFreezeEnd] = useState(student.freeze_end ?? "");
+
+  const avatar = useAvatar(student.id);
+  const product = getProduct(student.product);
+  const accessPlan = getAccessPlan(student.access_plan);
+  const strikes = student.insights_strikes ?? 0;
+  const blocked = strikes >= MAX_INSIGHT_STRIKES;
+  const nextPay = computeNextPayment(student);
+
+  const patch = (p: Partial<User>) => onUpdate({ ...student, ...p });
+
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(student.video_call_link ?? ""); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* noop */ }
+  };
+
+  const maskedLink = (student.video_call_link ?? "").replace(/^(https?:\/\/[^/]+).*/, "$1/•••••");
+
+  const teacherHistory = useMemo(() => {
+    const map = new Map<string, { name: string; count: number }>();
+    SESSIONS.filter((s) => s.student_id === student.id).forEach((s) => {
+      const t = userById(s.teacher_id); if (!t) return;
+      const prev = map.get(t.id);
+      if (prev) prev.count += 1; else map.set(t.id, { name: t.name, count: 1 });
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [student.id]);
+
+  const saveFreeze = () => {
+    if (freezeStart && freezeEnd) {
+      const days = daysUntil(new Date(freezeEnd), new Date(freezeStart));
+      if (days > 15) { alert("La congelación no puede exceder 15 días."); return; }
+      // TODO: validate max 1 freeze per completed level once level-completion logic exists.
+    }
+    patch({ status: "frozen", freeze_start: freezeStart || undefined, freeze_end: freezeEnd || undefined });
+    setPanel("none");
+  };
+
+  const markPaid = () => {
+    const base = nextPay ?? new Date();
+    const after = new Date(base);
+    after.setMonth(after.getMonth() + 1);
+    patch({ next_payment: after.toISOString() });
+  };
+
+  return (
+    <Overlay onClose={onClose}>
+      <div className="relative flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-card shadow-floating">
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-border px-6 py-5" style={{ background: "linear-gradient(135deg, #01304a 0%, #02466b 100%)" }}>
+          <div className="flex items-center gap-3">
+            {avatar ? (
+              <img src={avatar} alt={student.name} className="h-12 w-12 rounded-full object-cover" />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-sm font-semibold text-white">{initials(student.name)}</div>
+            )}
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight text-white">{student.name}</h2>
+              <p className="text-xs text-white/70">{product?.name}{student.access_plan ? ` · ${student.access_plan}` : ""}{student.company ? ` · ${student.company}` : ""}</p>
+            </div>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-border px-6 pt-3">
+          {([["overview", "Overview"], ["performance", "Performance & Attendance"], ["notes", "Admin Notes"]] as [Tab, string][]).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`relative px-3 py-2 text-sm font-medium transition-colors ${tab === id ? "text-accent" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {label}
+              {tab === id && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-accent" />}
+            </button>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 report-modal-scroll">
+          {tab === "overview" && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Info label="Email" value={student.email} />
+                <Info label="CEFR Level" value={student.current_level ?? "—"} />
+                <Info label="Product" value={product?.name ?? "—"} />
+                <Info label="Focus (Enfoque)" value={student.focus ?? "—"} />
+                <Info label="Access Plan" value={student.access_plan ?? "—"} />
+                <Info label="Current roadmap level" value={student.current_roadmap_level ?? "—"} />
+                <Info label="Sessions" value={`${student.remaining_sessions ?? 0} remaining / ${student.hired_sessions ?? 0} total`} />
+                <Info label="Cadence" value={`${student.sessions_per_week ?? "—"}×/week · ${student.session_duration ?? "—"} min`} />
+                <Info label="Reschedule policy" value={student.reschedule_policy ?? accessPlan?.reschedulePolicy ?? "—"} />
+                <Info label="Next payment" value={nextPay ? nextPay.toLocaleDateString() : "—"} />
+              </div>
+
+              {/* Contracted levels progress */}
+              {student.contracted_levels && student.contracted_levels.length > 0 && (
+                <div>
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Contracted levels</div>
+                  <div className="flex flex-wrap gap-2">
+                    {student.contracted_levels.map((lvl) => (
+                      <Tag key={lvl} className={lvl === student.current_roadmap_level ? "bg-accent/15 text-accent" : "bg-secondary text-secondary-foreground"}>{lvl}</Tag>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Video call link */}
+              <div>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Video Call Link</div>
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                  <Video className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="flex-1 truncate text-sm text-foreground">{showLink ? student.video_call_link : maskedLink}</span>
+                  <button onClick={() => setShowLink((v) => !v)} className="rounded p-1 text-muted-foreground hover:text-foreground" aria-label="Toggle link">
+                    {showLink ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                  <button onClick={copyLink} className="rounded p-1 text-muted-foreground hover:text-foreground" aria-label="Copy link">
+                    {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Teachers */}
+              <div>
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Assigned teacher(s)</div>
+                {teacherHistory.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No sessions on record yet.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {teacherHistory.map((t) => <Tag key={t.name} className="bg-secondary text-secondary-foreground">{t.name} · {t.count}</Tag>)}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {tab === "performance" && <PerformanceTab student={student} />}
+
+          {tab === "notes" && (
+            <div>
+              <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"><ShieldAlert className="h-3.5 w-3.5" /> Internal notes (admin only)</p>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={7}
+                placeholder="Escalations, negotiated exceptions, context for other admins…"
+                className={inputCls}
+              />
+              <div className="mt-3 flex justify-end">
+                <PrimaryButton onClick={() => patch({ admin_notes: notes })}>Save notes</PrimaryButton>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Inline action panels */}
+        {panel === "reassign" && (
+          <div className="border-t border-border bg-secondary/30 px-6 py-3">
+            <div className="flex items-end gap-2">
+              <Field label="Reassign teacher" className="flex-1">
+                <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className={`${inputCls} cursor-pointer`}>
+                  <option value="">Unassigned</option>
+                  {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </Field>
+              <PrimaryButton onClick={() => { onUpdate(student, teacherId || undefined); setPanel("none"); }}>Apply</PrimaryButton>
+            </div>
+          </div>
+        )}
+        {panel === "freeze" && (
+          <div className="border-t border-border bg-secondary/30 px-6 py-3">
+            <div className="flex items-end gap-2">
+              <Field label="Freeze start"><input type="date" value={freezeStart} onChange={(e) => setFreezeStart(e.target.value)} className={inputCls} /></Field>
+              <Field label="Freeze end (max 15 days)"><input type="date" value={freezeEnd} onChange={(e) => setFreezeEnd(e.target.value)} className={inputCls} /></Field>
+              <PrimaryButton onClick={saveFreeze}>Freeze</PrimaryButton>
+            </div>
+          </div>
+        )}
+
+        {/* Footer actions */}
+        <div className="flex flex-wrap items-center gap-2 border-t border-border bg-secondary/30 px-6 py-4">
+          <GhostButton onClick={onEdit} className="!py-1.5 !text-xs"><Pencil className="h-3.5 w-3.5" /> Edit profile</GhostButton>
+          <GhostButton onClick={() => alert(`Recovery email sent to ${student.email}.`)} className="!py-1.5 !text-xs"><KeyRound className="h-3.5 w-3.5" /> Reset password</GhostButton>
+          <GhostButton onClick={() => setPanel((p) => (p === "reassign" ? "none" : "reassign"))} className="!py-1.5 !text-xs"><Users className="h-3.5 w-3.5" /> Reassign teacher</GhostButton>
+          <GhostButton onClick={() => setPanel((p) => (p === "freeze" ? "none" : "freeze"))} className="!py-1.5 !text-xs"><Snowflake className="h-3.5 w-3.5" /> Freeze</GhostButton>
+          {student.status === "suspended" ? (
+            <GhostButton onClick={() => patch({ status: "active" })} className="!py-1.5 !text-xs"><Play className="h-3.5 w-3.5" /> Reactivate</GhostButton>
+          ) : (
+            <GhostButton onClick={() => patch({ status: "suspended" })} className="!py-1.5 !text-xs"><Ban className="h-3.5 w-3.5" /> Suspend</GhostButton>
+          )}
+          <button
+            onClick={() => blocked && patch({ insights_strikes: 0 })}
+            disabled={!blocked}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all enabled:hover:brightness-110 disabled:opacity-40"
+            style={{ backgroundColor: "#f38934" }}
+          >
+            <Unlock className="h-3.5 w-3.5" /> Unlock Insights ({strikes}/{MAX_INSIGHT_STRIKES})
+          </button>
+          <button
+            onClick={markPaid}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-success px-3 py-1.5 text-xs font-semibold text-success-foreground shadow-sm transition-opacity hover:opacity-90"
+          >
+            <CreditCard className="h-3.5 w-3.5" /> Mark as paid
+          </button>
+        </div>
+      </div>
+    </Overlay>
+  );
+}
+
+// ---- Performance tab (mock data for now) ----
+function PerformanceTab({ student }: { student: User }) {
+  const rows = SESSIONS.filter((s) => s.student_id === student.id);
+  const completed = rows.filter((s) => s.status === "completed").length;
+  const absent = rows.filter((s) => s.status === "absent").length;
+  const ratings = rows.map((s) => s.student_rating).filter((r): r is number => typeof r === "number");
+  const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : "—";
+  const attendance = student.attendance_percentage ?? (completed + absent > 0 ? Math.round((completed / (completed + absent)) * 100) : 0);
+
+  return (
+    <div className="space-y-5">
+      <p className="rounded-lg bg-muted px-3 py-2 text-[11px] text-muted-foreground">Mock metrics — wired to real data when Sessions & KPIs are built.</p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label="Attendance" value={`${attendance}%`} />
+        <Stat label="Completed" value={String(completed)} />
+        <Stat label="Absences" value={String(absent)} />
+        <Stat label="Avg. rating given" value={avgRating} />
       </div>
     </div>
   );
 }
 
-// ---------- Edit Modal ----------
-function StudentModal({
-  student,
-  onClose,
-  onSave,
-}: {
-  student: User;
-  onClose: () => void;
-  onSave: (u: User) => void;
-}) {
-  const [form, setForm] = useState<User>({ ...student });
-  const [showPassword, setShowPassword] = useState(false);
-
-  const teacherHistory = useMemo(() => {
-    const map = new Map<string, { name: string; count: number; last: string }>();
-    SESSIONS.filter((s) => s.student_id === student.id).forEach((s) => {
-      const t = userById(s.teacher_id);
-      if (!t) return;
-      const prev = map.get(t.id);
-      if (prev) {
-        prev.count += 1;
-        if (s.date_time > prev.last) prev.last = s.date_time;
-      } else {
-        map.set(t.id, { name: t.name, count: 1, last: s.date_time });
-      }
-    });
-    return Array.from(map.values()).sort((a, b) => b.count - a.count);
-  }, [student.id]);
-
-  const set = <K extends keyof User>(k: K, v: User[K]) =>
-    setForm((prev) => ({ ...prev, [k]: v }));
-
-  const handleRecover = () => {
-    alert(`A password recovery email has been sent to ${form.email}.`);
-  };
-
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-2xl overflow-hidden rounded-2xl bg-card shadow-floating"
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-border px-6 py-5" style={{ background: "linear-gradient(135deg, #01304a 0%, #02466b 100%)" }}>
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">Student profile</div>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">{form.name}</h2>
-            <p className="text-xs text-white/70">{form.company ?? "—"}</p>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-md p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <div className="rounded-xl border border-border bg-background p-4">
+      <div className="text-[10.5px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-foreground">{value}</div>
+    </div>
+  );
+}
 
-        {/* Body (scrollable) */}
-        <div className="max-h-[70vh] overflow-y-auto px-6 py-6">
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <Field label="Student Name">
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-                className={inputCls}
-              />
-            </Field>
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-sm text-foreground">{value}</div>
+    </div>
+  );
+}
 
-            <Field label="Company" icon={<Building2 className="h-3.5 w-3.5" />}>
-              <input
-                type="text"
-                value={form.company ?? ""}
-                onChange={(e) => set("company", e.target.value)}
-                className={inputCls}
-              />
-            </Field>
+// ===========================================================================
+// Shared building blocks
+// ===========================================================================
+function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-3xl">{children}</div>
+    </div>
+  );
+}
 
-            <Field label="Email" icon={<Mail className="h-3.5 w-3.5" />}>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => set("email", e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-
-            <Field label="Password" icon={<KeyRound className="h-3.5 w-3.5" />}>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={form.password}
-                    onChange={(e) => set("password", e.target.value)}
-                    className={`${inputCls} pr-9`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleRecover}
-                  className="rounded-lg border border-border bg-secondary px-3 text-xs font-medium text-foreground transition-colors hover:bg-secondary/70"
-                >
-                  Recover
-                </button>
-              </div>
-              <p className="mt-1 text-[10.5px] text-muted-foreground">
-                Edit the field to change, or send a recovery email.
-              </p>
-            </Field>
-
-            <Field label="Hired Plan" icon={<GraduationCap className="h-3.5 w-3.5" />}>
-              <select
-                value={form.hired_plan ?? ""}
-                onChange={(e) => set("hired_plan", e.target.value)}
-                className={`${inputCls} cursor-pointer`}
-              >
-                <option value="">Select a plan</option>
-                {PLAN_OPTIONS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Member since" icon={<CalendarDays className="h-3.5 w-3.5" />}>
-              <input
-                type="date"
-                value={form.member_since ?? ""}
-                onChange={(e) => set("member_since", e.target.value)}
-                className={inputCls}
-              />
-            </Field>
-
-            <Field label="Hired Sessions">
-              <input
-                type="number"
-                min={0}
-                value={form.hired_sessions ?? 0}
-                onChange={(e) => set("hired_sessions", Number(e.target.value))}
-                className={inputCls}
-              />
-            </Field>
-
-            <Field label="Remaining Sessions">
-              <input
-                type="number"
-                min={0}
-                value={form.remaining_sessions ?? 0}
-                onChange={(e) => set("remaining_sessions", Number(e.target.value))}
-                className={inputCls}
-              />
-            </Field>
-          </div>
-
-          {/* Teacher history */}
-          <div className="mt-7">
-            <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <History className="h-3.5 w-3.5" />
-              Teacher History
-            </div>
-            {teacherHistory.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-                No past sessions on record.
-              </div>
-            ) : (
-              <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-                {teacherHistory.map((t) => (
-                  <li key={t.name} className="flex items-center justify-between px-4 py-3 text-sm">
-                    <div>
-                      <div className="font-medium text-foreground">{t.name}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        Last session: {new Date(t.last).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <Pill tone="muted">{t.count} session{t.count > 1 ? "s" : ""}</Pill>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-border bg-secondary/30 px-6 py-4">
-          <GhostButton onClick={onClose}>Cancel</GhostButton>
-          <PrimaryButton onClick={() => onSave(form)}>Save changes</PrimaryButton>
-        </div>
+function ModalHeader({ kicker, title, onClose }: { kicker: string; title: string; onClose: () => void }) {
+  return (
+    <div className="flex items-start justify-between border-b border-border px-6 py-5" style={{ background: "linear-gradient(135deg, #01304a 0%, #02466b 100%)" }}>
+      <div>
+        <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/60">{kicker}</div>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight text-white">{title}</h2>
       </div>
+      <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button>
+    </div>
+  );
+}
+
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">{n}</span>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      </div>
+      {children}
     </div>
   );
 }
@@ -662,21 +932,14 @@ const inputCls =
   "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring";
 
 function Field({
-  label,
-  icon,
-  children,
-  className,
+  label, icon, children, className,
 }: {
-  label: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-  className?: string;
+  label: React.ReactNode; icon?: React.ReactNode; children: React.ReactNode; className?: string;
 }) {
   return (
     <div className={className}>
       <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {icon}
-        {label}
+        {icon}{label}
       </label>
       {children}
     </div>

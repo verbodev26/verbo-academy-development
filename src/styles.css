@@ -374,6 +374,15 @@
     background: radial-gradient(circle at 50% 55%, rgba(243, 137, 52, 0.18), rgba(243, 137, 52, 0.03) 35%, transparent 65%);
     animation: verbo-ambient-breath 7s ease-in-out infinite;
   }
+
+  /* Payment-due attention glow (pulsing red) for student cards */
+  @keyframes verbo-pay-glow {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.35), 0 0 8px 0 rgba(220, 38, 38, 0.25); }
+    50% { box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.55), 0 0 22px 4px rgba(220, 38, 38, 0.40); }
+  }
+  .verbo-pay-glow {
+    animation: verbo-pay-glow 1.8s ease-in-out infinite;
+  }
 }
 
 /* Ultra-thin scrollbar for Session Report modal */
