@@ -47,6 +47,11 @@ export interface User {
   hours_month?: number; // accumulated teaching hours this month
   availability?: { day: string; slots: string[] }[];
   availability_request?: { note: string; requested_on: string } | null;
+  // ----- Financial (payroll) -----
+  payment_frequency?: "weekly" | "biweekly" | "monthly";
+  hours_cycle?: number; // hours worked this cycle
+  payment_records?: { id: string; date: string; status: "pending" | "paid" }[];
+  adjustments?: { id: string; date: string; amount: number; reason: string }[];
 }
 
 
