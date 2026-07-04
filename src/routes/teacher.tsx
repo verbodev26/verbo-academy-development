@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { RoleGuard } from "@/components/verbo/RoleGuard";
 import { TopNav } from "@/components/verbo/TopNav";
+import { AnnouncementBanner } from "@/components/verbo/AnnouncementBanner";
 
 export const Route = createFileRoute("/teacher")({ component: Layout });
 
