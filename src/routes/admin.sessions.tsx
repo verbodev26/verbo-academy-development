@@ -568,7 +568,16 @@ function SessionRow({
       <tr className="border-t border-border">
         <td className="px-4 py-3 text-foreground">{dt.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</td>
         <td className="px-4 py-3 text-muted-foreground">{teacher?.name}</td>
-        <td className="px-4 py-3">{renderStatus(session.status)}</td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            {renderStatus(session.status)}
+            {session.status === "absent" && (
+              <span className="text-[10px] font-medium text-muted-foreground">
+                {(session.absent_cause ?? "student") === "teacher" ? "· Teacher" : "· Student"}
+              </span>
+            )}
+          </div>
+        </td>
         <td className="px-4 py-3">
           <div className="flex justify-end gap-1.5">
             <button onClick={onEdit} className="cursor-pointer rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" title="Edit">
