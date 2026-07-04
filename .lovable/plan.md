@@ -1,38 +1,50 @@
-## Audit results
+# Rediseño de la sección de clases en `/teacher`
 
-TypeScript build is clean (`tsgo --noEmit` passes). No broken routes, no JSX/syntax errors. Below are the real issues I found, grouped by severity, plus the proposed surgical fixes.
+Reemplazo la sección actual **"Active & upcoming classes"** de `src/routes/teacher.index.tsx` por una sección de dos columnas al 50% (`grid md:grid-cols-2`), apilada en mobile. Todo el trabajo es de UI/presentación dentro de esa ruta más un pequeño componente compartido.
 
-### 1. Dead buttons (no handler, no navigation)
+## Layout general
 
-| # | File / line | Button | Problem |
-|---|---|---|---|
-| A | `src/routes/student.boost.tsx:121` | "Start exercise" on each drill card | No `onClick`, no `Link`. Clicking does nothing. |
-| B | `src/routes/student.index.tsx:519` | Download icon in recent sessions table | `disabled` flag works, but enabled state has no `onClick` — clicking the row's download does nothing even when `report_pdf_url` exists. |
-| C | `src/routes/student.courses.tsx:555` | Audio Play button inside `listen_select` activity | No `onClick` and no audio element wired. |
+```text
+┌───────────────────────────────┬───────────────────────────────┐
+│ Plan your upcoming Sessions    │ Complete your sessions          │
+│ (50% izquierda)                │ (50% derecha)                   │
+│                                │                                 │
+│ 3 sesiones "scheduled" más     │ Tarjetas actuales, más          │
+│ próximas + botón [Plan]        │ compactas + [Join Live Session] │
+│                                │ (verde) + [Fill session report] │
+└───────────────────────────────┴───────────────────────────────┘
+```
 
-**Fixes**
-- A: Make the card-level "Start exercise" a no-op toast ("Exercise coming soon") consistent with other mock-only actions, OR wire it to scroll/focus the first available drill. Recommendation: simple `alert("This drill will launch soon.")` to match the mock-app pattern already used elsewhere.
-- B: Add `onClick={() => window.open(s.report_pdf_url!, "_blank")}` so the existing `report_pdf_url` mock link is honored (matches the same pattern used in the teacher "Mock download" button).
-- C: Add `onClick={() => alert("Audio playback is mocked in this demo.")}` and an `aria-label="Play audio clip"`, matching the existing mock-alert convention used throughout student.courses / student.sessions.
+Cada columna lleva un título en la parte superior:
+- Izquierda: **"Plan your upcoming Sessions"**
+- Derecha: **"Complete your sessions"**
 
-### 2. Minor cleanup
+## Columna derecha — "Complete your sessions"
 
-- `src/routes/student.boost.tsx` imports `Target` from lucide but never uses it — remove the unused import.
-- `RatingModal` star buttons have no `type="button"` — harmless today (no surrounding `<form>`) but good practice; add `type="button"` to prevent accidental form submits if ever embedded.
+- Conserva las tarjetas existentes (estudiante, nivel, fecha, duración, pill "Live now", contador "Time left to submit", botón "Fill session report" / estado "Overdue").
+- Las hago **más compactas**: padding e íconos reducidos, tipografía algo menor, para que quepan bien en la mitad del ancho. Botones apilados verticalmente cuando el espacio sea justo.
+- **Nuevo botón "Join Live Session"** (verde) a la **izquierda** del botón "Fill session report":
+  - Solo aparece cuando la sesión está **ocurriendo ahora** (`now >= start && now <= end`), es decir la misma condición que hoy muestra la pill "Live now".
+  - Cuando la sesión ya terminó, el botón **desaparece** (y queda "Fill session report").
+  - Enlaza al link de la sesión: `s.teams_link` (abre en pestaña nueva, `target="_blank" rel="noopener noreferrer"`).
 
-### 3. Verified OK (no change needed)
+## Columna izquierda — "Plan your upcoming Sessions"
 
-- All other `<button>` elements without `onClick` are intentionally `disabled` (e.g. "Cancelled" pill, "Overdue (Locked)", locked download row) — correct behavior.
-- All `alert(...)` calls are intentional mock placeholders (PDF download, mic access, club booking limits, cancellation messages). Keeping them is consistent with the demo-data architecture.
-- `/student/boost` route is properly registered and reachable from `/student/performance` Boost Skill buttons.
-- TopNav links, role guards, logout flow, and route tree all wire up correctly.
-- Performance percentage calc, color thresholds, and Rocket-icon Boost button match the earlier specs.
+- Muestra las **3 sesiones `scheduled` más próximas** a la fecha actual (orden ascendente por `date_time`, tomando las 3 primeras).
+- Cada tarjeta compacta muestra estudiante, nivel, fecha/hora y un botón **"Plan"**.
+- El botón "Plan" abre el modal de planificación (mismo formulario que hoy existe en el calendario) para que el profesor titule, elija tipo/nivel/unidad y guarde el plan.
 
-### Technical changes (one diff per fix)
+## Reutilizar el modal de planificación
 
-1. `src/routes/student.boost.tsx` — add `onClick` to "Start exercise" button + drop unused `Target` import.
-2. `src/routes/student.index.tsx` — add `onClick` to the recent-sessions download icon button using `s.report_pdf_url`.
-3. `src/routes/student.courses.tsx` — add `onClick` + `aria-label` to the listen_select Play button.
-4. `src/components/verbo/RatingModal.tsx` — add `type="button"` to the star buttons.
+Para no duplicar código, extraigo el `PlanModal` (hoy dentro de `teacher.calendar.tsx`) a un componente compartido:
+- Nuevo archivo `src/components/verbo/PlanModal.tsx` con el mismo `PlanModal` y su interfaz.
+- `teacher.calendar.tsx` importa desde ahí (sin cambios de comportamiento).
+- `teacher.index.tsx` lo usa para el botón "Plan".
+- El guardado sigue usando `saveLessonPlan` de `lesson-plans-store.ts` y los niveles desde `courses-store.ts`, de modo que un plan hecho desde el dashboard también se refleja en el calendario (estado "ready").
 
-No business logic, no styling, no route changes.
+## Detalles técnicos
+
+- Solo se toca `src/routes/teacher.index.tsx`, se crea `src/components/verbo/PlanModal.tsx` y se ajusta el import en `src/routes/teacher.calendar.tsx`.
+- La columna izquierda cargará `levels` (`loadLevels`) y planes (`loadLessonPlans`) para alimentar el modal, con `useEffect` client-side para evitar mismatch SSR (igual que el calendario).
+- Se mantiene intacta la sección "Recent activity" y las métricas superiores.
+- Sin cambios de backend ni de datos; todo sobre los stores locales existentes.
