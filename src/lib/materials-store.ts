@@ -49,10 +49,20 @@ function safeWrite(k: string, v: unknown) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(k, JSON.stringify(v));
+    invalidateCache();
     window.dispatchEvent(new CustomEvent(MATERIALS_EVENT));
   } catch {
     /* noop */
   }
+}
+
+// Cached snapshots so useSyncExternalStore gets a stable reference between
+// store changes (a fresh array each read would trigger an infinite loop).
+let matCache: StoredMaterial[] | null = null;
+let catCache: string[] | null = null;
+function invalidateCache() {
+  matCache = null;
+  catCache = null;
 }
 
 function seedMaterials(): StoredMaterial[] {
