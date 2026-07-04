@@ -343,6 +343,26 @@ function BulkScheduler({
         </div>
       )}
 
+      {conflictSummary.length > 0 && (
+        <div
+          className="flex items-start gap-3 rounded-xl border p-4 text-sm"
+          style={{ backgroundColor: "#fef2f2", borderColor: "#dc2626", color: "#7f1d1d" }}
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4" style={{ color: "#dc2626" }} />
+          <div>
+            <div className="font-semibold">
+              {conflictSummary.length} session{conflictSummary.length === 1 ? "" : "s"} could not be created — the teacher is already booked at that time.
+            </div>
+            <div className="mt-1 text-xs">
+              Conflicting slots: {conflictSummary
+                .map((d) => d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))
+                .join(" · ")}
+            </div>
+            <div className="mt-0.5 text-xs">All other dates were scheduled. Change the teacher or time to resolve these, or handle them manually.</div>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-end">
         <button
           onClick={assign}
