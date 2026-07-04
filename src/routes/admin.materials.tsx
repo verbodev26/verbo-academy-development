@@ -346,11 +346,7 @@ function Page() {
           </div>
         </div>
       )}
-
-      <div className="hidden">
-        <Plus />
-        <UploadCloud />
-      </div>
     </div>
+
   );
 }
