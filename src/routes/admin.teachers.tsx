@@ -17,7 +17,12 @@ import {
   CheckCircle2, CalendarClock, ChevronRight, UserX, Wallet, FileDown, CircleDollarSign, Trophy,
 } from "lucide-react";
 
-export const Route = createFileRoute("/admin/teachers")({ component: Page });
+export const Route = createFileRoute("/admin/teachers")({
+  component: Page,
+  validateSearch: (s: Record<string, unknown>): { teacher?: string } => ({
+    teacher: typeof s.teacher === "string" ? s.teacher : undefined,
+  }),
+});
 
 // ---------------------------------------------------------------------------
 // Persistence (localStorage — swap for Lovable Cloud later)
