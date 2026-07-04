@@ -54,6 +54,15 @@ export const PRODUCTS: ProductDef[] = [
     defaultAccessPlan: "Advance",
     levels: ["Survival Basics", "Travel Ready", "Social Fluency", "Full Command"],
   },
+  {
+    id: "vip",
+    name: "VIP",
+    icon: "crown",
+    blurb: "Premium white-glove program with full personalization.",
+    hasFocus: true,
+    defaultAccessPlan: "Signature",
+    levels: ["VIP Foundations", "VIP Momentum", "VIP Mastery", "VIP Signature"],
+  },
 ];
 
 export function getProduct(id?: string | null): ProductDef | undefined {
