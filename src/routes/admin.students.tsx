@@ -80,8 +80,51 @@ function Page() {
     forceTick((n) => n + 1);
   }, []);
 
-  const students = USERS.filter((u) => u.role === "student");
+  const allStudents = USERS.filter((u) => u.role === "student");
   const teachers = USERS.filter((u) => u.role === "teacher");
+
+  // ---------------------------------------------------------------------------
+  // Filter & search state
+  // ---------------------------------------------------------------------------
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"name-asc" | "name-desc" | "">("");
+  const [filterCompany, setFilterCompany] = useState<string>("");
+  const [filterProduct, setFilterProduct] = useState<string>("");
+
+  const companies = useMemo(() => {
+    const set = new Set<string>();
+    allStudents.forEach((s) => { if (s.company) set.add(s.company); });
+    return Array.from(set).sort();
+  }, [allStudents]);
+
+  const filteredStudents = useMemo(() => {
+    let list = [...allStudents];
+
+    // search by name
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((s) => s.name.toLowerCase().includes(q));
+    }
+
+    // filter by company
+    if (filterCompany) {
+      list = list.filter((s) => s.company === filterCompany);
+    }
+
+    // filter by product
+    if (filterProduct) {
+      list = list.filter((s) => s.product === filterProduct);
+    }
+
+    // sort
+    if (sortBy === "name-asc") {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === "name-desc") {
+      list.sort((a, b) => b.name.localeCompare(a.name));
+    }
+
+    return list;
+  }, [allStudents, searchQuery, filterCompany, filterProduct, sortBy]);
 
   const persist = (updated: User) => {
     const idx = USERS.findIndex((u) => u.id === updated.id);
