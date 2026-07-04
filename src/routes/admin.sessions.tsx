@@ -229,6 +229,7 @@ function BulkScheduler({
   // Summary of dates skipped on the last Assign because the teacher was already
   // booked with another student at that exact date/time.
   const [conflictSummary, setConflictSummary] = useState<Date[]>([]);
+  useEffect(() => { setConflictSummary([]); }, [startDate, endDate, time, days, teacherId, studentId]);
 
   const toggleDay = (d: number) =>
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
