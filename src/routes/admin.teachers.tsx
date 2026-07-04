@@ -401,19 +401,32 @@ function TeacherDetailModal({
                 <Info label="Email" value={t.email} />
               </div>
 
-              {/* Hourly rate */}
-              <div>
-                <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Hourly rate (MXN)</div>
-                <div className="flex items-center gap-2">
+              {/* Hourly rate + payment frequency */}
+              <div className="flex flex-wrap items-end gap-4">
+                <div>
+                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Hourly rate (MXN)</div>
                   <div className="flex items-center rounded-lg border border-input bg-background">
-                    <span className="px-3 text-sm text-muted-foreground">$</span>
-                    <input type="number" min={0} value={rate} onChange={(e) => setRate(e.target.value)} className="w-28 bg-transparent py-2 pr-3 text-sm text-foreground focus:outline-none" />
-                    <span className="pr-3 text-xs text-muted-foreground">MXN/h</span>
+                    <span className="pl-3 text-sm text-muted-foreground">$</span>
+                    <input type="number" min={0} value={rate} onChange={(e) => setRate(e.target.value)} className="w-16 bg-transparent py-2 px-1 text-sm text-foreground focus:outline-none" />
+                    <span className="pr-3 text-xs text-muted-foreground">/h</span>
                   </div>
-                  {String(t.hourly_rate ?? DEFAULT_HOURLY_RATE) !== rate && (
-                    <PrimaryBtn onClick={() => onPersist({ ...t, hourly_rate: Number(rate) || DEFAULT_HOURLY_RATE })}>Save</PrimaryBtn>
-                  )}
                 </div>
+                <div>
+                  <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Payment frequency</div>
+                  <div className="relative">
+                    <select value={freq} onChange={(e) => setFreq(e.target.value as PaymentFrequency)} className={`${selectCls} w-40 appearance-none pr-8`}>
+                      {PAYMENT_FREQUENCIES.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                    </select>
+                    <CalendarClock className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  </div>
+                </div>
+                {(String(t.hourly_rate ?? DEFAULT_HOURLY_RATE) !== rate || paymentFrequency(t) !== freq) && (
+                  <PrimaryBtn onClick={() => {
+                    const patch: User = { ...t, hourly_rate: Number(rate) || DEFAULT_HOURLY_RATE, payment_frequency: freq };
+                    if (paymentFrequency(t) !== freq) patch.payment_records = defaultPaymentRecords(freq);
+                    onPersist(patch);
+                  }}>Save</PrimaryBtn>
+                )}
               </div>
 
               {/* Qualified products */}
