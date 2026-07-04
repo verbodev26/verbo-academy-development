@@ -1,12 +1,33 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Card, GhostButton, Pill, PrimaryButton, SectionTitle } from "@/components/verbo/ui";
-import { Sparkles, BookOpen, Plus, Pencil, Trash2, UploadCloud, X, Link as LinkIcon, Calendar } from "lucide-react";
+import { USERS } from "@/lib/mock-data";
+import {
+  Sparkles,
+  BookOpen,
+  Plus,
+  Pencil,
+  Trash2,
+  UploadCloud,
+  X,
+  Link as LinkIcon,
+  Calendar,
+  Image as ImageIcon,
+  AlertTriangle,
+  Search,
+  List,
+  CalendarDays,
+  History,
+  ChevronLeft,
+  ChevronRight,
+  User as UserIcon,
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/clubs")({ component: Page });
 
 type ClubType = "insight" | "book";
-type Status = "upcoming" | "live" | "completed" | "cancelled";
+type TimeStatus = "upcoming" | "live" | "completed" | "cancelled";
+type AssignmentStatus = "created" | "assigned";
 
 interface Club {
   id: string;
@@ -15,35 +36,72 @@ interface Club {
   description: string;
   link: string;
   material?: string;
+  cover_image?: string;
+  teacher_id?: string;
   date: string; // ISO
+  duration_minutes: number;
   spots_taken: number;
   spots_total: number;
-  status: Status;
+  status: TimeStatus;
 }
 
 const SEED: Club[] = [
-  { id: "c1", type: "insight", title: "Mastering Business Idioms", description: "Live workshop on professional idioms.", link: "https://teams.microsoft.com/l/meetup-1", material: "idioms-guide.pdf", date: "2026-05-28T17:00:00", spots_taken: 12, spots_total: 30, status: "upcoming" },
-  { id: "c2", type: "book", title: "The Alchemist — Chapter 3", description: "Discussion circle on themes and vocabulary.", link: "https://teams.microsoft.com/l/meetup-2", material: "alchemist-ch3.pdf", date: "2026-05-25T18:30:00", spots_taken: 4, spots_total: 4, status: "upcoming" },
-  { id: "c3", type: "insight", title: "Pronunciation Lab: TH Sounds", description: "Drills and pair practice.", link: "https://teams.microsoft.com/l/meetup-3", date: "2026-05-18T16:00:00", spots_taken: 22, spots_total: 25, status: "completed" },
-  { id: "c4", type: "book", title: "Atomic Habits — Intro", description: "Kickoff session for the new club cycle.", link: "https://teams.microsoft.com/l/meetup-4", date: "2026-06-02T17:30:00", spots_taken: 1, spots_total: 4, status: "upcoming" },
+  { id: "c1", type: "insight", title: "Mastering Business Idioms", description: "Live workshop on professional idioms.", link: "https://teams.microsoft.com/l/meetup-1", material: "idioms-guide.pdf", teacher_id: "u2", date: "2026-05-28T17:00:00", duration_minutes: 60, spots_taken: 12, spots_total: 30, status: "upcoming" },
+  { id: "c2", type: "book", title: "The Alchemist — Chapter 3", description: "Discussion circle on themes and vocabulary.", link: "https://teams.microsoft.com/l/meetup-2", material: "alchemist-ch3.pdf", date: "2026-05-25T18:30:00", duration_minutes: 60, spots_taken: 4, spots_total: 4, status: "upcoming" },
+  { id: "c3", type: "insight", title: "Pronunciation Lab: TH Sounds", description: "Drills and pair practice.", link: "https://teams.microsoft.com/l/meetup-3", teacher_id: "u3", date: "2026-05-18T16:00:00", duration_minutes: 45, spots_taken: 22, spots_total: 25, status: "completed" },
+  { id: "c4", type: "book", title: "Atomic Habits — Intro", description: "Kickoff session for the new club cycle.", link: "https://teams.microsoft.com/l/meetup-4", date: "2026-06-02T17:30:00", duration_minutes: 60, spots_taken: 1, spots_total: 4, status: "upcoming" },
 ];
 
-const STATUS_TONE: Record<Status, "default" | "success" | "warning" | "danger" | "muted"> = {
+const STATUS_TONE: Record<TimeStatus, "default" | "success" | "warning" | "danger" | "muted"> = {
   upcoming: "default",
   live: "success",
   completed: "muted",
   cancelled: "danger",
 };
 
+function assignmentOf(c: Club): AssignmentStatus {
+  return c.teacher_id ? "assigned" : "created";
+}
+
+function teacherName(id?: string) {
+  if (!id) return null;
+  return USERS.find((u) => u.id === id)?.name ?? null;
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   return d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+function formatDay(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+// Simple normalized similarity — no AI. Exact-ish match ignoring case/spacing.
+function normalizeTitle(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+function similarTitle(a: string, b: string) {
+  const na = normalizeTitle(a);
+  const nb = normalizeTitle(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.length >= 4 && nb.length >= 4 && (na.includes(nb) || nb.includes(na))) return true;
+  // token overlap
+  const ta = new Set(na.split(" "));
+  const tb = new Set(nb.split(" "));
+  const inter = [...ta].filter((t) => tb.has(t)).length;
+  const overlap = inter / Math.max(ta.size, tb.size);
+  return overlap >= 0.75;
+}
+
+type ViewMode = "list" | "calendar" | "history";
+
 function Page() {
   const [clubs, setClubs] = useState<Club[]>(SEED);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Club | null>(null);
+  const [view, setView] = useState<ViewMode>("list");
 
   const onCreate = () => { setEditing(null); setOpen(true); };
   const onEdit = (c: Club) => { setEditing(c); setOpen(true); };
@@ -73,23 +131,61 @@ function Page() {
         </PrimaryButton>
       </div>
 
-      <Card className="!p-0">
-        <div className="border-b border-border px-6 py-4">
-          <SectionTitle>All scheduled events</SectionTitle>
-        </div>
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-            <tr className="border-b border-border">
-              <th className="px-6 py-3 font-medium">Type</th>
-              <th className="px-6 py-3 font-medium">Title</th>
-              <th className="px-6 py-3 font-medium">Scheduled</th>
-              <th className="px-6 py-3 font-medium">Spots</th>
-              <th className="px-6 py-3 font-medium">Status</th>
-              <th className="px-6 py-3 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clubs.map((c) => (
+      {/* View switcher */}
+      <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-1">
+        {([
+          { id: "list", label: "List View", icon: List },
+          { id: "calendar", label: "Calendar View", icon: CalendarDays },
+          { id: "history", label: "Topic History", icon: History },
+        ] as { id: ViewMode; label: string; icon: typeof List }[]).map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setView(t.id)}
+            className={`inline-flex items-center gap-2 rounded-md px-3.5 py-1.5 text-sm font-medium transition-all ${
+              view === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <t.icon className="h-4 w-4" /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {view === "list" && <ListView clubs={clubs} onEdit={onEdit} onDelete={onDelete} />}
+      {view === "calendar" && <CalendarView clubs={clubs} onEdit={onEdit} />}
+      {view === "history" && <TopicHistory clubs={clubs} />}
+
+      {open && <ClubFormPanel initial={editing} clubs={clubs} onClose={() => setOpen(false)} onSave={onSave} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// List view (existing table + Assignment column)
+// ---------------------------------------------------------------------------
+function ListView({ clubs, onEdit, onDelete }: { clubs: Club[]; onEdit: (c: Club) => void; onDelete: (id: string) => void }) {
+  return (
+    <Card className="!p-0">
+      <div className="border-b border-border px-6 py-4">
+        <SectionTitle>All scheduled events</SectionTitle>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
+          <tr className="border-b border-border">
+            <th className="px-6 py-3 font-medium">Type</th>
+            <th className="px-6 py-3 font-medium">Title</th>
+            <th className="px-6 py-3 font-medium">Teacher</th>
+            <th className="px-6 py-3 font-medium">Scheduled</th>
+            <th className="px-6 py-3 font-medium">Spots</th>
+            <th className="px-6 py-3 font-medium">Assignment</th>
+            <th className="px-6 py-3 font-medium">Status</th>
+            <th className="px-6 py-3 font-medium text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {clubs.map((c) => {
+            const assignment = assignmentOf(c);
+            const tName = teacherName(c.teacher_id);
+            return (
               <tr key={c.id} className="border-b border-border last:border-0 hover:bg-secondary/30">
                 <td className="px-6 py-4">
                   <div className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${c.type === "insight" ? "bg-accent/15 text-accent" : "bg-primary/10 text-primary"}`}>
@@ -100,8 +196,14 @@ function Page() {
                   <div className="font-medium text-foreground">{c.title}</div>
                   <div className="text-xs text-muted-foreground">{c.type === "insight" ? "Verbo Insight" : "Book Club"}</div>
                 </td>
+                <td className="px-6 py-4 text-muted-foreground">{tName ?? <span className="italic text-muted-foreground/70">Unassigned</span>}</td>
                 <td className="px-6 py-4 text-muted-foreground">{formatDate(c.date)}</td>
                 <td className="px-6 py-4 text-foreground">{c.spots_taken}/{c.spots_total}</td>
+                <td className="px-6 py-4">
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${assignment === "assigned" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
+                    {assignment === "assigned" ? "Assigned" : "Created"}
+                  </span>
+                </td>
                 <td className="px-6 py-4"><Pill tone={STATUS_TONE[c.status]}>{c.status}</Pill></td>
                 <td className="px-6 py-4">
                   <div className="flex justify-end gap-1">
@@ -114,25 +216,186 @@ function Page() {
                   </div>
                 </td>
               </tr>
-            ))}
-            {clubs.length === 0 && (
-              <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-muted-foreground">No club events yet. Create your first one.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </Card>
-
-      {open && <ClubFormPanel initial={editing} onClose={() => setOpen(false)} onSave={onSave} />}
-    </div>
+            );
+          })}
+          {clubs.length === 0 && (
+            <tr><td colSpan={8} className="px-6 py-12 text-center text-sm text-muted-foreground">No club events yet. Create your first one.</td></tr>
+          )}
+        </tbody>
+      </table>
+    </Card>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Calendar view (monthly grid)
+// ---------------------------------------------------------------------------
+function CalendarView({ clubs, onEdit }: { clubs: Club[]; onEdit: (c: Club) => void }) {
+  const initial = clubs.length ? new Date(clubs[0].date) : new Date();
+  const [cursor, setCursor] = useState(new Date(initial.getFullYear(), initial.getMonth(), 1));
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const firstDay = new Date(year, month, 1).getDay(); // 0 Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const byDay = useMemo(() => {
+    const map: Record<number, Club[]> = {};
+    clubs.forEach((c) => {
+      const d = new Date(c.date);
+      if (d.getFullYear() === year && d.getMonth() === month) {
+        const day = d.getDate();
+        (map[day] ??= []).push(c);
+      }
+    });
+    return map;
+  }, [clubs, year, month]);
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const monthLabel = cursor.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  return (
+    <Card className="!p-0">
+      <div className="flex items-center justify-between border-b border-border px-6 py-4">
+        <SectionTitle>{monthLabel}</SectionTitle>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setCursor(new Date(year, month - 1, 1))} aria-label="Previous month" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary hover:text-foreground">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <GhostButton className="!px-3 !py-1.5 text-xs" onClick={() => setCursor(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Today</GhostButton>
+          <button onClick={() => setCursor(new Date(year, month + 1, 1))} aria-label="Next month" className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-secondary hover:text-foreground">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="p-4">
+        <div className="mb-2 grid grid-cols-7 gap-2 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => <div key={d}>{d}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-2">
+          {cells.map((day, i) => (
+            <div key={i} className={`min-h-[104px] rounded-lg border p-2 ${day ? "border-border bg-background" : "border-transparent"}`}>
+              {day && (
+                <>
+                  <div className="mb-1 text-xs font-medium text-muted-foreground">{day}</div>
+                  <div className="space-y-1">
+                    {(byDay[day] ?? []).map((c) => {
+                      const assigned = assignmentOf(c) === "assigned";
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => onEdit(c)}
+                          title={`${c.title} · ${assigned ? "Assigned" : "Created"}`}
+                          className={`flex w-full items-center gap-1 truncate rounded-md px-2 py-1 text-left text-[11px] font-medium transition-opacity hover:opacity-80 ${
+                            assigned ? "bg-success/15 text-success" : "bg-warning/20 text-foreground"
+                          }`}
+                        >
+                          {c.type === "insight" ? <Sparkles className="h-3 w-3 shrink-0" /> : <BookOpen className="h-3 w-3 shrink-0" />}
+                          <span className="truncate">{c.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-success/40" /> Assigned</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-warning/50" /> Created</span>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Topic History (read-only, searchable, filterable by type)
+// ---------------------------------------------------------------------------
+function TopicHistory({ clubs }: { clubs: Club[] }) {
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | ClubType>("all");
+
+  const rows = useMemo(() => {
+    return clubs
+      .filter((c) => typeFilter === "all" || c.type === typeFilter)
+      .filter((c) => c.title.toLowerCase().includes(query.toLowerCase()))
+      .sort((a, b) => +new Date(b.date) - +new Date(a.date));
+  }, [clubs, query, typeFilter]);
+
+  return (
+    <Card className="!p-0">
+      <div className="flex flex-col gap-4 border-b border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <SectionTitle>Topic history</SectionTitle>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search topics…" className="w-56 rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+          <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-1 text-sm">
+            {([
+              { id: "all", label: "All" },
+              { id: "insight", label: "Insights" },
+              { id: "book", label: "Book Clubs" },
+            ] as { id: "all" | ClubType; label: string }[]).map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTypeFilter(t.id)}
+                className={`rounded-md px-3 py-1 font-medium transition-all ${typeFilter === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <table className="w-full text-sm">
+        <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
+          <tr className="border-b border-border">
+            <th className="px-6 py-3 font-medium">Type</th>
+            <th className="px-6 py-3 font-medium">Title</th>
+            <th className="px-6 py-3 font-medium">Delivered</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((c) => (
+            <tr key={c.id} className="border-b border-border last:border-0">
+              <td className="px-6 py-4">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${c.type === "insight" ? "bg-accent/15 text-accent" : "bg-primary/10 text-primary"}`}>
+                  {c.type === "insight" ? <Sparkles className="h-3 w-3" /> : <BookOpen className="h-3 w-3" />}
+                  {c.type === "insight" ? "Verbo Insight" : "Book Club"}
+                </span>
+              </td>
+              <td className="px-6 py-4 font-medium text-foreground">{c.title}</td>
+              <td className="px-6 py-4 text-muted-foreground">{formatDay(c.date)}</td>
+            </tr>
+          ))}
+          {rows.length === 0 && (
+            <tr><td colSpan={3} className="px-6 py-12 text-center text-sm text-muted-foreground">No topics match your search.</td></tr>
+          )}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Create / Edit form panel
+// ---------------------------------------------------------------------------
 function ClubFormPanel({
   initial,
+  clubs,
   onClose,
   onSave,
 }: {
   initial: Club | null;
+  clubs: Club[];
   onClose: () => void;
   onSave: (data: Omit<Club, "id" | "spots_taken" | "status">) => void;
 }) {
@@ -141,8 +404,19 @@ function ClubFormPanel({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [link, setLink] = useState(initial?.link ?? "");
   const [material, setMaterial] = useState(initial?.material ?? "");
+  const [cover, setCover] = useState(initial?.cover_image ?? "");
+  const [teacherId, setTeacherId] = useState(initial?.teacher_id ?? "");
   const [date, setDate] = useState(initial?.date?.slice(0, 16) ?? "");
+  const [duration, setDuration] = useState(initial?.duration_minutes ?? 60);
   const [spotsTotal, setSpotsTotal] = useState(initial?.spots_total ?? (type === "book" ? 4 : 30));
+
+  const teachers = useMemo(() => USERS.filter((u) => u.role === "teacher"), []);
+
+  // Similar-topic detection against same-type history (exclude the item being edited).
+  const similarMatch = useMemo(() => {
+    if (!title.trim()) return null;
+    return clubs.find((c) => c.id !== initial?.id && c.type === type && similarTitle(c.title, title)) ?? null;
+  }, [title, type, clubs, initial]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,7 +424,10 @@ function ClubFormPanel({
     onSave({
       type, title, description, link,
       material: material || undefined,
+      cover_image: cover || undefined,
+      teacher_id: teacherId || undefined,
       date: new Date(date).toISOString(),
+      duration_minutes: duration,
       spots_total: spotsTotal,
     });
   };
@@ -191,10 +468,41 @@ function ClubFormPanel({
 
           <Field label="Club title">
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Public Speaking Essentials" className={fieldCls} required />
+            {similarMatch && (
+              <div className="mt-2 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/15 px-3 py-2 text-xs text-foreground">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <span>
+                  Ya se impartió un tema similar: <strong>"{similarMatch.title}"</strong> el {formatDay(similarMatch.date)}. Puedes continuar si quieres repetirlo.
+                </span>
+              </div>
+            )}
           </Field>
 
           <Field label="Description">
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="What students will learn or discuss." className={`${fieldCls} resize-none`} />
+          </Field>
+
+          <Field label="Cover image" help="Portada que verán los alumnos en su calendario.">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-secondary/30 p-8 text-center">
+              <ImageIcon className="h-7 w-7 text-muted-foreground" />
+              <div className="mt-2 text-sm font-medium text-foreground">{cover || "Drag & drop or choose an image"}</div>
+              <div className="mt-1 text-xs text-muted-foreground">JPG or PNG shown on the student calendar</div>
+              <GhostButton type="button" className="mt-3" onClick={() => setCover(cover ? "" : "club-cover.jpg")}>
+                {cover ? "Remove image" : "Choose file"}
+              </GhostButton>
+            </div>
+          </Field>
+
+          <Field label="Assigned teacher" help="Optional — assigning a teacher marks this event as “Assigned”.">
+            <div className="relative">
+              <UserIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className={`${fieldCls} pl-9`}>
+                <option value="">— Unassigned —</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
           </Field>
 
           <Field label="Session link">
@@ -215,13 +523,21 @@ function ClubFormPanel({
             </div>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Date & time">
-              <div className="relative">
-                <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className={`${fieldCls} pl-9`} required />
-              </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2">
+              <Field label="Date & time">
+                <div className="relative">
+                  <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className={`${fieldCls} pl-9`} required />
+                </div>
+              </Field>
+            </div>
+            <Field label="Duration (min)">
+              <input type="number" min={5} step={5} value={duration} onChange={(e) => setDuration(parseInt(e.target.value) || 60)} className={fieldCls} />
             </Field>
+          </div>
+
+          <div className="max-w-[160px]">
             <Field label="Capacity">
               <input type="number" min={1} value={spotsTotal} onChange={(e) => setSpotsTotal(parseInt(e.target.value) || 1)} className={fieldCls} />
             </Field>
@@ -239,10 +555,11 @@ function ClubFormPanel({
 
 const fieldCls = "w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, help, children }: { label: string; help?: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="text-xs font-medium text-foreground">{label}</label>
+      {help && <p className="mt-0.5 text-[11px] text-muted-foreground">{help}</p>}
       <div className="mt-1.5">{children}</div>
     </div>
   );
