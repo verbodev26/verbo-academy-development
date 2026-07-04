@@ -641,6 +641,7 @@ function cycleLabel(base = new Date()) {
 }
 
 function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (u: User) => void; onAddAdjustment: () => void }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const summary = financialSummary(t);
   const records = t.payment_records && t.payment_records.length > 0
     ? t.payment_records
@@ -657,6 +658,23 @@ function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (
     const next = records.map((r) => (r.id === id ? { ...r, ...patch } : r));
     onPersist({ ...t, payment_records: next });
   };
+
+  // Close a cycle: mark the next pending payment date as paid, reset worked
+  // hours and clear manual adjustments to start a fresh cycle.
+  const closeCycle = () => {
+    const idx = records.findIndex((r) => r.status !== "paid");
+    const nextRecords = idx >= 0
+      ? records.map((r, i) => (i === idx ? { ...r, status: "paid" as const } : r))
+      : records;
+    onPersist({ ...t, payment_records: nextRecords, hours_cycle: 0, hours_month: 0, adjustments: [] });
+  };
+
+  const confirmGenerate = async () => {
+    await generatePDF();
+    closeCycle();
+    setConfirmOpen(false);
+  };
+
 
   const generatePDF = async () => {
     const { default: jsPDF } = await import("jspdf");
@@ -732,13 +750,13 @@ function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (
                 onChange={(e) => { ensureRecords(); updateRecord(r.id, { date: e.target.value }); }}
                 className="rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
-              <button
-                onClick={() => { ensureRecords(); updateRecord(r.id, { status: r.status === "paid" ? "pending" : "paid" }); }}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${r.status === "paid" ? "bg-success/15 text-success" : "bg-amber-500/15 text-amber-600"}`}
+              <span
+                title="Status updates automatically when the PDF report is generated"
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${r.status === "paid" ? "bg-success/15 text-success" : "bg-amber-500/15 text-amber-600"}`}
               >
                 <span className={`h-2 w-2 rounded-full ${r.status === "paid" ? "bg-success" : "bg-amber-500"}`} />
                 {r.status === "paid" ? "Paid" : "Pending"}
-              </button>
+              </span>
             </div>
           ))}
         </div>
@@ -786,8 +804,30 @@ function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (
       </div>
 
       <div className="flex justify-end">
-        <PrimaryBtn onClick={generatePDF}><FileDown className="h-3.5 w-3.5" /> Generate PDF report</PrimaryBtn>
+        <PrimaryBtn onClick={() => setConfirmOpen(true)}><FileDown className="h-3.5 w-3.5" /> Generate PDF report</PrimaryBtn>
       </div>
+
+      {confirmOpen && (
+        <Overlay onClose={() => setConfirmOpen(false)}>
+          <div className="mx-auto w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
+            <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <FileDown className="h-4 w-4 text-accent" /> Generate PDF report
+            </div>
+            <p className="text-sm text-muted-foreground">
+              By generating the report the status changes to paid and the total hours are reset. Do you wish to continue?
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <GhostBtn onClick={() => setConfirmOpen(false)}>Cancel</GhostBtn>
+              <button
+                onClick={confirmGenerate}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </Overlay>
+      )}
     </div>
   );
 }
