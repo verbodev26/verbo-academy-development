@@ -46,11 +46,19 @@ const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_INDEX = [1, 2, 3, 4, 5, 6]; // JS getDay()
 
 function Page() {
+  // Ensure the USERS singleton has persisted profile overrides applied so the
+  // Video Call Link matches the Students view even if that page wasn't visited.
+  const [, forceTick] = useState(0);
   const students = USERS.filter((u) => u.role === "student");
   const teachers = USERS.filter((u) => u.role === "teacher");
   const [sessions, setSessions] = useState<ExtSession[]>(() => loadSessions());
 
+  useEffect(() => {
+    hydrateStudents();
+    forceTick((n) => n + 1);
+  }, []);
   useEffect(() => subscribeSessions(() => setSessions(loadSessions())), []);
+  useEffect(() => subscribeStudents(() => forceTick((n) => n + 1)), []);
 
   const save = (next: ExtSession[]) => { setSessions(next); persistSessions(next); };
 
