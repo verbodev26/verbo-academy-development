@@ -320,8 +320,10 @@ function TeacherDetailModal({
 
   // Editable fields
   const [rate, setRate] = useState(String(t.hourly_rate ?? DEFAULT_HOURLY_RATE));
+  const [freq, setFreq] = useState<PaymentFrequency>(paymentFrequency(t));
   const [products, setProducts] = useState<QualifiedProduct[]>(qualifiedProducts(t));
   const [notes, setNotes] = useState(t.admin_notes ?? "");
+  const [addAdjOpen, setAddAdjOpen] = useState(false);
 
   // Guided freeze / remove flow
   const [flow, setFlow] = useState<null | "frozen" | "removed">(null);
