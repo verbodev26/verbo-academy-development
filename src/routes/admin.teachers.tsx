@@ -804,8 +804,30 @@ function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (
       </div>
 
       <div className="flex justify-end">
-        <PrimaryBtn onClick={generatePDF}><FileDown className="h-3.5 w-3.5" /> Generate PDF report</PrimaryBtn>
+        <PrimaryBtn onClick={() => setConfirmOpen(true)}><FileDown className="h-3.5 w-3.5" /> Generate PDF report</PrimaryBtn>
       </div>
+
+      {confirmOpen && (
+        <Overlay onClose={() => setConfirmOpen(false)}>
+          <div className="mx-auto w-full max-w-md rounded-2xl border border-border bg-background p-6 shadow-xl">
+            <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <FileDown className="h-4 w-4 text-accent" /> Generate PDF report
+            </div>
+            <p className="text-sm text-muted-foreground">
+              By generating the report the status changes to paid and the total hours are reset. Do you wish to continue?
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <GhostBtn onClick={() => setConfirmOpen(false)}>Cancel</GhostBtn>
+              <button
+                onClick={confirmGenerate}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-accent px-4 py-1.5 text-xs font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </Overlay>
+      )}
     </div>
   );
 }
