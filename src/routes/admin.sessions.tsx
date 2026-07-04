@@ -40,7 +40,7 @@ export const Route = createFileRoute("/admin/sessions")({ component: Page });
 
 const BRAND = "#01304a";
 const ORANGE = "#f38934";
-const AMBER = "#eab308";
+
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_INDEX = [1, 2, 3, 4, 5, 6]; // JS getDay()
 
