@@ -1,0 +1,175 @@
+// ============================================================================
+// Teacher KPI model — single source of truth for the Admin > KPIs page and the
+// "Bonus Eligible" flag consumed by the Financial tab in Admin > Teachers.
+//
+// Where real signals exist (student ratings, session statuses + absent cause)
+// we compute from them. The punctuality signals (connection / planning /
+// report) are not yet captured end-to-end, so they fall back to deterministic
+// mock values seeded per-teacher (stable across renders). Everything is on a
+// 0–100 scale unless noted.
+// ============================================================================
+import { type User } from "./mock-data";
+import { loadSessions } from "./sessions-store";
+import { avgRating } from "./teacher-model";
+
+// ----- Bonus threshold (shared, admin-configurable) -------------------------
+export const BONUS_THRESHOLD_KEY = "verbo:bonus-threshold";
+export const BONUS_THRESHOLD_DEFAULT = 85;
+
+export function getBonusThreshold(): number {
+  if (typeof window === "undefined") return BONUS_THRESHOLD_DEFAULT;
+  const raw = localStorage.getItem(BONUS_THRESHOLD_KEY);
+  const n = raw != null ? Number(raw) : NaN;
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : BONUS_THRESHOLD_DEFAULT;
+}
+export function setBonusThreshold(v: number) {
+  if (typeof window !== "undefined") localStorage.setItem(BONUS_THRESHOLD_KEY, String(Math.round(v)));
+}
+
+// ----- Deterministic pseudo-random helpers ----------------------------------
+function hashSeed(str: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+function mulberry32(a: number): () => number {
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function pctInRange(r: number, min: number, max: number): number {
+  return Math.round(min + (max - min) * r);
+}
+
+// ----- Rating bands ---------------------------------------------------------
+export interface RatingBand {
+  label: string;
+  fg: string; // text color
+  bg: string; // chip background
+  dot: string; // accent color (chart line, ring)
+}
+
+export function ratingBand(rating: number | null): RatingBand {
+  if (rating == null) return { label: "Sin datos", fg: "#64748b", bg: "#f1f5f9", dot: "#94a3b8" };
+  if (rating >= 4.5) return { label: "Excelencia", fg: "#065f46", bg: "#d1fae5", dot: "#047857" };
+  if (rating >= 4.0) return { label: "Muy bueno", fg: "#15803d", bg: "#dcfce7", dot: "#22c55e" };
+  if (rating >= 3.5) return { label: "Bueno", fg: "#4d7c0f", bg: "#ecfccb", dot: "#84cc16" };
+  if (rating >= 2.5) return { label: "Regular", fg: "#b45309", bg: "#fef3c7", dot: "#f59e0b" };
+  return { label: "Crítico", fg: "#dc2626", bg: "#fee2e2", dot: "#ef4444" };
+}
+
+// ----- Session-derived KPIs (real signals) ----------------------------------
+function teacherSessions(teacherId: string) {
+  return loadSessions().filter((s) => s.teacher_id === teacherId);
+}
+
+// % of sessions that reached "completed" (report sent) over the sessions the
+// teacher was responsible for. Denominator EXCLUDES "no_show" and
+// "absent (student)"; it INCLUDES "absent (teacher)". Future scheduled
+// sessions (not yet due) are excluded — they haven't happened.
+export function sessionCompletionRate(teacherId: string): number | null {
+  const now = Date.now();
+  const mine = teacherSessions(teacherId).filter((s) => new Date(s.date_time).getTime() <= now);
+  const denom = mine.filter((s) => {
+    if (s.status === "no_show") return false;
+    if (s.status === "absent" && (s.absent_cause ?? "student") === "student") return false;
+    return true;
+  });
+  if (denom.length === 0) return null;
+  const completed = denom.filter((s) => s.status === "completed").length;
+  return Math.round((completed / denom.length) * 100);
+}
+
+// % of the teacher's sessions marked "Absent" with cause "Teacher".
+export function teacherCausedAbsenceRate(teacherId: string): number {
+  const mine = teacherSessions(teacherId);
+  if (mine.length === 0) return 0;
+  const teacherAbsent = mine.filter(
+    (s) => s.status === "absent" && s.absent_cause === "teacher",
+  ).length;
+  return Math.round((teacherAbsent / mine.length) * 100);
+}
+
+// ----- Composite KPI bundle -------------------------------------------------
+export interface TeacherKpis {
+  rating: number | null;
+  ratingNormalized: number; // rating/5*100 (0 when no rating)
+  connectionPunctuality: number;
+  planningPunctuality: number;
+  reportPunctuality: number;
+  completionRate: number;
+  teacherAbsenceRate: number;
+  composite: number;
+  bonusEligible: boolean;
+}
+
+export function computeTeacherKpis(t: User, threshold = getBonusThreshold()): TeacherKpis {
+  const rng = mulberry32(hashSeed(t.id));
+  const rating = avgRating(t);
+  const ratingNormalized = rating != null ? Math.round((rating / 5) * 100) : 0;
+
+  // Higher-rated teachers skew slightly more punctual — keeps mock coherent.
+  const bias = rating != null ? (rating - 4) * 6 : 0;
+  const clamp = (n: number) => Math.max(40, Math.min(100, n));
+
+  const connectionPunctuality = clamp(pctInRange(rng(), 72, 99) + bias);
+  const planningPunctuality =
+    typeof t.plan_punctuality === "number" ? t.plan_punctuality : clamp(pctInRange(rng(), 70, 98) + bias);
+  const reportPunctuality =
+    typeof t.report_punctuality === "number" ? t.report_punctuality : clamp(pctInRange(rng(), 68, 97) + bias);
+
+  const completionReal = sessionCompletionRate(t.id);
+  const completionRate = completionReal ?? clamp(pctInRange(rng(), 75, 99) + bias);
+  const teacherAbsenceRate = teacherCausedAbsenceRate(t.id);
+
+  const composite = Math.round(
+    (connectionPunctuality + planningPunctuality + reportPunctuality + completionRate + ratingNormalized) / 5,
+  );
+
+  return {
+    rating,
+    ratingNormalized,
+    connectionPunctuality,
+    planningPunctuality,
+    reportPunctuality,
+    completionRate,
+    teacherAbsenceRate,
+    composite,
+    bonusEligible: composite >= threshold,
+  };
+}
+
+export function isBonusEligible(t: User, threshold = getBonusThreshold()): boolean {
+  return computeTeacherKpis(t, threshold).bonusEligible;
+}
+
+// ----- Monthly rating history (mock, last 6 months) -------------------------
+export interface RatingPoint {
+  month: string;
+  rating: number;
+}
+
+export function ratingHistory(t: User, months = 6): RatingPoint[] {
+  const rng = mulberry32(hashSeed(t.id + ":history"));
+  const target = avgRating(t) ?? 4.2;
+  const now = new Date();
+  const out: RatingPoint[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    // Earlier months drift below target; latest month lands on the real avg.
+    const drift = i === 0 ? 0 : (rng() - 0.5) * 0.9 - i * 0.06;
+    const value = Math.max(1, Math.min(5, target + drift));
+    out.push({
+      month: d.toLocaleDateString("en-US", { month: "short" }),
+      rating: Math.round(value * 10) / 10,
+    });
+  }
+  return out;
+}
