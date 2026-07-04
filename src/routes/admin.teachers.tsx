@@ -9,11 +9,12 @@ import {
   PAYMENT_FREQUENCIES, paymentFrequency, defaultPaymentRecords, financialSummary,
   type QualifiedProduct, type TeacherStatus, type PaymentFrequency,
 } from "@/lib/teacher-model";
+import { isBonusEligible } from "@/lib/teacher-kpis";
 import { useAvatar } from "@/lib/avatar-store";
 import {
   Plus, X, Eye, EyeOff, Star, Users, Clock, KeyRound, Snowflake, Ban, Play,
   Pencil, Search, Filter, ArrowUpDown, Check, AlertTriangle, Mail, ShieldAlert,
-  CheckCircle2, CalendarClock, ChevronRight, UserX, Wallet, FileDown, CircleDollarSign,
+  CheckCircle2, CalendarClock, ChevronRight, UserX, Wallet, FileDown, CircleDollarSign, Trophy,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/teachers")({ component: Page });
