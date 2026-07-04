@@ -63,11 +63,18 @@ function TeacherDashboard() {
   const mySessions = sessions.filter((s) => s.teacher_id === user.id);
   const upcoming = mySessions.filter((s) => s.status === "scheduled").sort((a, b) => +new Date(a.date_time) - +new Date(b.date_time));
   const recent = mySessions.filter((s) => s.status !== "scheduled").slice(0, 5);
+  const toPlan = upcoming.slice(0, 3);
 
   const handleSubmit = (sessionId: string, status: SessionStatus, perf: PerformanceRating) => {
     setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, status, _noReport: false } : s)));
     if (status !== "absent") savePerformance(sessionId, perf);
     setEditing(null);
+  };
+
+  const handleSavePlan = (plan: LessonPlan) => {
+    saveLessonPlan(plan);
+    setPlans((prev) => ({ ...prev, [plan.session_id]: plan }));
+    setPlanning(null);
   };
 
   return (
