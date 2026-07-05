@@ -32,6 +32,7 @@ import { Route as AdminMaterialsRouteImport } from './routes/admin.materials'
 import { Route as AdminKpisRouteImport } from './routes/admin.kpis'
 import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
 import { Route as AdminClubsRouteImport } from './routes/admin.clubs'
+import { Route as AdminChallengesRouteImport } from './routes/admin.challenges'
 
 const TeacherRoute = TeacherRouteImport.update({
   id: '/teacher',
@@ -148,6 +149,11 @@ const AdminClubsRoute = AdminClubsRouteImport.update({
   path: '/clubs',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminChallengesRoute = AdminChallengesRouteImport.update({
+  id: '/challenges',
+  path: '/challenges',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -156,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/student': typeof StudentRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
+  '/admin/challenges': typeof AdminChallengesRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/kpis': typeof AdminKpisRoute
@@ -178,6 +185,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/privacy': typeof PrivacyRoute
+  '/admin/challenges': typeof AdminChallengesRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/kpis': typeof AdminKpisRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/student': typeof StudentRouteWithChildren
   '/teacher': typeof TeacherRouteWithChildren
+  '/admin/challenges': typeof AdminChallengesRoute
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/kpis': typeof AdminKpisRoute
@@ -231,6 +240,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/student'
     | '/teacher'
+    | '/admin/challenges'
     | '/admin/clubs'
     | '/admin/courses'
     | '/admin/kpis'
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/privacy'
+    | '/admin/challenges'
     | '/admin/clubs'
     | '/admin/courses'
     | '/admin/kpis'
@@ -278,6 +289,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/student'
     | '/teacher'
+    | '/admin/challenges'
     | '/admin/clubs'
     | '/admin/courses'
     | '/admin/kpis'
@@ -469,10 +481,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminClubsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/challenges': {
+      id: '/admin/challenges'
+      path: '/challenges'
+      fullPath: '/admin/challenges'
+      preLoaderRoute: typeof AdminChallengesRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
+  AdminChallengesRoute: typeof AdminChallengesRoute
   AdminClubsRoute: typeof AdminClubsRoute
   AdminCoursesRoute: typeof AdminCoursesRoute
   AdminKpisRoute: typeof AdminKpisRoute
@@ -484,6 +504,7 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminChallengesRoute: AdminChallengesRoute,
   AdminClubsRoute: AdminClubsRoute,
   AdminCoursesRoute: AdminCoursesRoute,
   AdminKpisRoute: AdminKpisRoute,
