@@ -13,6 +13,7 @@ function Layout() {
           items={[
             { to: "/teacher", label: "Dashboard" },
             { to: "/teacher/calendar", label: "Calendar" },
+            { to: "/teacher/students", label: "Mis Alumnos" },
             { to: "/teacher/materials", label: "Materials" },
           ]}
         />
