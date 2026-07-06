@@ -1028,6 +1028,9 @@ function StudentDetailModal({
   const accessPlan = getAccessPlan(student.access_plan);
   const strikes = student.insights_strikes ?? 0;
   const blocked = strikes >= MAX_INSIGHT_STRIKES;
+  const bcStrikes = student.bookclub_strikes ?? 0;
+  const bcBlocked = bcStrikes >= MAX_BOOKCLUB_STRIKES;
+  const hasBookClubs = (student.addon_bookclubs_per_month ?? 0) > 0;
   const nextPay = computeNextPayment(student);
 
   const patch = (p: Partial<User>) => onUpdate({ ...student, ...p });
