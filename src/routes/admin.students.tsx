@@ -356,6 +356,45 @@ function StudentCard({ student: s, onOpen }: { student: User; onOpen: () => void
     : s.status === "frozen" ? { cls: "bg-blue-500/10 text-blue-600", label: "Frozen" }
     : { cls: "bg-success/10 text-success", label: "Active" };
 
+  const productType = s.product_type ?? "performance";
+  // Insights strike badge stays for anyone with Insights access — Performance
+  // students (kept as before) and standalone Insights customers.
+  const showInsightsBadge = productType === "performance" || productType === "insights";
+
+  if (productType !== "performance") {
+    const typeLabel = productType === "workshops" ? "Focus Workshops" : "Insights";
+    return (
+      <button
+        onClick={onOpen}
+        className="group relative flex flex-col rounded-2xl border border-border bg-card p-5 text-left shadow-soft transition-all hover:-translate-y-1 hover:shadow-elevated"
+      >
+        <div className="flex items-center gap-3">
+          {avatar ? (
+            <img src={avatar} alt={s.name} className="h-12 w-12 rounded-full object-cover" />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+              {initials(s.name)}
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="truncate font-semibold text-foreground">{s.name}</div>
+            <div className="truncate text-xs text-muted-foreground">{s.email}</div>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-1.5">
+          <Tag className="bg-primary/10 text-primary">{typeLabel}</Tag>
+          <Tag className={statusBadge.cls}>{statusBadge.label}</Tag>
+          {showInsightsBadge && (
+            <Tag className={blocked ? "bg-destructive/10 text-destructive" : "bg-secondary text-secondary-foreground"}>
+              {blocked ? <>Insights Blocked</> : <>Insights {strikes}/{MAX_INSIGHT_STRIKES}</>}
+            </Tag>
+          )}
+        </div>
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={onOpen}
