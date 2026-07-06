@@ -10,7 +10,7 @@ import { hydrateStudents } from "@/lib/students-store";
 import { nextPaymentDate, daysUntil, MAX_INSIGHT_STRIKES, getProduct } from "@/lib/student-model";
 import { computeTeacherKpis } from "@/lib/teacher-kpis";
 import { pendingReviews } from "@/lib/teacher-model";
-import { CLUB_SEED, upcomingCreatedClubs } from "@/lib/clubs-store";
+import { loadClubs, subscribeClubs, upcomingCreatedClubs } from "@/lib/clubs-store";
 import {
   useAnnouncements, activeAnnouncements, publishAnnouncement, endAnnouncement,
   ANNOUNCEMENT_MAX, type Audience,
@@ -84,7 +84,7 @@ function Overview() {
   const lowComposite = teacherRows
     .filter((r) => r.kpis.composite < ALERT_COMPOSITE)
     .sort((a, b) => a.kpis.composite - b.kpis.composite);
-  const createdClubs = upcomingCreatedClubs(CLUB_SEED);
+  const createdClubs = upcomingCreatedClubs(loadClubs());
 
   const studentsClean = paymentAlerts.length === 0 && blockedInsights.length === 0;
   const teachersClean = needsReview.length === 0 && lowComposite.length === 0 && createdClubs.length === 0;
