@@ -11,7 +11,7 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <div className="mb-4 flex items-end justify-between">
-      <h2 className="text-base font-semibold tracking-tight text-foreground text-slate-50">{children}</h2>
+      <h2 className="text-base font-semibold tracking-tight text-foreground">{children}</h2>
       {action}
     </div>
   );
