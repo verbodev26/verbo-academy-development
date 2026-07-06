@@ -121,7 +121,8 @@ function Page() {
             <Card><p className="text-sm text-muted-foreground">No upcoming sessions on your calendar.</p></Card>
           )}
           {upcoming.map((ev) => {
-            const meta = CALENDAR_STATUS_META[(ev.status as any) ?? "scheduled"];
+            const statusKey = ((ev.status ?? "scheduled") as keyof typeof CALENDAR_STATUS_META);
+            const meta = CALENDAR_STATUS_META[statusKey] ?? CALENDAR_STATUS_META.scheduled;
             const kindMeta = EVENT_KIND_META[ev.kind];
             const ended = ev.session ? +new Date(ev.date) + ev.session.duration_minutes * 60_000 <= Date.now() : false;
             return (
