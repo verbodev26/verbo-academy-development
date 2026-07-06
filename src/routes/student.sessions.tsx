@@ -166,9 +166,17 @@ function Page() {
   const [events, setEvents] = useState<CalEvent[]>(initial);
   useEffect(() => setEvents(initial), [initial]);
 
-  const [cancelMap, setCancelMap] = useState<Record<string, number>>(() => readCancels(user?.id));
-  const cancelCount = cancelMap[user?.id ?? "guest"] ?? 0;
-  const blocked = cancelCount >= CANCEL_LIMIT;
+  const uid = user?.id ?? "guest";
+  const [strikeMap, setStrikeMap] = useState<StrikeMap>(() => readStrikes());
+  const insightStrikes = strikeMap[uid]?.["verbo-insights"] ?? 0;
+  const bookClubStrikes = strikeMap[uid]?.["book-club"] ?? 0;
+  const insightsBlocked = insightStrikes >= CANCEL_LIMIT;
+  const bookClubBlocked = bookClubStrikes >= CANCEL_LIMIT;
+
+  // Monthly caps sourced from admin-set fields on the user record.
+  const capInsights = user?.addon_insights_per_month ?? 0;
+  const capBookClubs = user?.addon_bookclubs_per_month ?? 0;
+  const capSpotlight = user?.addon_spotlight_per_month ?? 0;
 
   const [cursor, setCursor] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [selected, setSelected] = useState<CalEvent | null>(null);
