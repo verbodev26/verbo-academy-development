@@ -1271,3 +1271,78 @@ function Field({
     </div>
   );
 }
+
+// ===========================================================================
+// Cohort chips picker — READS the workshops store (source of truth) and
+// returns the selected cohort ids to the parent form. It never persists on
+// its own; the parent syncs memberships on save.
+// ===========================================================================
+function CohortChipsPicker({ selectedIds, currentUserId, onChange }: {
+  selectedIds: string[];
+  currentUserId?: string;
+  onChange: (ids: string[]) => void;
+}) {
+  const [templates, setTemplates] = useState<WorkshopTemplate[]>(loadWorkshops);
+  useEffect(() => {
+    setTemplates(loadWorkshops());
+    return subscribeWorkshops(() => setTemplates(loadWorkshops()));
+  }, []);
+
+  const all = useMemo(() => {
+    const list: { id: string; label: string; cohort: WorkshopCohort; full: boolean }[] = [];
+    for (const t of templates) {
+      for (const c of t.cohorts) {
+        const includesMe = !!currentUserId && c.participants.some((p) => p.id === currentUserId);
+        const full = !includesMe && c.participants.length >= 4;
+        list.push({ id: c.id, label: `${t.name} — ${c.name || "Untitled cohort"}`, cohort: c, full });
+      }
+    }
+    return list;
+  }, [templates, currentUserId]);
+
+  const selectedSet = new Set(selectedIds);
+  const available = all.filter((x) => !selectedSet.has(x.id));
+
+  return (
+    <div className="space-y-2">
+      {selectedIds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedIds.map((id) => {
+            const item = all.find((x) => x.id === id);
+            const label = item ? item.label : id;
+            return (
+              <span key={id} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
+                {label}
+                <button type="button" onClick={() => onChange(selectedIds.filter((x) => x !== id))} className="ml-1 opacity-70 hover:opacity-100" aria-label="Remove cohort">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+      {all.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No cohorts yet. Create one in Admin → Focus Workshops.</p>
+      ) : available.length === 0 ? (
+        <p className="text-xs text-muted-foreground">This person is already enrolled in every available cohort.</p>
+      ) : (
+        <select
+          value=""
+          onChange={(e) => {
+            const v = e.target.value;
+            if (!v) return;
+            onChange([...selectedIds, v]);
+          }}
+          className={`${inputCls} cursor-pointer`}
+        >
+          <option value="">Add cohort…</option>
+          {available.map((x) => (
+            <option key={x.id} value={x.id} disabled={x.full}>
+              {x.label}{x.full ? " · full" : ""}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
