@@ -1221,6 +1221,16 @@ function StudentDetailModal({
           >
             <Unlock className="h-3.5 w-3.5" /> Unlock Insights ({strikes}/{MAX_INSIGHT_STRIKES})
           </button>
+          {hasBookClubs && (
+            <button
+              onClick={() => bcBlocked && patch({ bookclub_strikes: 0 })}
+              disabled={!bcBlocked}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all enabled:hover:brightness-110 disabled:opacity-40"
+              style={{ backgroundColor: "#0f766e" }}
+            >
+              <Unlock className="h-3.5 w-3.5" /> Unlock Book Clubs ({bcStrikes}/{MAX_BOOKCLUB_STRIKES})
+            </button>
+          )}
           <button
             onClick={markPaid}
             className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-success px-3 py-1.5 text-xs font-semibold text-success-foreground shadow-sm transition-opacity hover:opacity-90"
