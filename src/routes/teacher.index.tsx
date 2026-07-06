@@ -4,7 +4,8 @@ import { useAuth } from "@/lib/auth";
 import { SESSIONS, studentsOfTeacher, userById, type Session, type SessionStatus, type Level } from "@/lib/mock-data";
 import { Card, GhostButton, MetricCard, Pill, PrimaryButton, SectionTitle } from "@/components/verbo/ui";
 import { CalendarClock, FileEdit, X, Lock, Plus, Trash2, Download, CheckCircle2, Mic, PenLine, Ear, BookOpen, ChevronRight, Video, type LucideIcon } from "lucide-react";
-import { savePerformance, type PerformanceRating } from "@/lib/performance-store";
+import { savePerformance, saveSubskillEvaluation, type PerformanceRating } from "@/lib/performance-store";
+import { MACRO_SKILLS as SHARED_MACRO_SKILLS, skillKey as sharedSkillKey, type BaseKey as SharedBaseKey } from "@/lib/skills-taxonomy";
 import { PlanModal } from "@/components/verbo/PlanModal";
 import { loadLevels, subscribeLevels } from "@/lib/courses-store";
 import { loadLessonPlans, saveLessonPlan, subscribeLessonPlans, type LessonPlan } from "@/lib/lesson-plans-store";
@@ -524,7 +525,7 @@ function ReportPreview({ studentName, dateLabel, status, notes, entries, onClose
 // New two-tier Performance Evaluation system
 // ============================================================
 
-type BaseKey = keyof PerformanceRating; // fluency | vocabulary | confidence | grammar
+type BaseKey = SharedBaseKey;
 
 interface SubSkillDef { name: string; base: BaseKey }
 interface MacroSkillDef {
@@ -533,49 +534,10 @@ interface MacroSkillDef {
   subs: SubSkillDef[];
 }
 
-const MACRO_SKILLS: MacroSkillDef[] = [
-  {
-    key: "Speaking", icon: Mic,
-    subs: [
-      { name: "Fluency", base: "fluency" },
-      { name: "Confidence", base: "confidence" },
-      { name: "Range", base: "vocabulary" },
-      { name: "Accuracy", base: "grammar" },
-      { name: "Pace", base: "fluency" },
-      { name: "Tone", base: "confidence" },
-    ],
-  },
-  {
-    key: "Writing", icon: PenLine,
-    subs: [
-      { name: "Organization", base: "grammar" },
-      { name: "Accuracy", base: "grammar" },
-      { name: "Vocabulary Range", base: "vocabulary" },
-      { name: "Task Achievement", base: "grammar" },
-      { name: "Cohesion", base: "grammar" },
-      { name: "Professional Tone", base: "vocabulary" },
-    ],
-  },
-  {
-    key: "Listening", icon: Ear,
-    subs: [
-      { name: "Comprehension", base: "confidence" },
-      { name: "Inference", base: "confidence" },
-      { name: "Response Accuracy", base: "grammar" },
-      { name: "Speed of Processing", base: "fluency" },
-      { name: "Confidence", base: "confidence" },
-    ],
-  },
-  {
-    key: "Reading", icon: BookOpen,
-    subs: [
-      { name: "Comprehension", base: "vocabulary" },
-      { name: "Inference", base: "vocabulary" },
-      { name: "Vocabulary Recognition", base: "vocabulary" },
-      { name: "Critical Understanding", base: "grammar" },
-    ],
-  },
-];
+// Sourced from the shared taxonomy so the Session Report, the student
+// dashboard "Linguistic Asset Performance" widget, and the teacher
+// "Overall Skills" summary all stay perfectly in sync.
+const MACRO_SKILLS: MacroSkillDef[] = SHARED_MACRO_SKILLS as unknown as MacroSkillDef[];
 
 // Scores keyed by `${macroKey}::${subName}` → 0-100 number or null (skipped).
 type ScoresMap = Record<string, number | null>;
