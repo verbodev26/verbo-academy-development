@@ -82,10 +82,10 @@ export interface FocusDef {
 }
 
 export const FOCUSES: FocusDef[] = [
-  { id: "go-global", name: "Experiencia Global", product: "go", suggestedLevels: 2 },
-  { id: "go-hobby", name: "Hobby y Cultura", product: "go", suggestedLevels: 2 },
-  { id: "intl-survival", name: "Supervivencia", product: "international", suggestedLevels: 2 },
-  { id: "intl-mastery", name: "Dominio", product: "international", suggestedLevels: 4 },
+  { id: "go-global", name: "Global Experience", product: "go", suggestedLevels: 2 },
+  { id: "go-hobby", name: "Hobby & Culture", product: "go", suggestedLevels: 2 },
+  { id: "intl-survival", name: "Survival", product: "international", suggestedLevels: 2 },
+  { id: "intl-mastery", name: "Mastery", product: "international", suggestedLevels: 4 },
 ];
 
 export function focusesForProduct(product?: string | null): FocusDef[] {
