@@ -522,28 +522,108 @@ function CohortRow({ cohort, template, units, onEdit, onDelete, onChange }: {
         </div>
       )}
 
-      {/* Live sessions calendar */}
-      <div className="mt-5">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Live sessions (shared)</div>
-          <button onClick={addSession} className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium hover:bg-secondary">
-            <CalendarPlus className="h-3 w-3" /> Add date
-          </button>
+      {/* Live sessions — live records from Admin > Sessions (origin: workshop). */}
+      <CohortLiveSessions cohort={cohort} template={template} />
+    </div>
+  );
+}
+
+/* ============================================================
+   Cohort live sessions — reads/writes the shared sessions store.
+   No separate calendar: every row is a record in Admin > Sessions
+   with origin="workshop" and workshop_cohort_id=<cohort.id>.
+============================================================ */
+function CohortLiveSessions({ cohort, template }: { cohort: WorkshopCohort; template: WorkshopTemplate }) {
+  const [sessions, setSessions] = useState<ExtSession[]>(() => sessionsForCohort(cohort.id));
+  useEffect(() => {
+    const refresh = () => setSessions(sessionsForCohort(cohort.id));
+    refresh();
+    return subscribeSessions(refresh);
+  }, [cohort.id]);
+
+  const teacher = USERS.find((u) => u.id === cohort.teacher_id && u.role === "teacher");
+  const canAdd = !!cohort.teacher_id;
+
+  const add = () => {
+    if (!canAdd) return;
+    addWorkshopSession({
+      cohortId: cohort.id,
+      templateId: template.id,
+      teacherId: cohort.teacher_id,
+      teamsLink: cohort.video_call_link,
+    });
+  };
+
+  const rows = sessions
+    .slice()
+    .sort((a, b) => (a.date_time || "").localeCompare(b.date_time || ""));
+
+  return (
+    <div className="mt-5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Live sessions</div>
+          <div className="mt-0.5 text-[10.5px] text-muted-foreground">
+            Shared with Admin › Sessions. Origin: <span className="font-semibold text-foreground">Workshop</span>
+            {teacher ? <> · Teacher hours accrue to {teacher.name}.</> : <> · Assign a teacher to enable scheduling.</>}
+          </div>
         </div>
-        {cohort.sessions.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">No dates scheduled yet.</div>
-        ) : (
-          <ul className="space-y-2">
-            {cohort.sessions.map((s) => (
-              <li key={s.id} className="grid gap-2 rounded-lg border border-border bg-background p-2 sm:grid-cols-[200px_1fr_36px]">
-                <input type="datetime-local" value={s.date} onChange={(e) => updateSession(s.id, { date: e.target.value })} className={inputCls} />
-                <input value={s.note} onChange={(e) => updateSession(s.id, { note: e.target.value })} className={inputCls} placeholder="Topic / note (optional)" />
-                <button onClick={() => removeSession(s.id)} className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-destructive"><X className="h-4 w-4" /></button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <button
+          onClick={add}
+          disabled={!canAdd}
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <CalendarPlus className="h-3 w-3" /> Add session
+        </button>
       </div>
+      {rows.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-background p-3 text-xs text-muted-foreground">
+          No sessions scheduled yet. Sessions created here appear in Admin › Sessions with the same lifecycle (Scheduled → Ready → Completed…).
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((s) => {
+            const meta = WORKSHOP_STATUS_META[s.status];
+            return (
+              <li key={s.id} className="grid gap-2 rounded-lg border border-border bg-background p-2 sm:grid-cols-[200px_1fr_150px_36px]">
+                <input
+                  type="datetime-local"
+                  value={s.date_time ? s.date_time.slice(0, 16) : ""}
+                  onChange={(e) => updateWorkshopSession(s.id, {
+                    date_time: e.target.value ? new Date(e.target.value).toISOString() : "",
+                  })}
+                  className={inputCls}
+                />
+                <input
+                  value={s.workshop_topic ?? ""}
+                  onChange={(e) => updateWorkshopSession(s.id, { workshop_topic: e.target.value })}
+                  className={inputCls}
+                  placeholder="Topic / note (optional)"
+                />
+                <select
+                  value={s.status}
+                  onChange={(e) => updateWorkshopSession(s.id, { status: e.target.value as ExtSessionStatus })}
+                  className="w-full cursor-pointer rounded-lg border border-input px-2 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-ring"
+                  style={{ backgroundColor: meta.bg, color: meta.color }}
+                >
+                  {WORKSHOP_STATUS_OPTIONS.map((st) => (
+                    <option key={st} value={st} style={{ backgroundColor: "#fff", color: "#111" }}>
+                      {WORKSHOP_STATUS_META[st].label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => { if (confirm("Delete this workshop session?")) removeWorkshopSession(s.id); }}
+                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-destructive"
+                  aria-label="Delete session"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
