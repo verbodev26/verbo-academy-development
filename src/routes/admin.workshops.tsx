@@ -356,6 +356,12 @@ function TemplateDetail({ template, onBack, onChange }: {
               if (idx < 0) return [...cs, cohort];
               const next = [...cs]; next[idx] = cohort; return next;
             });
+            // Keep the shared sessions store in sync when teacher or the
+            // shared video-call link change — cohort is the source of truth.
+            syncCohortFieldsToSessions(cohort.id, {
+              teacher_id: cohort.teacher_id,
+              teams_link: cohort.video_call_link,
+            });
             setCohortModal(null);
           }}
         />
