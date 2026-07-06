@@ -7,7 +7,7 @@ import type { LessonPlan, LessonSessionType } from "@/lib/lesson-plans-store";
 import type { ExtSession } from "@/lib/sessions-store";
 import { unitsForStudent, vipUnitDoneMap } from "@/lib/vip-courses-store";
 
-const SESSION_TYPES: LessonSessionType[] = [
+const ALL_SESSION_TYPES: LessonSessionType[] = [
   "Syllabus content",
   "Additional Content",
   "Review Session",
