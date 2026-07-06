@@ -51,10 +51,17 @@ function Page() {
   // Build calendar events (classes + workshops + clubs) via the shared adapter.
   const events: CalendarEvent[] = useMemo(() => {
     if (!user) return [];
-    const workshops = loadWorkshops();
+    const templates = loadWorkshops();
+    const cohortName = (cohortId: string): string => {
+      for (const t of templates) {
+        const c = t.cohorts.find((c) => c.id === cohortId);
+        if (c) return `${t.name} · ${c.name}`;
+      }
+      return "Workshop";
+    };
     return teacherCalendarEvents(user.id, {
       studentNameOf: (id) => userById(id)?.name,
-      cohortNameOf: (id) => workshops.find((w) => w.id === id)?.name ?? "Workshop",
+      cohortNameOf: cohortName,
     });
   }, [user, sessions, plans]);
 
