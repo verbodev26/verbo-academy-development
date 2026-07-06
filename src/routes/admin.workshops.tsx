@@ -316,6 +316,7 @@ function TemplateDetail({ template, onBack, onChange }: {
                 <CohortRow
                   key={c.id}
                   cohort={c}
+                  template={template}
                   units={template.units}
                   onEdit={() => setCohortModal({ mode: "edit", cohort: c })}
                   onDelete={() => {
