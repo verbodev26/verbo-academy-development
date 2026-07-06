@@ -352,7 +352,18 @@ function StudentDetailModal({
   const product = getProduct(s.product);
   const isVip = s.product === "vip";
   const productType = s.product_type ?? "performance";
-  const pay = paymentStatus(s);
+
+  // Attendance breakdown (mock, matches Admin > Sessions status schema).
+  const attendance = attendanceFor(s.id);
+  const attPct = attendancePct(attendance);
+  const attAlert = attendanceAlert(attendance);
+
+  // Shared Advanced Performance Analytics modal.
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  // Report modal.
+  const [showReport, setShowReport] = useState(false);
+  const macros = useComputedMacros();
+  const anySkillLow = macros.some((m) => m.overall !== null && m.overall < 70);
 
   // Coverage notes — persisted per (titular teacher, student) pair.
   const [note, setNote] = useState<string>(() => getCoverageNote(teacherId, s.id));
@@ -428,16 +439,65 @@ function StudentDetailModal({
           </section>
         )}
 
-        {/* --- Cadence & payment --- */}
-        <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {/* --- Cadence (payment info intentionally hidden from teachers) --- */}
+        <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <MiniStat icon={Repeat} label="Sesiones/semana" value={s.sessions_per_week ? String(s.sessions_per_week) : "—"} />
           <MiniStat icon={Clock} label="Duración" value={s.session_duration ? `${s.session_duration} min` : "—"} />
-          <MiniStat
-            icon={CreditCard}
-            label="Estado de pago"
-            value={pay?.label ?? "—"}
-            tone={pay?.tone}
-          />
+        </section>
+
+        {/* --- Overall Attendance --- */}
+        <section className={`mt-4 rounded-xl border p-5 ${attAlert ? "border-destructive/50 verbo-pay-glow" : "border-border"} bg-background`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <CalendarCheck className="h-3.5 w-3.5" /> Overall Attendance
+            </div>
+            <span className="text-2xl font-bold tabular-nums" style={{ color: "#01304a" }}>{attPct}%</span>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            <Stat label="Asistió" value={String(attendance.present)} />
+            <Stat label="Tarde" value={String(attendance.late)} />
+            <Stat label="Canceló-Faltó" value={String(attendance.absentOrNoShow)} />
+          </div>
+          <p className="mt-3 text-[11px] text-muted-foreground">
+            "Canceló-Faltó" agrupa Absent, No Show y Cancelled con causa Student. Ausencias con causa Teacher
+            no cuentan en contra del alumno. Datos mock hasta que el Session Report real esté conectado.
+          </p>
+        </section>
+
+        {/* --- Overall Skills (opens shared Advanced Performance Analytics modal) --- */}
+        <section className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowAnalytics(true)}
+            className={`w-full rounded-xl border p-4 text-left transition-all hover:bg-secondary/40 ${anySkillLow ? "border-destructive/40 verbo-pay-glow" : "border-border"} bg-background`}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Layers className="h-3.5 w-3.5" /> Overall Skills
+              </div>
+              <span className="text-[11px] font-semibold" style={{ color: "#f38934" }}>View Detailed Analytics →</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {macros.map((m) => {
+                const Icon = SKILL_ICONS[m.key] ?? Mic;
+                const low = m.overall !== null && m.overall < 70;
+                return (
+                  <div
+                    key={m.key}
+                    className={`flex items-center gap-2 rounded-lg px-2 py-2 ${low ? "bg-destructive/5" : "bg-secondary/40"}`}
+                  >
+                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{m.key}</div>
+                      <div className="text-sm font-bold tabular-nums" style={{ color: "#01304a" }}>
+                        {m.overall === null ? "--" : `${m.overall}%`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </button>
         </section>
 
         {/* --- Video call link (read only) --- */}
@@ -502,8 +562,17 @@ function StudentDetailModal({
 
         {/* --- Coverage notes (editable) --- */}
         <section className="mt-6">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <NotebookPen className="h-3.5 w-3.5" /> Notas de cobertura
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <NotebookPen className="h-3.5 w-3.5" /> Notas de cobertura
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowReport(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/5 px-2.5 py-1 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+            >
+              <Flag className="h-3.5 w-3.5" /> Reportar
+            </button>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             Contexto para cualquier teacher que llegue a cubrir una sesión de este alumno.
@@ -551,6 +620,93 @@ function StudentDetailModal({
             </div>
           </section>
         )}
+      </div>
+
+      {showAnalytics && (
+        <PerformanceAnalyticsModal
+          planTier={s.hired_plan ?? s.access_plan ?? "—"}
+          onClose={() => setShowAnalytics(false)}
+        />
+      )}
+      {showReport && (
+        <ReportModal
+          student={s}
+          teacherId={teacherId}
+          onClose={() => setShowReport(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// REPORT MODAL — free-text report about a student.
+//
+// Persists (student + teacher + timestamp + text) via student-reports-store.
+// TODO: conectar destino del reporte (canal de chat interno o notificación
+// por WhatsApp — decisión pendiente).
+// ============================================================================
+function ReportModal({
+  student, teacherId, onClose,
+}: {
+  student: User;
+  teacherId: string;
+  onClose: () => void;
+}) {
+  const [text, setText] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    if (!text.trim()) return;
+    addStudentReport({ studentId: student.id, teacherId, text });
+    setSaved(true);
+    setTimeout(() => { onClose(); }, 900);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/50 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-floating">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Reporte</div>
+            <h3 className="mt-1 text-lg font-semibold tracking-tight text-foreground">
+              Reportar situación · {student.name}
+            </h3>
+          </div>
+          <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <p className="mt-3 text-xs text-muted-foreground">
+          Describe una situación observada sobre este alumno. El reporte quedará registrado en
+          la base de datos ligado a ti como teacher titular.
+        </p>
+
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={6}
+          placeholder="Ej.: llegó desmotivado por temas del trabajo, cambios en el objetivo original, etc."
+          className="mt-3 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+
+        <div className="mt-4 flex items-center justify-end gap-2">
+          {saved && <span className="text-xs text-success">Reporte guardado</span>}
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!text.trim() || saved}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            <Flag className="h-3.5 w-3.5" /> Guardar reporte
+          </button>
+        </div>
       </div>
     </div>
   );
