@@ -83,7 +83,9 @@ function initials(name: string) {
 function computeNextPayment(u: User): Date | null {
   if (u.next_payment) return new Date(u.next_payment);
   if (!u.payment_day) return null;
-  return nextPaymentDate(u.payment_day, new Date(u.cycle_start || Date.now()));
+  // Always compute from today so the "next" payment stays forward-looking
+  // even when cycle_start is old and the student has never been marked paid.
+  return nextPaymentDate(u.payment_day, new Date());
 }
 
 // ===========================================================================
@@ -1062,9 +1064,12 @@ function StudentDetailModal({
   };
 
   const markPaid = () => {
-    const base = nextPay ?? new Date();
-    const after = new Date(base);
-    after.setMonth(after.getMonth() + 1);
+    // Advance to the next real occurrence of the payment day so the "next
+    // payment" is always in the future and the glow disappears immediately.
+    const day = student.payment_day ?? (nextPay ? nextPay.getDate() : 1);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const after = nextPaymentDate(day, tomorrow);
     patch({ next_payment: after.toISOString() });
   };
 
