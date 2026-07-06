@@ -1064,9 +1064,12 @@ function StudentDetailModal({
   };
 
   const markPaid = () => {
-    const base = nextPay ?? new Date();
-    const after = new Date(base);
-    after.setMonth(after.getMonth() + 1);
+    // Advance to the next real occurrence of the payment day so the "next
+    // payment" is always in the future and the glow disappears immediately.
+    const day = student.payment_day ?? (nextPay ? nextPay.getDate() : 1);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const after = nextPaymentDate(day, tomorrow);
     patch({ next_payment: after.toISOString() });
   };
 
