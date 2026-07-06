@@ -12,77 +12,19 @@
 // no longer live on the student view either.
 
 import { useSyncExternalStore } from "react";
-import { BookOpen, Ear, Mic, PenLine, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import {
   getPerformanceSnapshot,
   getServerPerformanceSnapshot,
   subscribePerformance,
   type PerformanceMap,
-  type PerformanceRating,
 } from "@/lib/performance-store";
 import {
   getSessionsSnapshot,
   getServerSessionsSnapshot,
   subscribeSessions,
 } from "@/lib/sessions-store";
-
-type BaseKey = keyof PerformanceRating;
-
-interface SubSkill { name: string; base: BaseKey }
-
-interface MacroSkill {
-  key: "Speaking" | "Writing" | "Listening" | "Reading";
-  icon: LucideIcon;
-  subs: SubSkill[];
-}
-
-const MACRO_SKILLS: MacroSkill[] = [
-  {
-    key: "Speaking",
-    icon: Mic,
-    subs: [
-      { name: "Fluency", base: "fluency" },
-      { name: "Confidence", base: "confidence" },
-      { name: "Range", base: "vocabulary" },
-      { name: "Accuracy", base: "grammar" },
-      { name: "Pace", base: "fluency" },
-      { name: "Tone", base: "confidence" },
-    ],
-  },
-  {
-    key: "Writing",
-    icon: PenLine,
-    subs: [
-      { name: "Organization", base: "grammar" },
-      { name: "Accuracy", base: "grammar" },
-      { name: "Vocabulary Range", base: "vocabulary" },
-      { name: "Task Achievement", base: "grammar" },
-      { name: "Cohesion", base: "grammar" },
-      { name: "Professional Tone", base: "vocabulary" },
-    ],
-  },
-  {
-    key: "Listening",
-    icon: Ear,
-    subs: [
-      { name: "Comprehension", base: "confidence" },
-      { name: "Inference", base: "confidence" },
-      { name: "Response Accuracy", base: "grammar" },
-      { name: "Speed of Processing", base: "fluency" },
-      { name: "Confidence", base: "confidence" },
-    ],
-  },
-  {
-    key: "Reading",
-    icon: BookOpen,
-    subs: [
-      { name: "Comprehension", base: "vocabulary" },
-      { name: "Inference", base: "vocabulary" },
-      { name: "Vocabulary Recognition", base: "vocabulary" },
-      { name: "Critical Understanding", base: "grammar" },
-    ],
-  },
-];
+import { MACRO_SKILLS, skillKey, type BaseKey } from "@/lib/skills-taxonomy";
 
 function hashOffset(seed: string): number {
   let h = 0;
@@ -107,6 +49,15 @@ export interface ComputedMacro {
   subs: { name: string; value: number | null }[];
 }
 
+function subAverage(map: PerformanceMap, key: string) {
+  const vals: number[] = [];
+  for (const r of Object.values(map)) {
+    const v = r?.subskills?.[key];
+    if (typeof v === "number") vals.push(v);
+  }
+  return { avg: vals.length === 0 ? 0 : vals.reduce((a, b) => a + b, 0) / vals.length, count: vals.length };
+}
+
 function computeMacros(performance: PerformanceMap): ComputedMacro[] {
   const baseAvgs: Record<BaseKey, { avg: number; count: number }> = {
     fluency: baseAverage(performance, "fluency"),
@@ -116,6 +67,10 @@ function computeMacros(performance: PerformanceMap): ComputedMacro[] {
   };
   return MACRO_SKILLS.map((m) => {
     const subs = m.subs.map((s) => {
+      // Prefer real per-subskill data written by the Session Report.
+      const real = subAverage(performance, skillKey(m.key, s.name));
+      if (real.count > 0) return { name: s.name, value: Math.round(real.avg) };
+      // Fall back to the base-key hash derivation (seed-only paths).
       const { avg, count } = baseAvgs[s.base];
       if (count === 0) return { name: s.name, value: null as number | null };
       const base = Math.round((avg / 5) * 100);

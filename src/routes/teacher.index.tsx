@@ -1,16 +1,25 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { SESSIONS, studentsOfTeacher, userById, type Session, type SessionStatus, type Level } from "@/lib/mock-data";
 import { Card, GhostButton, MetricCard, Pill, PrimaryButton, SectionTitle } from "@/components/verbo/ui";
 import { CalendarClock, FileEdit, X, Lock, Plus, Trash2, Download, CheckCircle2, Mic, PenLine, Ear, BookOpen, ChevronRight, Video, type LucideIcon } from "lucide-react";
 import { savePerformance, type PerformanceRating } from "@/lib/performance-store";
+import { MACRO_SKILLS as SHARED_MACRO_SKILLS, skillKey as sharedSkillKey, type BaseKey as SharedBaseKey } from "@/lib/skills-taxonomy";
+import { submitSessionReport, updateSession } from "@/lib/sessions-store";
 import { PlanModal } from "@/components/verbo/PlanModal";
 import { loadLevels, subscribeLevels } from "@/lib/courses-store";
 import { loadLessonPlans, saveLessonPlan, subscribeLessonPlans, type LessonPlan } from "@/lib/lesson-plans-store";
 import type { ExtSession } from "@/lib/sessions-store";
 
-export const Route = createFileRoute("/teacher/")({ component: TeacherDashboard });
+export const Route = createFileRoute("/teacher/")({
+  // Optional deep-link from the Calendar page → auto-open the Session Report
+  // for a given session id. `report` maps to a session in `sessions`.
+  validateSearch: (search: Record<string, unknown>) => ({
+    report: typeof search.report === "string" ? (search.report as string) : undefined,
+  }),
+  component: TeacherDashboard,
+});
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -22,10 +31,12 @@ type LocalSession = Session & { _noReport?: boolean };
 
 function TeacherDashboard() {
   const { user } = useAuth();
+  const { report: reportId } = useSearch({ from: "/teacher/" });
+  const navigate = useNavigate();
   const [now, setNow] = useState(Date.now());
   const [sessions, setSessions] = useState<LocalSession[]>(() => SESSIONS.map((s) => ({ ...s })));
   const [evaluating, setEvaluating] = useState<Session | null>(null);
-  const [editing, setEditing] = useState<{ session: Session; perf: PerformanceRating } | null>(null);
+  const [editing, setEditing] = useState<{ session: Session; perf: PerformanceRating; subskills: Record<string, number> } | null>(null);
   const [planning, setPlanning] = useState<Session | null>(null);
   const [levels, setLevels] = useState<Level[]>([]);
   const [plans, setPlans] = useState<Record<string, LessonPlan>>({});
@@ -43,6 +54,16 @@ function TeacherDashboard() {
     const u2 = subscribeLessonPlans(() => setPlans(loadLessonPlans()));
     return () => { u1(); u2(); };
   }, []);
+
+  // If we arrived with ?report=<id>, auto-open Step 1 for that session
+  // (or Step 2 if we've already been through Step 1). We clear the search
+  // so refresh doesn't re-open the modal after cancel.
+  useEffect(() => {
+    if (!reportId) return;
+    const s = sessions.find((x) => x.id === reportId);
+    if (s && !evaluating && !editing) setEvaluating(s);
+    navigate({ to: "/teacher", search: {} as never, replace: true });
+  }, [reportId, sessions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-lock overdue sessions: flip to completed-without-report
   useEffect(() => {
@@ -65,14 +86,42 @@ function TeacherDashboard() {
   const recent = mySessions.filter((s) => s.status !== "scheduled").slice(0, 5);
   const toPlan = upcoming.slice(0, 3);
 
-  const handleSubmit = (sessionId: string, status: SessionStatus, perf: PerformanceRating) => {
-    setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, status, _noReport: false } : s)));
-    if (status !== "absent") savePerformance(sessionId, perf);
+  const handleSubmit = (
+    sessionId: string,
+    attendance: "present" | "delayed" | "absent",
+    perf: PerformanceRating,
+    subskills: Record<string, number>,
+    absentCause?: "student" | "teacher",
+  ) => {
+    if (!user) return;
+    const session = sessions.find((s) => s.id === sessionId);
+    // 1. Local dashboard mirror (Session interface only stores 4 statuses).
+    setSessions((prev) => prev.map((s) => {
+      if (s.id !== sessionId) return s;
+      const status: SessionStatus = attendance === "absent" ? "absent" : "completed";
+      return { ...s, status, _noReport: false };
+    }));
+    // 2. Canonical shared sessions-store: status + attendance metadata +
+    //    real subskill scores + coverage-note auto-clear (all inside helper).
+    submitSessionReport({
+      sessionId,
+      teacherId: user.id,
+      studentId: session?.student_id ?? "",
+      attendance,
+      absentCause,
+      subskills,
+    });
+    // 3. Legacy back-compat: some seed sessions never touched sessions-store
+    //    yet; savePerformance keeps the 4-base map warm for them.
+    if (attendance !== "absent") savePerformance(sessionId, perf);
     setEditing(null);
   };
 
   const handleSavePlan = (plan: LessonPlan) => {
     saveLessonPlan(plan);
+    // Promote the shared session record to Ready so both the teacher and
+    // student calendars reflect the plan being locked in.
+    updateSession(plan.session_id, { status: "ready" as any });
     setPlans((prev) => ({ ...prev, [plan.session_id]: plan }));
     setPlanning(null);
   };
@@ -222,8 +271,8 @@ function TeacherDashboard() {
         <PerformanceEvaluationModal
           session={evaluating}
           onClose={() => setEvaluating(null)}
-          onContinue={(perf) => {
-            setEditing({ session: evaluating, perf });
+          onContinue={(perf, subskills) => {
+            setEditing({ session: evaluating, perf, subskills });
             setEvaluating(null);
           }}
         />
@@ -232,6 +281,7 @@ function TeacherDashboard() {
         <ReportModal
           session={editing.session}
           perf={editing.perf}
+          subskills={editing.subskills}
           onClose={() => setEditing(null)}
           onSubmit={handleSubmit}
         />
@@ -274,17 +324,27 @@ function makeEntry(): Entry {
   return { id: Math.random().toString(36).slice(2), type: "New word", term: "", explanation: "" };
 }
 
-function ReportModal({ session, perf, onClose, onSubmit }: { session: Session; perf: PerformanceRating; onClose: () => void; onSubmit: (id: string, status: SessionStatus, perf: PerformanceRating) => void }) {
+type Attendance = "present" | "delayed" | "absent";
+function ReportModal({ session, perf, subskills, onClose, onSubmit }: {
+  session: Session;
+  perf: PerformanceRating;
+  subskills: Record<string, number>;
+  onClose: () => void;
+  onSubmit: (id: string, attendance: Attendance, perf: PerformanceRating, subskills: Record<string, number>, absentCause?: "student" | "teacher") => void;
+}) {
   const student = userById(session.student_id);
-  const [status, setStatus] = useState<SessionStatus>("completed");
+  const [attendance, setAttendance] = useState<Attendance>("present");
+  // Only meaningful when attendance is "absent" — reused from the Admin
+  // Sessions engine's canonical absent_cause selector.
+  const [absentCause, setAbsentCause] = useState<"student" | "teacher">("student");
   const [notes, setNotes] = useState("");
   const [entries, setEntries] = useState<Entry[]>(() => Array.from({ length: MIN_ENTRIES }, makeEntry));
   const [submitted, setSubmitted] = useState(false);
 
-  const bgFor = (opt: SessionStatus) => opt === "completed" ? "#22c55e" : opt === "absent" ? "#ef4444" : "#f38934";
+  const bgFor = (opt: Attendance) => opt === "present" ? "#22c55e" : opt === "absent" ? "#ef4444" : "#f38934";
 
   const filledCount = entries.filter((e) => e.term.trim().length > 0 && e.explanation.trim().length > 0).length;
-  const isAbsent = status === "absent";
+  const isAbsent = attendance === "absent";
   const notesFilled = notes.trim().length > 0;
   const canSubmit = isAbsent
     ? notesFilled
@@ -298,7 +358,7 @@ function ReportModal({ session, perf, onClose, onSubmit }: { session: Session; p
   const handleSubmit = () => {
     if (!canSubmit) return;
     setSubmitted(true);
-    onSubmit(session.id, status === "absent" ? "absent" : "completed", perf);
+    onSubmit(session.id, attendance, perf, subskills, isAbsent ? absentCause : undefined);
   };
 
   return (
@@ -317,7 +377,7 @@ function ReportModal({ session, perf, onClose, onSubmit }: { session: Session; p
           <ReportPreview
             studentName={student?.name ?? ""}
             dateLabel={fmt(session.date_time)}
-            status={status}
+            status={attendance === "absent" ? "absent" : attendance === "delayed" ? "delayed" : "completed"}
             notes={notes}
             entries={entries
               .filter((e) => e.term.trim().length > 0 && e.explanation.trim().length > 0)
@@ -329,26 +389,55 @@ function ReportModal({ session, perf, onClose, onSubmit }: { session: Session; p
             <div className="mt-6">
               <label className="text-xs font-medium text-foreground">Attendance</label>
               <div className="mt-2 grid grid-cols-3 gap-2">
-                {(["completed", "absent", "delayed"] as SessionStatus[]).map((opt) => {
-                  const selected = status === opt;
+                {(["present", "absent", "delayed"] as Attendance[]).map((opt) => {
+                  const selected = attendance === opt;
                   return (
                     <button
                       key={opt}
-                      onClick={() => setStatus(opt)}
+                      onClick={() => setAttendance(opt)}
                       style={selected ? { backgroundColor: bgFor(opt) } : undefined}
                       className={`rounded-lg border px-3 py-2 text-sm capitalize transition-colors ${
                         selected ? "border-transparent text-white" : "border-border text-foreground hover:bg-secondary"
                       }`}
                     >
-                      {opt === "completed" ? "Present" : opt}
+                      {opt === "present" ? "Present" : opt === "delayed" ? "Delayed" : "Absent"}
                     </button>
                   );
                 })}
               </div>
+              {attendance === "delayed" && (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  "Delayed" no es un estado de sesión: la sesión termina en <strong>Completed</strong>
+                  con una marca de asistencia tardía para KPIs.
+                </p>
+              )}
             </div>
 
             {isAbsent ? (
-              <div className="mt-5">
+              <div className="mt-5 space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-foreground">Absent cause <span className="text-red-600">*</span></label>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {(["student", "teacher"] as const).map((cause) => (
+                      <button
+                        key={cause}
+                        onClick={() => setAbsentCause(cause)}
+                        className={`rounded-lg border px-3 py-2 text-sm capitalize transition-colors ${
+                          absentCause === cause
+                            ? "border-transparent bg-[#01304a] text-white"
+                            : "border-border text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        {cause}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Reusa la misma sub-causa del motor de Admin &gt; Sessions. Solo las ausencias con causa Student
+                    penalizan la asistencia del alumno.
+                  </p>
+                </div>
+                <div>
                 <label className="text-xs font-medium text-foreground">Teacher's comments <span className="text-muted-foreground">(required)</span></label>
                 <textarea
                   value={notes}
@@ -357,6 +446,7 @@ function ReportModal({ session, perf, onClose, onSubmit }: { session: Session; p
                   placeholder="Justification, follow-up plan, communication with the student…"
                   className="mt-2 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
+                </div>
               </div>
             ) : (
               <>
@@ -524,7 +614,7 @@ function ReportPreview({ studentName, dateLabel, status, notes, entries, onClose
 // New two-tier Performance Evaluation system
 // ============================================================
 
-type BaseKey = keyof PerformanceRating; // fluency | vocabulary | confidence | grammar
+type BaseKey = SharedBaseKey;
 
 interface SubSkillDef { name: string; base: BaseKey }
 interface MacroSkillDef {
@@ -533,49 +623,10 @@ interface MacroSkillDef {
   subs: SubSkillDef[];
 }
 
-const MACRO_SKILLS: MacroSkillDef[] = [
-  {
-    key: "Speaking", icon: Mic,
-    subs: [
-      { name: "Fluency", base: "fluency" },
-      { name: "Confidence", base: "confidence" },
-      { name: "Range", base: "vocabulary" },
-      { name: "Accuracy", base: "grammar" },
-      { name: "Pace", base: "fluency" },
-      { name: "Tone", base: "confidence" },
-    ],
-  },
-  {
-    key: "Writing", icon: PenLine,
-    subs: [
-      { name: "Organization", base: "grammar" },
-      { name: "Accuracy", base: "grammar" },
-      { name: "Vocabulary Range", base: "vocabulary" },
-      { name: "Task Achievement", base: "grammar" },
-      { name: "Cohesion", base: "grammar" },
-      { name: "Professional Tone", base: "vocabulary" },
-    ],
-  },
-  {
-    key: "Listening", icon: Ear,
-    subs: [
-      { name: "Comprehension", base: "confidence" },
-      { name: "Inference", base: "confidence" },
-      { name: "Response Accuracy", base: "grammar" },
-      { name: "Speed of Processing", base: "fluency" },
-      { name: "Confidence", base: "confidence" },
-    ],
-  },
-  {
-    key: "Reading", icon: BookOpen,
-    subs: [
-      { name: "Comprehension", base: "vocabulary" },
-      { name: "Inference", base: "vocabulary" },
-      { name: "Vocabulary Recognition", base: "vocabulary" },
-      { name: "Critical Understanding", base: "grammar" },
-    ],
-  },
-];
+// Sourced from the shared taxonomy so the Session Report, the student
+// dashboard "Linguistic Asset Performance" widget, and the teacher
+// "Overall Skills" summary all stay perfectly in sync.
+const MACRO_SKILLS: MacroSkillDef[] = SHARED_MACRO_SKILLS as unknown as MacroSkillDef[];
 
 // Scores keyed by `${macroKey}::${subName}` → 0-100 number or null (skipped).
 type ScoresMap = Record<string, number | null>;
@@ -656,13 +707,28 @@ function PerformanceEvaluationModal({
 }: {
   session: Session;
   onClose: () => void;
-  onContinue: (perf: PerformanceRating) => void;
+  onContinue: (perf: PerformanceRating, subskills: Record<string, number>) => void;
 }) {
   const student = userById(session.student_id);
   const [scores, setScores] = useState<ScoresMap>({});
   const [activeMacro, setActiveMacro] = useState<MacroSkillDef | null>(null);
 
-  const handleContinue = () => onContinue(buildPerformanceRating(scores));
+  const handleContinue = () => {
+    // Raw per-subskill map (0-100) — this is the record that gets written
+    // to performance-store via saveSubskillEvaluation, feeding the exact
+    // same data source consumed by the student's "Linguistic Asset
+    // Performance" widget and the teacher's "Overall Skills" summary.
+    const rawSubskills: Record<string, number> = {};
+    for (const m of MACRO_SKILLS) {
+      for (const s of m.subs) {
+        const v = scores[subKey(m.key, s.name)];
+        if (typeof v === "number") {
+          rawSubskills[sharedSkillKey(m.key as any, s.name)] = v;
+        }
+      }
+    }
+    onContinue(buildPerformanceRating(scores), rawSubskills);
+  };
 
   return (
     <div

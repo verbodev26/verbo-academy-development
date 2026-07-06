@@ -1,5 +1,7 @@
 // Shared sessions store — persisted to localStorage, broadcast across tabs.
 import { SESSIONS as SEED_SESSIONS, type Session } from "./mock-data";
+import { setCoverageNote } from "./coverage-notes-store";
+import { saveSubskillEvaluation } from "./performance-store";
 
 export type ExtSessionStatus =
   | "scheduled"
@@ -104,6 +106,61 @@ export function updateWorkshopSession(id: string, patch: Partial<ExtSession>) {
 
 export function removeWorkshopSession(id: string) {
   persistSessions(loadSessions().filter((s) => s.id !== id));
+}
+
+/** Generic patcher — used by Lesson Plan (→ Ready) and by any other
+ *  surface that needs to update a single session while keeping every
+ *  consumer live-synced. */
+export function updateSession(id: string, patch: Partial<ExtSession>) {
+  const next = loadSessions().map((s) => (s.id === id ? { ...s, ...patch } : s));
+  persistSessions(next);
+}
+
+/** Final Session Report submit. Single source of truth for the four
+ *  effects the spec requires:
+ *    1. Session → Completed (Present/Delayed) or Absent (with cause).
+ *    2. Attendance metadata (delayed flag).
+ *    3. Real per-subskill scores flow into the same performance store
+ *       the student dashboard + Teacher > Mis Alumnos read from.
+ *    4. Any coverage note for (teacher, student) is cleared — this is
+ *       the auto-clear hook the Fase 1 TODO in coverage-notes-store
+ *       was waiting for. If this session is a substitute coverage,
+ *       clearing the note reflects that the situation is resolved.
+ *
+ *  Not handled here on purpose: PDF generation and email dispatch. Those
+ *  are deferred until we migrate to Supabase.
+ */
+export function submitSessionReport(input: {
+  sessionId: string;
+  teacherId: string;
+  studentId: string;
+  attendance: "present" | "delayed" | "absent";
+  absentCause?: "student" | "teacher";
+  subskills: Record<string, number>;
+}): ExtSession | null {
+  const status: ExtSessionStatus = input.attendance === "absent" ? "absent" : "completed";
+  let updated: ExtSession | null = null;
+  const next = loadSessions().map((s) => {
+    if (s.id !== input.sessionId) return s;
+    updated = {
+      ...s,
+      status,
+      absent_cause: status === "absent" ? (input.absentCause ?? "student") : undefined,
+      attendance_delayed: input.attendance === "delayed",
+      report_submitted_at: new Date().toISOString(),
+    };
+    return updated;
+  });
+  persistSessions(next);
+
+  if (status !== "absent" && Object.keys(input.subskills).length > 0) {
+    saveSubskillEvaluation(input.sessionId, input.subskills);
+  }
+
+  // Auto-clear coverage note (Fase 1 TODO hook).
+  setCoverageNote(input.teacherId, input.studentId, "");
+
+  return updated;
 }
 
 /** Cascade update: when a cohort's teacher or shared link changes, keep

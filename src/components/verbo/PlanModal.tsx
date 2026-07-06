@@ -6,6 +6,14 @@ import { GhostButton } from "@/components/verbo/ui";
 import type { LessonPlan, LessonSessionType } from "@/lib/lesson-plans-store";
 import type { ExtSession } from "@/lib/sessions-store";
 
+const SESSION_TYPES: LessonSessionType[] = [
+  "Syllabus content",
+  "Additional Content",
+  "Review Session",
+  "Casual Topic",
+  "Evaluation",
+];
+
 export function PlanModal({
   session, existing, levels, onClose, onSave,
 }: {
@@ -17,7 +25,9 @@ export function PlanModal({
 }) {
   const student = userById(session.student_id);
   const [title, setTitle] = useState(existing?.title ?? "");
-  const [type, setType] = useState<LessonSessionType>(existing?.type ?? "Syllabus content");
+  // Session Type is intentionally manual, with no default. Teacher autonomy
+  // to depart from the fixed syllabus applies even on basic access plans.
+  const [type, setType] = useState<LessonSessionType | "">(existing?.type ?? "");
   const [levelId, setLevelId] = useState(existing?.level_id ?? (student?.current_level ?? levels[0]?.id ?? ""));
   const [unitId, setUnitId] = useState(existing?.unit_id ?? "");
   const [comments, setComments] = useState(existing?.comments ?? "");
@@ -34,13 +44,14 @@ export function PlanModal({
 
   const submit = () => {
     if (!title.trim()) { alert("Please enter a session title."); return; }
+    if (!type) { alert("Please pick a Session Type."); return; }
     if (showLevelUnit && (!levelId || !unitId)) { alert("Please select a level and unit."); return; }
     const gap = +new Date(session.date_time) - Date.now();
     const planning_status: LessonPlan["planning_status"] = gap < 5 * 24 * 3_600_000 ? "late" : "on-time";
     onSave({
       session_id: session.id,
       title: title.trim(),
-      type,
+      type: type as LessonSessionType,
       level_id: showLevelUnit ? levelId : undefined,
       unit_id: showLevelUnit ? unitId : undefined,
       comments: comments.trim(),
@@ -60,7 +71,11 @@ export function PlanModal({
         </button>
 
         <h3 className="text-lg font-semibold tracking-tight text-foreground text-slate-50">Lesson Plan</h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">Prepare the pedagogical plan for this session.</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Performance Sessions · {student?.access_plan ? `Plan de Acceso ${student.access_plan}` : "Plan de Acceso"}
+          {" — "}prepare the pedagogical plan. Saved plans move the session from
+          Scheduled to Ready in the calendar. Aim to save ≥5 days before the session for on-time planning.
+        </p>
 
         {/* Read-only context */}
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -92,15 +107,15 @@ export function PlanModal({
           <div>
             <label className="text-xs font-medium text-foreground">Session Type</label>
             <select value={type} onChange={(e) => setType(e.target.value as LessonSessionType)} className={`${inputCls} cursor-pointer`}>
-              <option>Syllabus content</option>
-              <option>Additional Content</option>
-              <option>Review Session</option>
-              <option>Casual Topic</option>
-              <option>Evaluation</option>
+              <option value="" disabled>— Pick a type —</option>
+              {SESSION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Elige cada vez. No hay valor por default: es tu autonomía profesional para apartarte del temario cuando aporte más.
+            </p>
           </div>
 
-          {showLevelUnit && (
+          {showLevelUnit ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="text-xs font-medium text-foreground">Select Level</label>
@@ -115,7 +130,12 @@ export function PlanModal({
                 </select>
               </div>
             </div>
-          )}
+          ) : type ? (
+            <p className="rounded-lg border border-dashed border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+              Level and Unit only apply to <strong>Syllabus content</strong> or <strong>Evaluation</strong>.
+              For this Session Type, only Teacher's comments are needed.
+            </p>
+          ) : null}
 
           <div>
             <label className="text-xs font-medium text-foreground">Teacher's comments and instructions</label>

@@ -87,6 +87,13 @@ export interface Session {
   review_status?: "pending" | "reviewed"; // admin review state for low ratings
   review_note?: string; // admin resolution note
   notes?: string;
+  // Attendance metadata captured on Session Report. `delayed` is not a
+  // canonical session status (the session still lands in "completed") —
+  // this flag preserves that the student arrived late for KPIs.
+  attendance_delayed?: boolean;
+  // Timestamp of Session Report submission — powers the report_punctuality
+  // KPI already computed by Admin > Financial / Composite Score.
+  report_submitted_at?: string;
   // Origin of this session — course-style 1:1 by default, or a Focus Workshop
   // cohort session. Workshop sessions carry the cohort/template reference so
   // the Focus Workshops tab can render them without duplicating any state.
