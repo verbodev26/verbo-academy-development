@@ -37,6 +37,20 @@ export interface User {
   admin_notes?: string;
   freeze_start?: string;
   freeze_end?: string;
+  // ----- Product-type branch (Register Student flow) -----
+  // "performance" is the classic Performance Sessions student. "workshops"
+  // and "insights" are standalone customers who only bought that add-on and
+  // don't have live Performance sessions. Legacy records default to
+  // "performance" when this field is missing.
+  product_type?: "performance" | "workshops" | "insights";
+  // Add-on caps (monthly). Zero / undefined means no access.
+  addon_insights_per_month?: number;
+  addon_bookclubs_per_month?: number;
+  addon_spotlight_per_month?: number;
+  // Toggle that gates the workshops cohort picker in the Register form.
+  // Cohort memberships themselves live in the workshops store (source of
+  // truth), not on the user record.
+  addon_workshops_enabled?: boolean;
   // ----- Teacher profile (see src/lib/teacher-model.ts) -----
   qualified_products?: ("enterprise" | "go" | "international" | "vip")[];
   hourly_rate?: number; // MXN per hour
