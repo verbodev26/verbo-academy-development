@@ -9,9 +9,7 @@
 // here and every surface picks it up.
 
 import { BookOpen, Ear, Mic, PenLine, type LucideIcon } from "lucide-react";
-import type { PerformanceRating } from "./performance-store";
-
-export type BaseKey = keyof Pick<PerformanceRating, "fluency" | "vocabulary" | "confidence" | "grammar">;
+export type BaseKey = "fluency" | "vocabulary" | "confidence" | "grammar";
 
 export interface SubSkill { name: string; base: BaseKey }
 export type MacroKey = "Speaking" | "Writing" | "Listening" | "Reading";
