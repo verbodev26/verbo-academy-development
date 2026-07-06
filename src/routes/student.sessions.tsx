@@ -202,9 +202,54 @@ function Page() {
     setSelected(null);
   };
 
+  // Monthly usage per kind — counted from events the user has booked this month.
+  const monthlyBooked = (kind: EventKind) =>
+    events.filter((e) => e.kind === kind && e.user_booked && sameMonth(e.date)).length;
+
+  const capForKind = (kind: EventKind): number | null => {
+    if (kind === "verbo-insights") return capInsights;
+    if (kind === "book-club") return capBookClubs;
+    if (kind === "spotlights") return capSpotlight;
+    return null;
+  };
+
+  const strikeBlockedFor = (kind: EventKind): boolean => {
+    if (kind === "verbo-insights") return insightsBlocked;
+    if (kind === "book-club") return bookClubBlocked;
+    return false;
+  };
+
+  // Returns null when booking is allowed, or a user-facing reason string when blocked.
+  const bookingBlockReason = (ev: CalEvent): string | null => {
+    if (ev.kind === "one-on-one" || ev.kind === "focus-workshop") return null;
+    if (strikeBlockedFor(ev.kind)) {
+      const label = ev.kind === "book-club" ? "Book Clubs" : "Insights";
+      return `${label} bookings are temporarily blocked (3/3 late cancellations). Contact your admin.`;
+    }
+    const cap = capForKind(ev.kind);
+    if (cap !== null && cap > 0) {
+      const used = monthlyBooked(ev.kind);
+      if (used >= cap) {
+        const label = ev.kind === "verbo-insights" ? "Insights"
+          : ev.kind === "book-club" ? "Book Clubs" : "Spotlight Sessions";
+        return `Has alcanzado tu límite mensual de ${label} (${used}/${cap}).`;
+      }
+    } else if (cap === 0) {
+      const label = ev.kind === "verbo-insights" ? "Insights"
+        : ev.kind === "book-club" ? "Book Clubs" : "Spotlight Sessions";
+      return `No tienes acceso a ${label} en tu plan actual.`;
+    }
+    if (hoursUntil(ev.date) < BOOKING_LOCKOUT_HOURS) {
+      return `Las reservas cierran ${BOOKING_LOCKOUT_HOURS}h antes del inicio.`;
+    }
+    return null;
+  };
+
   const confirmClub = (ev: CalEvent) => {
     if (ev.user_booked) return;
     if ((ev.spots_booked ?? 0) >= (ev.spots_total ?? 4)) { alert("This club is fully booked. Please choose another session."); return; }
+    const reason = bookingBlockReason(ev);
+    if (reason) { alert(reason); return; }
     const ok = window.confirm("By reserving your spot, you commit to attending. Space is highly limited for corporate teams.");
     if (!ok) return;
     updateEvent(ev.id, { user_booked: true, spots_booked: (ev.spots_booked ?? 0) + 1 });
@@ -216,13 +261,25 @@ function Page() {
     const freedSpots = Math.max(0, (ev.spots_booked ?? 1) - 1);
     updateEvent(ev.id, { user_booked: false, spots_booked: freedSpots });
     setSelected({ ...ev, user_booked: false, spots_booked: freedSpots });
-    if (blocked) return;
-    const next = cancelCount + 1;
-    const nextMap = { ...cancelMap, [user?.id ?? "guest"]: next };
-    setCancelMap(nextMap);
-    persistCancels(nextMap);
-    if (next >= CANCEL_LIMIT) alert("You have reached your cancellation limit (3/3). You have been excluded from booking further club sessions. Please contact your organization's administrator.");
-    else alert(`Cancellation ${next} of ${CANCEL_LIMIT}. Please remember that club spots are highly limited for your team.`);
+
+    // Strikes: only for Insights and Book Clubs, only when cancelled <24h ahead.
+    // Spotlights and Focus Workshops carry no strike penalty.
+    if (ev.kind !== "verbo-insights" && ev.kind !== "book-club") return;
+    if (hoursUntil(ev.date) >= 24) return;
+    if (strikeBlockedFor(ev.kind)) return;
+
+    const current = strikeMap[uid]?.[ev.kind] ?? 0;
+    const next = current + 1;
+    const nextMap: StrikeMap = { ...strikeMap, [uid]: { ...(strikeMap[uid] ?? {}), [ev.kind]: next } };
+    setStrikeMap(nextMap);
+    persistStrikes(nextMap);
+
+    const label = ev.kind === "book-club" ? "Book Clubs" : "Insights";
+    if (next >= CANCEL_LIMIT) {
+      alert(`You have reached your late-cancellation limit for ${label} (${CANCEL_LIMIT}/${CANCEL_LIMIT}). ${label} bookings are temporarily disabled — please contact your organization's administrator.`);
+    } else {
+      alert(`Late cancellation ${next} of ${CANCEL_LIMIT} for ${label}. Please remember that spots are highly limited for your team.`);
+    }
   };
 
   const grid = useMemo(() => buildMonthGrid(cursor), [cursor]);
