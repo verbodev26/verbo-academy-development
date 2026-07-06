@@ -19,9 +19,12 @@ export interface WorkshopParticipant {
   kind: "student" | "standalone";
 }
 
+/** @deprecated Live sessions now live in the shared sessions store as
+ *  records with `origin: "workshop"`. This shape is only kept so older
+ *  persisted cohorts don't crash on load. */
 export interface WorkshopSessionEntry {
   id: string;
-  date: string; // ISO yyyy-mm-ddThh:mm
+  date: string;
   note: string;
 }
 
@@ -36,7 +39,8 @@ export interface WorkshopCohort {
   // value in `per_participant_open[participantId]?.[unitId]` overrides it.
   cohort_open: Record<string, boolean>;
   per_participant_open: Record<string, Record<string, boolean>>;
-  sessions: WorkshopSessionEntry[];
+  /** @deprecated Not written anymore — see sessions-store `sessionsForCohort`. */
+  sessions?: WorkshopSessionEntry[];
 }
 
 export interface WorkshopTemplate {
