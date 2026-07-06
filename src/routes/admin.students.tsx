@@ -5,7 +5,7 @@ import {
 } from "@/lib/mock-data";
 import {
   PRODUCTS, FOCUSES, ACCESS_PLANS, ACCESS_PLAN_IDS, RESCHEDULE_PRESETS,
-  SESSIONS_PER_LEVEL, MAX_INSIGHT_STRIKES,
+  SESSIONS_PER_LEVEL, MAX_INSIGHT_STRIKES, MAX_BOOKCLUB_STRIKES,
   getProduct, focusesForProduct, getFocus, getAccessPlan,
   suggestDuration, nextPaymentDate, daysUntil,
   type ProductId, type AccessPlanId,
