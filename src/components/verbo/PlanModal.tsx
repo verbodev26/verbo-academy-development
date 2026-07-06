@@ -72,7 +72,7 @@ export function PlanModal({
 
         <h3 className="text-lg font-semibold tracking-tight text-foreground text-slate-50">Lesson Plan</h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Performance Sessions · {student?.access_plan ? `Plan de Acceso ${student.access_plan}` : "Plan de Acceso"}
+          Performance Sessions · {student?.access_plan ? `Access Plan ${student.access_plan}` : "Access Plan"}
           {" — "}prepare the pedagogical plan. Saved plans move the session from
           Scheduled to Ready in the calendar. Aim to save ≥5 days before the session for on-time planning.
         </p>
@@ -111,7 +111,7 @@ export function PlanModal({
               {SESSION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Elige cada vez. No hay valor por default: es tu autonomía profesional para apartarte del temario cuando aporte más.
+              Pick every time. There is no default: it is your professional autonomy to step off the syllabus when that adds more value.
             </p>
           </div>
 
