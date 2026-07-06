@@ -28,7 +28,7 @@ import { Card } from "@/components/verbo/ui";
 import {
   Search, X, Filter, Crown, Users as UsersIcon,
   GraduationCap, Layers, Lightbulb, Video, Clock, Repeat, NotebookPen,
-  BookOpenCheck, Lock, CalendarCheck, Flag, Mic, PenLine, Ear, BookOpen,
+  BookOpenCheck, CalendarCheck, Flag, Mic, PenLine, Ear, BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
