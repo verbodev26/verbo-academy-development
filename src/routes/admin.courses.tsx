@@ -6,13 +6,6 @@ import {
   Trash2,
   X,
   Sparkles,
-  ListChecks,
-  Mic,
-  Headphones,
-  GripVertical,
-  AlignLeft,
-  Shuffle,
-  BookOpen,
   Pencil,
   Compass,
   Briefcase,
@@ -25,17 +18,17 @@ import {
   Info,
 } from "lucide-react";
 import {
-  type Activity,
-  type ExerciseType,
-  type SessionPhase,
-  EXERCISE_LABELS,
-  activitiesForUnit,
-  addActivity,
   loadActivities,
-  removeActivity,
   renameUnitReferences,
-  phaseOf,
 } from "@/lib/activities-store";
+import {
+  ActivityModal,
+  Field,
+  ModalFooter,
+  ModalShell,
+  inputCls,
+  textareaCls,
+} from "@/components/verbo/course-modals";
 import {
   type ProductId,
   type ProductCourse,
@@ -51,11 +44,6 @@ import {
 } from "@/lib/product-courses-store";
 
 export const Route = createFileRoute("/admin/courses")({ component: Page });
-
-const inputCls =
-  "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground shadow-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30";
-const textareaCls =
-  "min-h-[96px] w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground shadow-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30";
 
 const PRODUCT_ICON: Record<ProductId, React.ComponentType<{ className?: string }>> = {
   go: Compass,
