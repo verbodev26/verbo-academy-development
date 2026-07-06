@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { ASSIGNMENTS, USERS, type User } from "@/lib/mock-data";
 import {
   MAX_INSIGHT_STRIKES, MAX_BOOKCLUB_STRIKES,
-  getProduct, nextPaymentDate, daysUntil,
+  getProduct,
 } from "@/lib/student-model";
 import { hydrateStudents, subscribeStudents } from "@/lib/students-store";
 import {
@@ -15,33 +15,32 @@ import {
 import {
   getCoverageNote, setCoverageNote, subscribeCoverageNotes,
 } from "@/lib/coverage-notes-store";
+import {
+  attendanceFor, attendancePct, attendanceAlert, attendanceTotal,
+  type StudentAttendance,
+} from "@/lib/attendance-store";
+import { addStudentReport } from "@/lib/student-reports-store";
+import {
+  PerformanceAnalyticsModal, useComputedMacros,
+} from "@/components/verbo/PerformanceAnalytics";
 import { useAvatar } from "@/lib/avatar-store";
 import { Card } from "@/components/verbo/ui";
 import {
-  Search, X, Filter, CreditCard, Crown, Users as UsersIcon, Building2,
+  Search, X, Filter, Crown, Users as UsersIcon,
   GraduationCap, Layers, Lightbulb, Video, Clock, Repeat, NotebookPen,
-  BookOpenCheck, Lock,
+  BookOpenCheck, Lock, CalendarCheck, Flag, Mic, PenLine, Ear, BookOpen,
+  type LucideIcon,
 } from "lucide-react";
 
 export const Route = createFileRoute("/teacher/students")({ component: Page });
 
-// Same "payment due within 3 days" derivation used by Admin > Students, so
-// both surfaces reflect the exact same status.
-function computeNextPayment(u: User): Date | null {
-  if (u.next_payment) return new Date(u.next_payment);
-  if (!u.payment_day) return null;
-  return nextPaymentDate(u.payment_day, new Date());
-}
+// NOTE (Teacher Panel-wide rule): teachers must never see any financial
+// data about students — payment status, plan pricing, invoices, etc.
+// Any such fields live exclusively in the Admin Panel.
 
-type PayStatus = { tone: "success" | "warning" | "danger"; label: string };
-function paymentStatus(u: User): PayStatus | null {
-  const nextPay = computeNextPayment(u);
-  if (!nextPay) return null;
-  const d = daysUntil(nextPay);
-  if (d < 0) return { tone: "danger", label: "Vencido" };
-  if (d <= 3) return { tone: "warning", label: "Próximo a vencer" };
-  return { tone: "success", label: "Al día" };
-}
+const SKILL_ICONS: Record<string, LucideIcon> = {
+  Speaking: Mic, Writing: PenLine, Listening: Ear, Reading: BookOpen,
+};
 
 function initials(name: string) {
   return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
@@ -187,10 +186,18 @@ function StudentCard({ student: s, onOpen }: { student: User; onOpen: () => void
   const remaining = s.remaining_sessions ?? 0;
   const done = Math.max(0, hired - remaining);
   const pct = hired > 0 ? (done / hired) * 100 : 0;
-  const pay = paymentStatus(s);
   const productType = s.product_type ?? "performance";
   const showInsightsBadge = productType === "performance" || productType === "insights";
   const isVip = s.product === "vip";
+
+  // Attendance (mock — schema matches Admin > Sessions so real data plugs in later).
+  const attendance = attendanceFor(s.id);
+  const attPct = attendancePct(attendance);
+  const attAlert = attendanceAlert(attendance);
+
+  // Overall 4-skill scores (shared component / same source as student dashboard).
+  const macros = useComputedMacros();
+  const anySkillLow = macros.some((m) => m.overall !== null && m.overall < 70);
 
   // Standalone Workshops / Insights students (no performance sessions) get
   // the same compact treatment used in Admin > Students.
@@ -228,11 +235,13 @@ function StudentCard({ student: s, onOpen }: { student: User; onOpen: () => void
     );
   }
 
-  const payDue = pay?.tone === "warning" || pay?.tone === "danger";
   return (
-    <button
+    <div
       onClick={onOpen}
-      className={`group relative flex flex-col rounded-2xl border border-border bg-card p-5 text-left shadow-soft transition-all hover:-translate-y-1 hover:shadow-elevated ${payDue ? "verbo-pay-glow" : ""}`}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(); } }}
+      className="group relative flex cursor-pointer flex-col rounded-2xl border border-border bg-card p-5 text-left shadow-soft transition-all hover:-translate-y-1 hover:shadow-elevated"
     >
       {isVip && (
         <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-600">
@@ -283,17 +292,42 @@ function StudentCard({ student: s, onOpen }: { student: User; onOpen: () => void
             {bcBlocked ? <>Book Clubs Blocked</> : <>Book Clubs {bcStrikes}/{MAX_BOOKCLUB_STRIKES}</>}
           </Tag>
         )}
-        {pay && (
-          <Tag className={
-            pay.tone === "success" ? "bg-success/10 text-success"
-            : pay.tone === "warning" ? "bg-warning/20 text-foreground"
-            : "bg-destructive/10 text-destructive"
-          }>
-            <CreditCard className="mr-1 h-3 w-3" /> {pay.label}
-          </Tag>
-        )}
+        <Tag className={attAlert ? "bg-destructive/10 text-destructive verbo-pay-glow" : "bg-secondary text-secondary-foreground"}>
+          <CalendarCheck className="mr-1 h-3 w-3" /> Attendance {attPct}%
+        </Tag>
       </div>
-    </button>
+
+      {/* Compact 4-tile skill summary — clicking opens the shared Advanced
+          Performance Analytics modal (same modal used by the student). */}
+      <div
+        className={`mt-4 rounded-xl border p-2.5 transition-all ${anySkillLow ? "verbo-pay-glow border-destructive/40" : "border-border"}`}
+      >
+        <div className="mb-1.5 flex items-center justify-between px-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Overall Skills
+          </span>
+          <span className="text-[10px] text-muted-foreground">Click for detail</span>
+        </div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {macros.map((m) => {
+            const Icon = SKILL_ICONS[m.key] ?? Mic;
+            const low = m.overall !== null && m.overall < 70;
+            return (
+              <div
+                key={m.key}
+                className={`flex flex-col items-center rounded-lg px-1 py-1.5 ${low ? "bg-destructive/5" : "bg-background"}`}
+                title={m.key}
+              >
+                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="mt-0.5 text-[11px] font-bold tabular-nums" style={{ color: "#01304a" }}>
+                  {m.overall === null ? "--" : `${m.overall}%`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 
