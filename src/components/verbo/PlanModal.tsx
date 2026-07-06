@@ -7,7 +7,7 @@ import type { LessonPlan, LessonSessionType } from "@/lib/lesson-plans-store";
 import type { ExtSession } from "@/lib/sessions-store";
 import { unitsForStudent, vipUnitDoneMap } from "@/lib/vip-courses-store";
 
-const SESSION_TYPES: LessonSessionType[] = [
+const ALL_SESSION_TYPES: LessonSessionType[] = [
   "Syllabus content",
   "Additional Content",
   "Review Session",
@@ -37,6 +37,18 @@ export function PlanModal({
   const isVip = student?.product === "vip";
   const vipUnits = isVip ? unitsForStudent(student!.id) : [];
   const vipDone = isVip ? vipUnitDoneMap() : {};
+
+  const sessionTypes = isVip
+    ? ALL_SESSION_TYPES.filter((t) => t !== "Syllabus content")
+    : ALL_SESSION_TYPES;
+
+  // VIP students never use the fixed Performance Sessions syllabus, so reset
+  // any stale Syllabus content selection when the modal opens for a VIP.
+  useEffect(() => {
+    if (isVip && type === "Syllabus content") {
+      setType("");
+    }
+  }, [isVip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showLevelUnit = type === "Syllabus content" || type === "Evaluation";
   const currentLevel = levels.find((l) => l.id === levelId);
@@ -115,7 +127,7 @@ export function PlanModal({
             <label className="text-xs font-medium text-foreground">Session Type</label>
             <select value={type} onChange={(e) => setType(e.target.value as LessonSessionType)} className={`${inputCls} cursor-pointer`}>
               <option value="" disabled>— Pick a type —</option>
-              {SESSION_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              {sessionTypes.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <p className="mt-1 text-[11px] text-muted-foreground">
               Pick every time. There is no default: it is your professional autonomy to step off the syllabus when that adds more value.
