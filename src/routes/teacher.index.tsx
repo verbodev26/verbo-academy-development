@@ -9,8 +9,9 @@ import { MACRO_SKILLS as SHARED_MACRO_SKILLS, skillKey as sharedSkillKey, type B
 import { submitSessionReport, updateSession } from "@/lib/sessions-store";
 import { PlanModal } from "@/components/verbo/PlanModal";
 import { loadLevels, subscribeLevels } from "@/lib/courses-store";
-import { loadLessonPlans, saveLessonPlan, subscribeLessonPlans, type LessonPlan } from "@/lib/lesson-plans-store";
+import { loadLessonPlans, saveLessonPlan, subscribeLessonPlans, getLessonPlan, type LessonPlan } from "@/lib/lesson-plans-store";
 import type { ExtSession } from "@/lib/sessions-store";
+import { markVipUnitDone, clearVipUnitDoneForSession } from "@/lib/vip-courses-store";
 
 export const Route = createFileRoute("/teacher/")({
   // Optional deep-link from the Calendar page → auto-open the Session Report
@@ -111,6 +112,15 @@ function TeacherDashboard() {
       absentCause,
       subskills,
     });
+    // 2b. VIP unit unlock: if this session's plan links a VIP unit and the
+    //     session is now Completed, mark that unit done. Otherwise clear any
+    //     prior completion (e.g. Absent report on a session that had closed
+    //     a unit before via a re-tag) so unlock state stays truthful.
+    const plan = getLessonPlan(sessionId);
+    if (plan?.vip_unit_id) {
+      if (attendance !== "absent") markVipUnitDone(plan.vip_unit_id, sessionId);
+      else clearVipUnitDoneForSession(sessionId);
+    }
     // 3. Legacy back-compat: some seed sessions never touched sessions-store
     //    yet; savePerformance keeps the 4-base map warm for them.
     if (attendance !== "absent") savePerformance(sessionId, perf);

@@ -13,6 +13,9 @@ export interface LessonPlan {
   type: LessonSessionType;
   level_id?: string;
   unit_id?: string;
+  // Optional link to a Course Builder VIP unit. Only set when the student
+  // is on the VIP product. Completing this session marks the unit done.
+  vip_unit_id?: string;
   comments: string;
   planning_status: "on-time" | "late";
   saved_at: string; // ISO

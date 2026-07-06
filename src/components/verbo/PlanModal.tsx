@@ -5,6 +5,7 @@ import type { Level } from "@/lib/mock-data";
 import { GhostButton } from "@/components/verbo/ui";
 import type { LessonPlan, LessonSessionType } from "@/lib/lesson-plans-store";
 import type { ExtSession } from "@/lib/sessions-store";
+import { unitsForStudent, vipUnitDoneMap } from "@/lib/vip-courses-store";
 
 const SESSION_TYPES: LessonSessionType[] = [
   "Syllabus content",
@@ -31,6 +32,11 @@ export function PlanModal({
   const [levelId, setLevelId] = useState(existing?.level_id ?? (student?.current_level ?? levels[0]?.id ?? ""));
   const [unitId, setUnitId] = useState(existing?.unit_id ?? "");
   const [comments, setComments] = useState(existing?.comments ?? "");
+  const [vipUnitId, setVipUnitId] = useState(existing?.vip_unit_id ?? "");
+
+  const isVip = student?.product === "vip";
+  const vipUnits = isVip ? unitsForStudent(student!.id) : [];
+  const vipDone = isVip ? vipUnitDoneMap() : {};
 
   const showLevelUnit = type === "Syllabus content" || type === "Evaluation";
   const currentLevel = levels.find((l) => l.id === levelId);
@@ -54,6 +60,7 @@ export function PlanModal({
       type: type as LessonSessionType,
       level_id: showLevelUnit ? levelId : undefined,
       unit_id: showLevelUnit ? unitId : undefined,
+      vip_unit_id: isVip && vipUnitId ? vipUnitId : undefined,
       comments: comments.trim(),
       planning_status,
       saved_at: new Date().toISOString(),
@@ -136,6 +143,28 @@ export function PlanModal({
               For this Session Type, only Teacher's comments are needed.
             </p>
           ) : null}
+
+          {isVip && (
+            <div>
+              <label className="text-xs font-medium text-foreground">Link to VIP Unit</label>
+              <select
+                value={vipUnitId}
+                onChange={(e) => setVipUnitId(e.target.value)}
+                className={`${inputCls} cursor-pointer`}
+              >
+                <option value="">— None —</option>
+                {vipUnits.map((u, i) => (
+                  <option key={u.id} value={u.id}>
+                    Unit {i + 1} · {u.title}{vipDone[u.id] ? " (Done)" : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Optional. When this session is marked <strong>Completed</strong> in the Session Report,
+                the linked VIP unit will be marked done and the next unit will unlock automatically.
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-medium text-foreground">Teacher's comments and instructions</label>

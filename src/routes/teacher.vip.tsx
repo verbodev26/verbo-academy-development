@@ -4,10 +4,11 @@ import { useAuth } from "@/lib/auth";
 import { ASSIGNMENTS, USERS } from "@/lib/mock-data";
 import { hydrateStudents, subscribeStudents } from "@/lib/students-store";
 import {
-  loadVipUnits, unitsForStudent, addVipUnit, updateVipUnit, removeVipUnit,
-  subscribeVipUnits, completedSessionCount, type VipUnit,
+  unitsForStudent, addVipUnit, updateVipUnit, removeVipUnit,
+  subscribeVipUnits, subscribeVipUnitCompletion, vipUnitDoneMap, type VipUnit,
 } from "@/lib/vip-courses-store";
 import { loadSessions, subscribeSessions } from "@/lib/sessions-store";
+import { loadLessonPlans, subscribeLessonPlans } from "@/lib/lesson-plans-store";
 import {
   ActivityModal, Field, ModalFooter, ModalShell, inputCls,
 } from "@/components/verbo/course-modals";
@@ -15,7 +16,7 @@ import { Card, GhostButton, PrimaryButton, Pill } from "@/components/verbo/ui";
 import { loadActivities } from "@/lib/activities-store";
 import {
   Plus, Crown, ArrowLeft, Sparkles, Pencil, Trash2, Lock, Unlock,
-  FileDown, Link2, Upload,
+  FileDown, Link2, Upload, CheckCircle2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/teacher/vip")({
@@ -37,7 +38,9 @@ function Page() {
     const unsubS = subscribeStudents(() => tick((n) => n + 1));
     const unsubV = subscribeVipUnits(() => tick((n) => n + 1));
     const unsubX = subscribeSessions(() => tick((n) => n + 1));
-    return () => { unsubS(); unsubV(); unsubX(); };
+    const unsubC = subscribeVipUnitCompletion(() => tick((n) => n + 1));
+    const unsubP = subscribeLessonPlans(() => tick((n) => n + 1));
+    return () => { unsubS(); unsubV(); unsubX(); unsubC(); unsubP(); };
   }, []);
 
   if (!user) return null;
@@ -83,7 +86,9 @@ function Page() {
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {vipStudents.map((s) => {
-            const count = unitsForStudent(s.id).length;
+            const units = unitsForStudent(s.id);
+            const doneMap = vipUnitDoneMap();
+            const doneCount = units.filter((u) => doneMap[u.id]).length;
             return (
               <button
                 key={s.id}
@@ -103,9 +108,14 @@ function Page() {
                   <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
                     <Crown className="h-3 w-3" /> VIP
                   </span>
-                  <Pill tone={count ? "success" : "muted"}>
-                    {count} {count === 1 ? "unit" : "units"} built
+                  <Pill tone={units.length ? "success" : "muted"}>
+                    {units.length} {units.length === 1 ? "unit" : "units"} built
                   </Pill>
+                  {units.length > 0 && (
+                    <Pill tone={doneCount === units.length ? "success" : "muted"}>
+                      {doneCount}/{units.length} done
+                    </Pill>
+                  )}
                 </div>
               </button>
             );
@@ -128,7 +138,9 @@ function StudentBuilder({ studentId, studentName, onBack }: {
 
   const units = useMemo(() => unitsForStudent(studentId), [studentId, actRev, unitModal]);
   const allActivities = useMemo(() => loadActivities(), [actRev, unitModal]);
-  const completed = useMemo(() => completedSessionCount(studentId, loadSessions()), [studentId, actRev]);
+  const doneMap = useMemo(() => vipUnitDoneMap(), [studentId, actRev, unitModal]);
+  const sessions = useMemo(() => loadSessions(), [studentId, actRev, unitModal]);
+  const doneCount = units.filter((u) => doneMap[u.id]).length;
 
   return (
     <div className="space-y-6">
@@ -145,7 +157,8 @@ function StudentBuilder({ studentId, studentName, onBack }: {
             {studentName} · VIP Course
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {units.length} {units.length === 1 ? "unit" : "units"} built · {completed} completed session{completed === 1 ? "" : "s"} so far.
+            {units.length} {units.length === 1 ? "unit" : "units"} built · {doneCount}/{units.length} done.
+            Units are marked done via the Session Report of the linked Performance Session.
           </p>
         </div>
         <PrimaryButton onClick={() => setUnitModal({ mode: "create" })}>
@@ -161,21 +174,27 @@ function StudentBuilder({ studentId, studentName, onBack }: {
         )}
         {units.map((u, i) => {
           const count = allActivities.filter((a) => a.unit_id === u.id).length;
-          // Unit N unlocks once the student has N-1 completed sessions.
-          const unlocked = completed >= i; // i is 0-based → needs i completions
-          const requiredCompletions = i; // sessions needed
+          const done = !!doneMap[u.id];
+          const prevDone = i === 0 || !!doneMap[units[i - 1].id];
+          const unlocked = done || prevDone;
+          const doneRec = doneMap[u.id];
+          const doneSession = doneRec ? sessions.find((s) => s.id === doneRec.session_id) : undefined;
           return (
             <div key={u.id} className={`flex items-center justify-between gap-4 px-6 py-4 ${i ? "border-t border-border" : ""}`}>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">Unit {i + 1}</span>
-                  {unlocked ? (
+                  {done ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
+                      <CheckCircle2 className="h-3 w-3" /> Done
+                    </span>
+                  ) : unlocked ? (
                     <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
                       <Unlock className="h-3 w-3" /> Unlocked
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                      <Lock className="h-3 w-3" /> Locked until session {requiredCompletions} completed
+                      <Lock className="h-3 w-3" /> Locked until previous unit completed
                     </span>
                   )}
                 </div>
@@ -195,6 +214,14 @@ function StudentBuilder({ studentId, studentName, onBack }: {
                   )}
                   <span>•</span>
                   <Pill tone={count ? "success" : "muted"}>{count} {count === 1 ? "activity" : "activities"}</Pill>
+                  {done && doneSession && (
+                    <>
+                      <span>•</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        via session {new Date(doneSession.date_time).toLocaleDateString()}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
