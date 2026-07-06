@@ -208,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/student/sessions': typeof StudentSessionsRoute
   '/teacher/calendar': typeof TeacherCalendarRoute
   '/teacher/clubs': typeof TeacherClubsRoute
+  '/teacher/clubs': typeof TeacherClubsRoute
   '/teacher/materials': typeof TeacherMaterialsRoute
   '/teacher/students': typeof TeacherStudentsRoute
   '/teacher/vip': typeof TeacherVipRoute
@@ -235,6 +236,7 @@ export interface FileRoutesByTo {
   '/student/resources': typeof StudentResourcesRoute
   '/student/sessions': typeof StudentSessionsRoute
   '/teacher/calendar': typeof TeacherCalendarRoute
+  '/teacher/clubs': typeof TeacherClubsRoute
   '/teacher/clubs': typeof TeacherClubsRoute
   '/teacher/materials': typeof TeacherMaterialsRoute
   '/teacher/students': typeof TeacherStudentsRoute
@@ -267,6 +269,7 @@ export interface FileRoutesById {
   '/student/resources': typeof StudentResourcesRoute
   '/student/sessions': typeof StudentSessionsRoute
   '/teacher/calendar': typeof TeacherCalendarRoute
+  '/teacher/clubs': typeof TeacherClubsRoute
   '/teacher/clubs': typeof TeacherClubsRoute
   '/teacher/materials': typeof TeacherMaterialsRoute
   '/teacher/students': typeof TeacherStudentsRoute
