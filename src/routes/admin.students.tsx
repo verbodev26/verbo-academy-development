@@ -65,6 +65,17 @@ const LEVEL_OPTIONS = [
 
 const PRODUCT_ICON = { briefcase: Briefcase, compass: Compass, globe: Globe, crown: Crown } as const;
 
+const PRODUCT_TYPE_OPTIONS: {
+  id: "performance" | "workshops" | "insights";
+  name: string;
+  blurb: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { id: "performance", name: "Performance Sessions", blurb: "Live 1:1 English program (Enterprise, GO, International, VIP).", icon: Gauge },
+  { id: "workshops", name: "Focus Workshops", blurb: "Short-form workshops only. No live 1:1 sessions.", icon: Layers },
+  { id: "insights", name: "Insights", blurb: "Insights access only. No live sessions or workshops.", icon: Lightbulb },
+];
+
 function initials(name: string) {
   return name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
 }
