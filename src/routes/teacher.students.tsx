@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { ASSIGNMENTS, USERS, type User } from "@/lib/mock-data";
@@ -598,25 +598,26 @@ function StudentDetailModal({
           </div>
         </section>
 
-        {/* --- VIP Course Builder placeholder --- */}
+        {/* --- VIP Course Builder link --- */}
         {isVip && (
           <section className="mt-6">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <BookOpenCheck className="h-3.5 w-3.5" /> Course Builder VIP
             </div>
-            <div className="mt-2 flex items-center justify-between rounded-xl border border-dashed border-border bg-background p-4">
+            <div className="mt-2 flex items-center justify-between rounded-xl border border-border bg-background p-4">
               <div>
-                <div className="text-sm font-medium text-foreground">VIP Dynamic Log</div>
+                <div className="text-sm font-medium text-foreground">Personalized VIP Course</div>
                 <div className="text-xs text-muted-foreground">
-                  Coming soon — enabled once this section is built.
+                  Build this student's units week by week.
                 </div>
               </div>
-              <button
-                disabled
-                className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-muted-foreground"
+              <Link
+                to="/teacher/vip"
+                search={{ student: s.id }}
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
               >
-                <Lock className="h-3.5 w-3.5" /> Coming soon
-              </button>
+                <BookOpenCheck className="h-3.5 w-3.5" /> Open Course Builder
+              </Link>
             </div>
           </section>
         )}
