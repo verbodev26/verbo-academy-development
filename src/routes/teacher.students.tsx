@@ -95,9 +95,9 @@ function Page() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-50">Mis Alumnos</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-50">My Students</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Vista de solo lectura de los {myStudents.length} alumnos asignados a ti.
+          Read-only view of the {myStudents.length} students assigned to you.
         </p>
       </div>
 
@@ -109,7 +109,7 @@ function Page() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre de alumno…"
+            placeholder="Search by student name…"
             className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
           {search && (
@@ -128,10 +128,10 @@ function Page() {
             onChange={(e) => setGroupBy(e.target.value as GroupBy)}
             className="appearance-none rounded-lg border border-border bg-background py-2 pl-3 pr-8 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
-            <option value="none">Sin agrupar</option>
-            <option value="company">Agrupar por Empresa</option>
-            <option value="product">Agrupar por Producto</option>
-            <option value="level">Agrupar por Nivel</option>
+            <option value="none">No grouping</option>
+            <option value="company">Group by Company</option>
+            <option value="product">Group by Product</option>
+            <option value="level">Group by Level</option>
           </select>
           <Filter className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         </div>
@@ -140,8 +140,8 @@ function Page() {
       {filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card py-16 text-center shadow-sm">
           <UsersIcon className="mb-3 h-8 w-8 text-muted-foreground opacity-40" />
-          <p className="text-sm font-medium text-foreground">Sin alumnos que coincidan.</p>
-          <p className="mt-1 text-xs text-muted-foreground">Ajusta la búsqueda o el agrupamiento.</p>
+          <p className="text-sm font-medium text-foreground">No matching students.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Adjust your search or grouping.</p>
         </div>
       )}
 
@@ -262,7 +262,7 @@ function StudentCard({ student: s, onOpen }: { student: User; onOpen: () => void
             {s.name}{s.company ? <span className="text-muted-foreground"> · {s.company}</span> : null}
           </div>
           {s.current_level && (
-            <div className="truncate text-xs text-muted-foreground">Nivel {s.current_level}</div>
+            <div className="truncate text-xs text-muted-foreground">Level {s.current_level}</div>
           )}
         </div>
       </div>
@@ -400,7 +400,7 @@ function StudentDetailModal({
       <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl border border-border bg-card p-8 shadow-floating">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Alumno</div>
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Student</div>
             <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
               {s.name}{s.company ? <span className="text-muted-foreground"> · {s.company}</span> : null}
             </h2>
@@ -408,7 +408,7 @@ function StudentDetailModal({
               {product && <Tag className="bg-primary/10 text-primary">{product.name}</Tag>}
               {s.access_plan && <Tag className="bg-accent/10 text-accent">{s.access_plan}</Tag>}
               {s.focus && <Tag className="bg-secondary text-secondary-foreground">{s.focus}</Tag>}
-              {s.current_level && <Tag className="bg-muted text-muted-foreground">Nivel {s.current_level}</Tag>}
+              {s.current_level && <Tag className="bg-muted text-muted-foreground">Level {s.current_level}</Tag>}
               {isVip && (
                 <Tag className="bg-amber-500/15 text-amber-600">
                   <Crown className="mr-1 h-3 w-3" /> VIP
@@ -425,24 +425,24 @@ function StudentDetailModal({
         {productType === "performance" && (
           <section className="mt-6 rounded-xl border border-border bg-background p-5">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <GraduationCap className="h-3.5 w-3.5" /> Balance de sesiones (ciclo actual)
+              <GraduationCap className="h-3.5 w-3.5" /> Sessions balance (current cycle)
             </div>
             <div className="mt-3 grid grid-cols-3 gap-4">
-              <Stat label="Contratadas" value={String(hired)} />
-              <Stat label="Restantes" value={String(remaining)} />
-              <Stat label="Usadas" value={String(Math.max(0, hired - remaining))} />
+              <Stat label="Contracted" value={String(hired)} />
+              <Stat label="Remaining" value={String(remaining)} />
+              <Stat label="Used" value={String(Math.max(0, hired - remaining))} />
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Usa este balance para decidir cuántas sesiones dedicar a Additional Content, Review Session
-              o Casual Topic sin comprometer el avance del syllabus fijo.
+              Use this balance to decide how many sessions to dedicate to Additional Content, Review Session
+              or Casual Topic without compromising the fixed syllabus progression.
             </p>
           </section>
         )}
 
         {/* --- Cadence (payment info intentionally hidden from teachers) --- */}
         <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <MiniStat icon={Repeat} label="Sesiones/semana" value={s.sessions_per_week ? String(s.sessions_per_week) : "—"} />
-          <MiniStat icon={Clock} label="Duración" value={s.session_duration ? `${s.session_duration} min` : "—"} />
+          <MiniStat icon={Repeat} label="Sessions/week" value={s.sessions_per_week ? String(s.sessions_per_week) : "—"} />
+          <MiniStat icon={Clock} label="Duration" value={s.session_duration ? `${s.session_duration} min` : "—"} />
         </section>
 
         {/* --- Overall Attendance --- */}
@@ -454,13 +454,13 @@ function StudentDetailModal({
             <span className="text-2xl font-bold tabular-nums" style={{ color: "#01304a" }}>{attPct}%</span>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-3">
-            <Stat label="Asistió" value={String(attendance.present)} />
-            <Stat label="Tarde" value={String(attendance.late)} />
-            <Stat label="Canceló-Faltó" value={String(attendance.absentOrNoShow)} />
+            <Stat label="Attended" value={String(attendance.present)} />
+            <Stat label="Late" value={String(attendance.late)} />
+            <Stat label="Cancelled-Missed" value={String(attendance.absentOrNoShow)} />
           </div>
           <p className="mt-3 text-[11px] text-muted-foreground">
-            "Canceló-Faltó" agrupa Absent, No Show y Cancelled con causa Student. Ausencias con causa Teacher
-            no cuentan en contra del alumno. Datos mock hasta que el Session Report real esté conectado.
+            "Cancelled-Missed" groups Absent, No Show and Cancelled with Student cause. Absences with Teacher cause
+            are not counted against the student. Mock data until the real Session Report is connected.
           </p>
         </section>
 
@@ -520,7 +520,7 @@ function StudentDetailModal({
         {challengeProductId && (
           <section className="mt-6">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Lightbulb className="h-3.5 w-3.5" /> Challenges sugeridos ({product?.name})
+              <Lightbulb className="h-3.5 w-3.5" /> Suggested Challenges ({product?.name})
             </div>
             <div className="mt-3 space-y-4">
               {DIFFICULTY_ORDER.map((diff) => {
@@ -553,7 +553,7 @@ function StudentDetailModal({
               })}
               {DIFFICULTY_ORDER.every((d) => challengesFor(challenges, challengeProductId, d).length === 0) && (
                 <p className="text-xs text-muted-foreground">
-                  Aún no hay challenges publicados para este producto.
+                  No challenges published yet for this product.
                 </p>
               )}
             </div>
@@ -564,18 +564,18 @@ function StudentDetailModal({
         <section className="mt-6">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <NotebookPen className="h-3.5 w-3.5" /> Notas de cobertura
+              <NotebookPen className="h-3.5 w-3.5" /> Coverage notes
             </div>
             <button
               type="button"
               onClick={() => setShowReport(true)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/5 px-2.5 py-1 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
             >
-              <Flag className="h-3.5 w-3.5" /> Reportar
+              <Flag className="h-3.5 w-3.5" /> Report
             </button>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Contexto para cualquier teacher que llegue a cubrir una sesión de este alumno.
+            Context for any teacher covering a session for this student.
           </p>
           {/* TODO: auto-clear cuando se complete la sesión reagendada asociada
               (ver motor de reagendamiento, aún no construido). Por ahora la
@@ -584,16 +584,16 @@ function StudentDetailModal({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={4}
-            placeholder="Nivel real, temas sensibles, preferencias, en qué está trabajando ahora…"
+            placeholder="Real level, sensitive topics, preferences, what they're working on now…"
             className="mt-2 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="mt-2 flex items-center justify-end gap-2">
-            {savedTick && <span className="text-xs text-success">Guardado</span>}
+            {savedTick && <span className="text-xs text-success">Saved</span>}
             <button
               onClick={handleSaveNote}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
             >
-              Guardar nota
+              Save note
             </button>
           </div>
         </section>
@@ -606,16 +606,16 @@ function StudentDetailModal({
             </div>
             <div className="mt-2 flex items-center justify-between rounded-xl border border-dashed border-border bg-background p-4">
               <div>
-                <div className="text-sm font-medium text-foreground">Bitácora dinámica VIP</div>
+                <div className="text-sm font-medium text-foreground">VIP Dynamic Log</div>
                 <div className="text-xs text-muted-foreground">
-                  Próximamente — se habilita cuando construyamos esta sección.
+                  Coming soon — enabled once this section is built.
                 </div>
               </div>
               <button
                 disabled
                 className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-muted-foreground"
               >
-                <Lock className="h-3.5 w-3.5" /> Próximamente
+                <Lock className="h-3.5 w-3.5" /> Coming soon
               </button>
             </div>
           </section>
@@ -668,9 +668,9 @@ function ReportModal({
       <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-floating">
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Reporte</div>
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Report</div>
             <h3 className="mt-1 text-lg font-semibold tracking-tight text-foreground">
-              Reportar situación · {student.name}
+              Report situation · {student.name}
             </h3>
           </div>
           <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary">
@@ -679,32 +679,32 @@ function ReportModal({
         </div>
 
         <p className="mt-3 text-xs text-muted-foreground">
-          Describe una situación observada sobre este alumno. El reporte quedará registrado en
-          la base de datos ligado a ti como teacher titular.
+          Describe a situation observed about this student. The report will be stored
+          in the database linked to you as the primary teacher.
         </p>
 
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={6}
-          placeholder="Ej.: llegó desmotivado por temas del trabajo, cambios en el objetivo original, etc."
+          placeholder="e.g. arrived unmotivated due to work issues, changes to the original goal, etc."
           className="mt-3 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
 
         <div className="mt-4 flex items-center justify-end gap-2">
-          {saved && <span className="text-xs text-success">Reporte guardado</span>}
+          {saved && <span className="text-xs text-success">Report saved</span>}
           <button
             onClick={onClose}
             className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
           >
-            Cancelar
+            Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={!text.trim() || saved}
             className="inline-flex items-center gap-1.5 rounded-lg bg-destructive px-3 py-1.5 text-xs font-semibold text-destructive-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            <Flag className="h-3.5 w-3.5" /> Guardar reporte
+            <Flag className="h-3.5 w-3.5" /> Save report
           </button>
         </div>
       </div>
