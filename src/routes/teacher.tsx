@@ -15,6 +15,7 @@ function Layout() {
             { to: "/teacher/calendar", label: "Calendar" },
             { to: "/teacher/students", label: "My Students" },
             { to: "/teacher/materials", label: "Materials" },
+            { to: "/teacher/workshops", label: "Focus Workshops" },
           ]}
         />
         <AnnouncementBanner />
