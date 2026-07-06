@@ -11,6 +11,7 @@ const TABS = [
   { to: "/admin/teachers", label: "Teachers" },
   { to: "/admin/sessions", label: "Sessions" },
   { to: "/admin/challenges", label: "Challenges" },
+  { to: "/admin/workshops", label: "Focus Workshops" },
   { to: "/admin/clubs", label: "Manage Clubs" },
   { to: "/admin/materials", label: "Material Complementario" },
   { to: "/admin/kpis", label: "KPIs" },

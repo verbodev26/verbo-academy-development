@@ -25,6 +25,7 @@ import { Route as StudentResourcesRouteImport } from './routes/student.resources
 import { Route as StudentPerformanceRouteImport } from './routes/student.performance'
 import { Route as StudentCoursesRouteImport } from './routes/student.courses'
 import { Route as StudentBoostRouteImport } from './routes/student.boost'
+import { Route as AdminWorkshopsRouteImport } from './routes/admin.workshops'
 import { Route as AdminTeachersRouteImport } from './routes/admin.teachers'
 import { Route as AdminStudentsRouteImport } from './routes/admin.students'
 import { Route as AdminSessionsRouteImport } from './routes/admin.sessions'
@@ -114,6 +115,11 @@ const StudentBoostRoute = StudentBoostRouteImport.update({
   path: '/boost',
   getParentRoute: () => StudentRoute,
 } as any)
+const AdminWorkshopsRoute = AdminWorkshopsRouteImport.update({
+  id: '/workshops',
+  path: '/workshops',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminTeachersRoute = AdminTeachersRouteImport.update({
   id: '/teachers',
   path: '/teachers',
@@ -170,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/admin/sessions': typeof AdminSessionsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/teachers': typeof AdminTeachersRoute
+  '/admin/workshops': typeof AdminWorkshopsRoute
   '/student/boost': typeof StudentBoostRoute
   '/student/courses': typeof StudentCoursesRoute
   '/student/performance': typeof StudentPerformanceRoute
@@ -193,6 +200,7 @@ export interface FileRoutesByTo {
   '/admin/sessions': typeof AdminSessionsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/teachers': typeof AdminTeachersRoute
+  '/admin/workshops': typeof AdminWorkshopsRoute
   '/student/boost': typeof StudentBoostRoute
   '/student/courses': typeof StudentCoursesRoute
   '/student/performance': typeof StudentPerformanceRoute
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/admin/sessions': typeof AdminSessionsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/teachers': typeof AdminTeachersRoute
+  '/admin/workshops': typeof AdminWorkshopsRoute
   '/student/boost': typeof StudentBoostRoute
   '/student/courses': typeof StudentCoursesRoute
   '/student/performance': typeof StudentPerformanceRoute
@@ -248,6 +257,7 @@ export interface FileRouteTypes {
     | '/admin/sessions'
     | '/admin/students'
     | '/admin/teachers'
+    | '/admin/workshops'
     | '/student/boost'
     | '/student/courses'
     | '/student/performance'
@@ -271,6 +281,7 @@ export interface FileRouteTypes {
     | '/admin/sessions'
     | '/admin/students'
     | '/admin/teachers'
+    | '/admin/workshops'
     | '/student/boost'
     | '/student/courses'
     | '/student/performance'
@@ -297,6 +308,7 @@ export interface FileRouteTypes {
     | '/admin/sessions'
     | '/admin/students'
     | '/admin/teachers'
+    | '/admin/workshops'
     | '/student/boost'
     | '/student/courses'
     | '/student/performance'
@@ -432,6 +444,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentBoostRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/admin/workshops': {
+      id: '/admin/workshops'
+      path: '/workshops'
+      fullPath: '/admin/workshops'
+      preLoaderRoute: typeof AdminWorkshopsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/teachers': {
       id: '/admin/teachers'
       path: '/teachers'
@@ -500,6 +519,7 @@ interface AdminRouteChildren {
   AdminSessionsRoute: typeof AdminSessionsRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
   AdminTeachersRoute: typeof AdminTeachersRoute
+  AdminWorkshopsRoute: typeof AdminWorkshopsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -512,6 +532,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSessionsRoute: AdminSessionsRoute,
   AdminStudentsRoute: AdminStudentsRoute,
   AdminTeachersRoute: AdminTeachersRoute,
+  AdminWorkshopsRoute: AdminWorkshopsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
