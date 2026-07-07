@@ -7,6 +7,7 @@ import {
   getProduct,
 } from "@/lib/student-model";
 import { hydrateStudents, subscribeStudents } from "@/lib/students-store";
+import { groupOfStudent, subscribeGroups } from "@/lib/groups-store";
 import {
   loadChallenges, subscribeChallenges, challengesFor, categoryColor,
   DIFFICULTY_META, DIFFICULTY_ORDER,
@@ -61,7 +62,8 @@ function Page() {
     hydrateStudents();
     tick((n) => n + 1);
     const unsub = subscribeStudents(() => tick((n) => n + 1));
-    return unsub;
+    const unsubG = subscribeGroups(() => tick((n) => n + 1));
+    return () => { unsub(); unsubG(); };
   }, []);
 
   if (!user) return null;
