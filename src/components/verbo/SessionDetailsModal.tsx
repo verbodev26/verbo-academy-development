@@ -26,7 +26,7 @@ export function SessionDetailsModal({
   onEditPlan?: () => void;
 }) {
   const comments = mode === "completed"
-    ? (session.report_comments ?? "No comments were left with the Session Report.")
+    ? (session.report_comments ?? plan?.comments ?? "No comments were left with the Session Report.")
     : (plan?.comments || "No plan comments yet.");
 
   return (
