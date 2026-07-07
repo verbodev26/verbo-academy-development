@@ -39,6 +39,10 @@ export interface CalendarEvent {
   // "1:1" badge, and the title is the Group Name.
   is_group?: boolean;
   group_id?: string;
+  // ---- Club chip enrichment ----
+  spots_taken?: number;
+  spots_total?: number;
+  enrolled_names?: string[];
   // Passthrough refs so click handlers can open the right modal / route.
   session?: ExtSession;
   club?: Club;
@@ -60,6 +64,21 @@ function sessionEvent(s: ExtSession, title: string): CalendarEvent {
   };
 }
 
+// Deterministic enrolled-student placeholders — the seed data only tracks
+// spots_taken counts, so we hydrate a stable list of names for the hover
+// popover. When the real roster ships, replace with a lookup here.
+const CLUB_NAME_POOL = [
+  "Elena Ruiz", "Marco Silva", "Yuki Tanaka", "Ana Torres", "Liam Bennett",
+  "Priya Shah", "Noah Kim", "Sofía López", "Mateo Rossi", "Grace Lee",
+  "Diego Álvarez", "Emma Wright", "Hana Sato", "Kai Nakamura", "Isabela Costa",
+  "Owen Fischer", "Camila Vega", "Ruben Ortiz", "Aiko Mori", "Jonas Weber",
+  "Zara Ahmed", "Luca Bianchi", "Nora Park", "Theo Rossi", "Maya Chen",
+  "Felix Meyer", "Yara Haddad", "Iker Núñez", "Elif Demir", "Aarav Patel",
+];
+function enrolledNamesFor(c: Club): string[] {
+  const taken = Math.max(0, Math.min(c.spots_taken ?? 0, CLUB_NAME_POOL.length));
+  return CLUB_NAME_POOL.slice(0, taken);
+}
 function clubEvent(c: Club): CalendarEvent {
   return {
     id: c.id,
@@ -69,6 +88,9 @@ function clubEvent(c: Club): CalendarEvent {
     title: c.title,
     subtitle: c.type === "book" ? "Book Club" : "Insight",
     status: c.status,
+    spots_taken: c.spots_taken,
+    spots_total: c.spots_total,
+    enrolled_names: enrolledNamesFor(c),
     club: c,
   };
 }
