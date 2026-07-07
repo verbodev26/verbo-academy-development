@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, FileEdit } from "lucide-react";
+import { toast } from "sonner";
+import { CalendarClock, FileEdit, Video, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { userById } from "@/lib/mock-data";
 import { Card, GhostButton, PrimaryButton, SectionTitle } from "@/components/verbo/ui";
@@ -19,6 +20,10 @@ import {
   type CalendarEvent,
 } from "@/lib/calendar-events";
 import { WORKSHOPS_KEY, loadWorkshops } from "@/lib/workshops-store";
+import { SessionDetailsModal } from "@/components/verbo/SessionDetailsModal";
+import { CantAttendModal } from "@/components/verbo/CantAttendModal";
+import { subscribeStrikes } from "@/lib/strikes-store";
+import { addReleaseRequest, type Club } from "@/lib/clubs-store";
 
 export const Route = createFileRoute("/teacher/calendar")({ component: Page });
 
@@ -34,6 +39,10 @@ function Page() {
   const [plans, setPlans] = useState<Record<string, LessonPlan>>({});
   const [levels, setLevels] = useState<Level[]>([]);
   const [planning, setPlanning] = useState<ExtSession | null>(null);
+  const [detailsFor, setDetailsFor] = useState<{ session: ExtSession; mode: "ready" | "completed"; title: string } | null>(null);
+  const [cancelling, setCancelling] = useState<ExtSession | null>(null);
+  const [clubModal, setClubModal] = useState<Club | null>(null);
+  const [releaseFor, setReleaseFor] = useState<Club | null>(null);
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -43,9 +52,10 @@ function Page() {
     const u1 = subscribeSessions(() => setSessions(loadSessions()));
     const u2 = subscribeLessonPlans(() => setPlans(loadLessonPlans()));
     const u3 = subscribeLevels(() => setLevels(loadLevels()));
+    const u4 = subscribeStrikes(() => tick((n) => n + 1));
     const onWorkshops = (e: StorageEvent) => { if (e.key === WORKSHOPS_KEY) tick((n) => n + 1); };
     if (typeof window !== "undefined") window.addEventListener("storage", onWorkshops);
-    return () => { u1(); u2(); u3(); if (typeof window !== "undefined") window.removeEventListener("storage", onWorkshops); };
+    return () => { u1(); u2(); u3(); u4(); if (typeof window !== "undefined") window.removeEventListener("storage", onWorkshops); };
   }, []);
 
   // Build calendar events (classes + workshops + clubs) via the shared adapter.
@@ -80,15 +90,25 @@ function Page() {
   );
 
   const handleEventClick = (ev: CalendarEvent) => {
-    // Clubs / spotlights: no modal wired here yet — they're read-only on this
-    // calendar. Owners edit via Admin > Manage Clubs / Focus Workshops.
-    if (ev.kind === "insight" || ev.kind === "book_club" || ev.kind === "spotlight") return;
+    // Clubs — quick modal (Join Club / Can't Attend).
+    if (ev.kind === "insight" || ev.kind === "book_club") {
+      if (ev.club) setClubModal(ev.club);
+      return;
+    }
+    if (ev.kind === "spotlight") return;
 
     if (!ev.session) return;
     const s = ev.session;
-    // Completed/absent sessions have a Session Report already — no re-open here.
-    if (s.status === "completed" || s.status === "absent" || s.status === "no_show") return;
-    // Otherwise open the Lesson Plan modal (Scheduled → Ready).
+    if (s.status === "completed") {
+      setDetailsFor({ session: s, mode: "completed", title: ev.title });
+      return;
+    }
+    if (s.status === "ready") {
+      setDetailsFor({ session: s, mode: "ready", title: ev.title });
+      return;
+    }
+    if (s.status === "absent" || s.status === "no_show" || s.status === "cancelled") return;
+    // Scheduled → open Lesson Plan modal to move to Ready.
     setPlanning(s);
   };
 
@@ -177,6 +197,122 @@ function Page() {
           onSave={handleSavePlan}
         />
       )}
+
+      {detailsFor && (
+        <SessionDetailsModal
+          session={detailsFor.session}
+          plan={plans[detailsFor.session.id]}
+          title={detailsFor.title}
+          mode={detailsFor.mode}
+          onClose={() => setDetailsFor(null)}
+          onCantAttend={() => { const s = detailsFor.session; setDetailsFor(null); setCancelling(s); }}
+          onEditPlan={() => { const s = detailsFor.session; setDetailsFor(null); setPlanning(s); }}
+        />
+      )}
+
+      {cancelling && (
+        <CantAttendModal
+          session={cancelling}
+          teacherId={user.id}
+          onClose={() => setCancelling(null)}
+          onDone={({ needsSubstitute }) => {
+            setCancelling(null);
+            toast.success(needsSubstitute
+              ? "Cancellation submitted. Admin has been notified to find a substitute."
+              : "Cancellation submitted. You can propose a reschedule with Admin.");
+          }}
+        />
+      )}
+
+      {clubModal && (
+        <ClubQuickModal
+          club={clubModal}
+          onClose={() => setClubModal(null)}
+          onCantAttend={() => { const c = clubModal; setClubModal(null); setReleaseFor(c); }}
+        />
+      )}
+
+      {releaseFor && (
+        <RequestReleaseModal
+          club={releaseFor}
+          onClose={() => setReleaseFor(null)}
+          onSubmit={(reason) => {
+            if (user) addReleaseRequest({ club_id: releaseFor.id, teacher_id: user.id, reason });
+            setReleaseFor(null);
+            toast.success("Release request submitted for admin approval");
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Club quick modal — Join / Can't Attend shortcut on the calendar. The
+// "Can't Attend" branch reuses the existing Request Release flow from
+// Fase 6 so there is exactly one release pipeline.
+// ---------------------------------------------------------------------------
+function ClubQuickModal({ club, onClose, onCantAttend }: {
+  club: Club; onClose: () => void; onCantAttend: () => void;
+}) {
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md overflow-hidden rounded-2xl bg-card shadow-floating">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">{club.type === "book" ? "Book Club" : "Insight"}</div>
+            <h2 className="mt-0.5 text-base font-semibold text-foreground">{club.title}</h2>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-5 py-4 text-sm text-muted-foreground">
+          {new Date(club.date).toLocaleString(undefined, { weekday: "long", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+          {" · "}{club.spots_taken}/{club.spots_total} Seats
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border bg-secondary/30 px-5 py-3">
+          <GhostButton onClick={onCantAttend}>Can't Attend</GhostButton>
+          <a
+            href={club.link || "#"} target="_blank" rel="noopener noreferrer"
+            onClick={(e) => { if (!club.link) e.preventDefault(); }}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
+          >
+            <Video className="h-3.5 w-3.5" /> Join Club
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RequestReleaseModal({ club, onClose, onSubmit }: {
+  club: Club; onClose: () => void; onSubmit: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-background shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-base font-semibold text-foreground">Request Release</h2>
+          <button onClick={onClose} aria-label="Close" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="space-y-4 px-6 py-5">
+          <div className="rounded-lg bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+            <div className="font-medium text-foreground">{club.title}</div>
+            <div>{club.type === "book" ? "Book Club" : "Insight"} · {new Date(club.date).toLocaleString()}</div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-foreground">Reason</label>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={4} placeholder="Why you need to release this club…" className="mt-1.5 w-full resize-none rounded-lg border border-input bg-background px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+          <p className="text-[11px] text-muted-foreground">This does not release the club immediately — an admin will review. If approved, a penalty may be applied.</p>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border bg-secondary/30 px-6 py-4">
+          <GhostButton onClick={onClose}>Cancel</GhostButton>
+          <PrimaryButton onClick={() => onSubmit(reason.trim())}>Submit Request</PrimaryButton>
+        </div>
+      </div>
     </div>
   );
 }
