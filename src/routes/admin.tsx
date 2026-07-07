@@ -8,6 +8,7 @@ const TABS = [
   { to: "/admin", label: "Overview", exact: true },
   { to: "/admin/courses", label: "Performance Sessions" },
   { to: "/admin/students", label: "Students" },
+  { to: "/admin/groups", label: "Groups" },
   { to: "/admin/teachers", label: "Teachers" },
   { to: "/admin/sessions", label: "Sessions" },
   { to: "/admin/challenges", label: "Challenges" },
