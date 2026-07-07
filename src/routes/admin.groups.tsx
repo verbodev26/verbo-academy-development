@@ -206,7 +206,8 @@ function RegisterGroupModal({ onClose, onSaved }: { onClose: () => void; onSaved
   // VIP is intentionally excluded — VIP is always Individual.
   const productOptions = PRODUCTS.filter((p) => p.id !== "vip");
   const productLevels = getProduct(product)?.levels ?? [];
-  const teachers = product ? teachersForProduct(product as ProductId) : [];
+  const allTeachers = USERS.filter((u) => u.role === "teacher");
+  const teachers = product ? teachersForProduct(allTeachers, product as ProductId) : allTeachers;
 
   const setMember = (i: number, patch: Partial<NewMember>) => {
     setMembers((prev) => prev.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
