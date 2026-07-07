@@ -22,6 +22,7 @@ import { Route as TeacherWorkshopsRouteImport } from './routes/teacher.workshops
 import { Route as TeacherVipRouteImport } from './routes/teacher.vip'
 import { Route as TeacherStudentsRouteImport } from './routes/teacher.students'
 import { Route as TeacherMaterialsRouteImport } from './routes/teacher.materials'
+import { Route as TeacherFinancialRouteImport } from './routes/teacher.financial'
 import { Route as TeacherClubsRouteImport } from './routes/teacher.clubs'
 import { Route as TeacherCalendarRouteImport } from './routes/teacher.calendar'
 import { Route as StudentSessionsRouteImport } from './routes/student.sessions'
@@ -104,6 +105,11 @@ const TeacherStudentsRoute = TeacherStudentsRouteImport.update({
 const TeacherMaterialsRoute = TeacherMaterialsRouteImport.update({
   id: '/materials',
   path: '/materials',
+  getParentRoute: () => TeacherRoute,
+} as any)
+const TeacherFinancialRoute = TeacherFinancialRouteImport.update({
+  id: '/financial',
+  path: '/financial',
   getParentRoute: () => TeacherRoute,
 } as any)
 const TeacherClubsRoute = TeacherClubsRouteImport.update({
@@ -221,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/student/sessions': typeof StudentSessionsRoute
   '/teacher/calendar': typeof TeacherCalendarRoute
   '/teacher/clubs': typeof TeacherClubsRoute
+  '/teacher/financial': typeof TeacherFinancialRoute
   '/teacher/materials': typeof TeacherMaterialsRoute
   '/teacher/students': typeof TeacherStudentsRoute
   '/teacher/vip': typeof TeacherVipRoute
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/student/sessions': typeof StudentSessionsRoute
   '/teacher/calendar': typeof TeacherCalendarRoute
   '/teacher/clubs': typeof TeacherClubsRoute
+  '/teacher/financial': typeof TeacherFinancialRoute
   '/teacher/materials': typeof TeacherMaterialsRoute
   '/teacher/students': typeof TeacherStudentsRoute
   '/teacher/vip': typeof TeacherVipRoute
@@ -285,6 +293,7 @@ export interface FileRoutesById {
   '/student/sessions': typeof StudentSessionsRoute
   '/teacher/calendar': typeof TeacherCalendarRoute
   '/teacher/clubs': typeof TeacherClubsRoute
+  '/teacher/financial': typeof TeacherFinancialRoute
   '/teacher/materials': typeof TeacherMaterialsRoute
   '/teacher/students': typeof TeacherStudentsRoute
   '/teacher/vip': typeof TeacherVipRoute
@@ -320,6 +329,7 @@ export interface FileRouteTypes {
     | '/student/sessions'
     | '/teacher/calendar'
     | '/teacher/clubs'
+    | '/teacher/financial'
     | '/teacher/materials'
     | '/teacher/students'
     | '/teacher/vip'
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/student/sessions'
     | '/teacher/calendar'
     | '/teacher/clubs'
+    | '/teacher/financial'
     | '/teacher/materials'
     | '/teacher/students'
     | '/teacher/vip'
@@ -383,6 +394,7 @@ export interface FileRouteTypes {
     | '/student/sessions'
     | '/teacher/calendar'
     | '/teacher/clubs'
+    | '/teacher/financial'
     | '/teacher/materials'
     | '/teacher/students'
     | '/teacher/vip'
@@ -493,6 +505,13 @@ declare module '@tanstack/react-router' {
       path: '/materials'
       fullPath: '/teacher/materials'
       preLoaderRoute: typeof TeacherMaterialsRouteImport
+      parentRoute: typeof TeacherRoute
+    }
+    '/teacher/financial': {
+      id: '/teacher/financial'
+      path: '/financial'
+      fullPath: '/teacher/financial'
+      preLoaderRoute: typeof TeacherFinancialRouteImport
       parentRoute: typeof TeacherRoute
     }
     '/teacher/clubs': {
@@ -680,6 +699,7 @@ const StudentRouteWithChildren =
 interface TeacherRouteChildren {
   TeacherCalendarRoute: typeof TeacherCalendarRoute
   TeacherClubsRoute: typeof TeacherClubsRoute
+  TeacherFinancialRoute: typeof TeacherFinancialRoute
   TeacherMaterialsRoute: typeof TeacherMaterialsRoute
   TeacherStudentsRoute: typeof TeacherStudentsRoute
   TeacherVipRoute: typeof TeacherVipRoute
@@ -690,6 +710,7 @@ interface TeacherRouteChildren {
 const TeacherRouteChildren: TeacherRouteChildren = {
   TeacherCalendarRoute: TeacherCalendarRoute,
   TeacherClubsRoute: TeacherClubsRoute,
+  TeacherFinancialRoute: TeacherFinancialRoute,
   TeacherMaterialsRoute: TeacherMaterialsRoute,
   TeacherStudentsRoute: TeacherStudentsRoute,
   TeacherVipRoute: TeacherVipRoute,

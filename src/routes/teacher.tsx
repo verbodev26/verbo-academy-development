@@ -20,6 +20,7 @@ function Layout() {
     { to: "/teacher/materials", label: "Materials" },
     { to: "/teacher/workshops", label: "Focus Workshops" },
     { to: "/teacher/clubs", label: "Clubs" },
+    { to: "/teacher/financial", label: "Financial" },
     ...(hasVipStudent ? [{ to: "/teacher/vip", label: "Course Builder VIP" }] : []),
   ];
   return (
