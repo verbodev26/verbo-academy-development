@@ -262,12 +262,19 @@ function TeacherCard({ teacher: t, onOpen }: { teacher: User; onOpen: () => void
   const meta = STATUS_META[status];
   const dim = status === "removed";
   const glow = pending > 0 && status !== "removed";
+  const strikes = activeStrikeCount(t.id);
+  const frozenByStrikes = strikes >= 3;
 
   return (
     <button
       onClick={onOpen}
       className={`group relative flex flex-col rounded-2xl border border-border bg-card p-5 text-left shadow-soft transition-all hover:-translate-y-1 hover:shadow-elevated ${glow ? "verbo-review-glow" : ""} ${dim ? "opacity-60" : ""}`}
     >
+      {frozenByStrikes && (
+        <div className="mb-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-[11px] font-semibold text-destructive">
+          🚨 Frozen — 3 Unjustified Strikes. Urgent substitute needed for this teacher's groups.
+        </div>
+      )}
       {glow && (
         <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
           <AlertTriangle className="h-3 w-3" /> Needs Review ({pending})
@@ -299,7 +306,12 @@ function TeacherCard({ teacher: t, onOpen }: { teacher: User; onOpen: () => void
       </div>
 
       <div className="mt-4">
-        <Tag className={meta.cls}>{meta.label}</Tag>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Tag className={meta.cls}>{meta.label}</Tag>
+          <Tag className={strikes >= 3 ? "bg-destructive/15 text-destructive" : strikes >= 1 ? "bg-warning/20 text-amber-700" : "bg-secondary text-muted-foreground"}>
+            {Math.min(3, strikes)}/3 Strikes (6 months)
+          </Tag>
+        </div>
       </div>
     </button>
   );
