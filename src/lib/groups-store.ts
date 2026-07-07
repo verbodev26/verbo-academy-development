@@ -9,6 +9,7 @@
 
 import { USERS, ASSIGNMENTS, type User } from "./mock-data";
 import type { ProductId, AccessPlanId } from "./student-model";
+import { logPayment, expectedAmountForGroup } from "./payments-log";
 
 export type GroupMemberStatus = "active" | "pending_removal" | "archived";
 
@@ -260,6 +261,16 @@ function propagateGroupToMembers(before: Group, after: Group) {
 
 export function markGroupAsPaid(id: string) {
   const g = groupById(id); if (!g) return;
+  // Log the payment event so The Money Lab (Admin > Financial) can show
+  // historical Received Income. This is a shortcut into the same state.
+  logPayment({
+    entity_type: "group",
+    entity_id: g.id,
+    name: g.name,
+    company: g.company_client,
+    amount: expectedAmountForGroup(g),
+    paid_at: new Date().toISOString(),
+  });
   // Simplistic: bump next_payment forward by ~1 month.
   const now = new Date();
   const next = new Date(now.getFullYear(), now.getMonth() + 1, g.payment_day ?? now.getDate());

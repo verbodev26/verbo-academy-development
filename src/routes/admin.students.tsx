@@ -25,6 +25,7 @@ import {
   removeParticipantFromCohort, subscribeWorkshops,
 } from "@/lib/workshops-store";
 import { groupsByStudentId, groupOfStudent, removeMember, subscribeGroups, effectiveSessionCounts } from "@/lib/groups-store";
+import { logPayment, expectedAmountForStudent } from "@/lib/payments-log";
 
 export const Route = createFileRoute("/admin/students")({
   component: Page,
@@ -1083,6 +1084,15 @@ function StudentDetailModal({
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const after = nextPaymentDate(day, tomorrow);
+    // Record the payment event so The Money Lab can consolidate it.
+    logPayment({
+      entity_type: "individual",
+      entity_id: student.id,
+      name: student.name,
+      company: student.company,
+      amount: expectedAmountForStudent(student),
+      paid_at: new Date().toISOString(),
+    });
     patch({ next_payment: after.toISOString() });
   };
 
