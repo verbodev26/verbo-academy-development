@@ -1130,7 +1130,10 @@ function StudentDetailModal({
                 <Info label="Focus" value={student.focus ?? "—"} />
                 <Info label="Access Plan" value={student.access_plan ?? "—"} />
                 <Info label="Current roadmap level" value={student.current_roadmap_level ?? "—"} />
-                <Info label="Sessions" value={`${student.remaining_sessions ?? 0} remaining / ${student.hired_sessions ?? 0} total`} />
+                {(() => {
+                  const c = effectiveSessionCounts(student.id, { hired: student.hired_sessions, remaining: student.remaining_sessions });
+                  return <Info label="Sessions" value={`${c.remaining} remaining / ${c.hired} total`} />;
+                })()}
                 <Info label="Cadence" value={`${student.sessions_per_week ?? "—"}×/week · ${student.session_duration ?? "—"} min`} />
                 <Info label="Reschedule policy" value={student.reschedule_policy ?? accessPlan?.reschedulePolicy ?? "—"} />
                 <Info label="Next payment" value={nextPay ? nextPay.toLocaleDateString() : "—"} />
