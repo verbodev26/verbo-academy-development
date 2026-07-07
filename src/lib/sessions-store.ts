@@ -2,6 +2,7 @@
 import { SESSIONS as SEED_SESSIONS, type Session } from "./mock-data";
 import { setCoverageNote } from "./coverage-notes-store";
 import { saveSubskillEvaluation } from "./performance-store";
+import { decrementGroupRemaining } from "./groups-store";
 
 export type ExtSessionStatus =
   | "scheduled"
@@ -17,6 +18,15 @@ export type ExtSessionStatus =
 
 export interface ExtSession extends Omit<Session, "status"> {
   status: ExtSessionStatus;
+  // ---- Group session support ----
+  // When set, this session represents ONE shared live class attended by
+  // multiple students belonging to the same Group (see groups-store). The
+  // top-level `student_id` still points at the primary/first member (for
+  // legacy consumers), but `member_statuses` is the source of truth for
+  // per-member attendance / report submission.
+  group_id?: string;
+  member_statuses?: Record<string, ExtSessionStatus>;
+  member_absent_cause?: Record<string, "student" | "teacher">;
 }
 
 export const SESSIONS_KEY = "verbo:sessions";
