@@ -148,6 +148,28 @@ export function isMemberBlocked(studentId: string): boolean {
   return false;
 }
 
+/** Resolve the effective hired / remaining session counts for a student.
+ *  Group members inherit both numbers from their Group (single contract
+ *  shared across all members); individual students keep their user values. */
+export function effectiveSessionCounts(
+  studentId: string,
+  fallback: { hired?: number; remaining?: number },
+): { hired: number; remaining: number; source: "group" | "individual" } {
+  const info = groupOfStudent(studentId);
+  if (info) {
+    return {
+      hired: info.group.hired_sessions ?? 0,
+      remaining: info.group.remaining_sessions ?? 0,
+      source: "group",
+    };
+  }
+  return {
+    hired: fallback.hired ?? 0,
+    remaining: fallback.remaining ?? 0,
+    source: "individual",
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Mutations
 // ---------------------------------------------------------------------------
