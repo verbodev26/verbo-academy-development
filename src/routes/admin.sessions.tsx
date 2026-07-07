@@ -580,6 +580,9 @@ function SessionRow({
                 {(session.absent_cause ?? "student") === "teacher" ? "· Teacher" : "· Student"}
               </span>
             )}
+            {session.needs_substitute && (
+              <span className="rounded-full bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">Needs Substitute</span>
+            )}
           </div>
         </td>
         <td className="px-4 py-3">
