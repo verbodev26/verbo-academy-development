@@ -222,8 +222,14 @@ export function submitGroupSessionReport(input: {
     setCoverageNote(input.teacherId, m.studentId, "");
   }
 
-  // Group progress advances exactly once (not per member).
-  decrementGroupRemaining(input.groupId);
+  // Group progress advances exactly once (not per member), and only when
+  // the class actually took place. If every member is Absent with cause
+  // "teacher", the teacher didn't deliver the class — do not consume a
+  // session from the group's contract.
+  const classOccurred = input.perMember.some(
+    (m) => m.attendance !== "absent" || (m.absentCause ?? "student") === "student",
+  );
+  if (classOccurred) decrementGroupRemaining(input.groupId);
 
   return updated;
 }
