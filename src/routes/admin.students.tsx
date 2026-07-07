@@ -24,7 +24,7 @@ import {
   addStudentToCohort, cohortsForStudent, loadWorkshops,
   removeParticipantFromCohort, subscribeWorkshops,
 } from "@/lib/workshops-store";
-import { groupsByStudentId, groupOfStudent, removeMember, subscribeGroups, type Group } from "@/lib/groups-store";
+import { groupsByStudentId, groupOfStudent, removeMember, subscribeGroups } from "@/lib/groups-store";
 
 export const Route = createFileRoute("/admin/students")({
   component: Page,
