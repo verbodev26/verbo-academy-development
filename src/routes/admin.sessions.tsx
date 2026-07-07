@@ -16,6 +16,7 @@ import {
 } from "@/lib/students-store";
 import { Card, Pill, PrimaryButton, GhostButton, SectionTitle } from "@/components/verbo/ui";
 import { CalendarPlus, ChevronDown, ChevronUp, X, Pencil, AlertTriangle, Users, Building2 } from "lucide-react";
+import { effectiveSessionCounts } from "@/lib/groups-store";
 
 // Status → dropdown options + distinct badge colors (no overlap).
 const STATUS_META: Record<ExtSessionStatus, { label: string; bg: string; color: string }> = {
@@ -116,7 +117,7 @@ function Page() {
             const scheduled = sessions.filter(
               (x) => x.student_id === s.id && !["completed", "absent"].includes(x.status),
             ).length;
-            const hired = s.hired_sessions ?? 0;
+            const hired = effectiveSessionCounts(s.id, { hired: s.hired_sessions }).hired;
             const remaining = Math.max(0, hired - scheduled);
             const pct = hired ? Math.min(100, (scheduled / hired) * 100) : 0;
             return (
@@ -204,7 +205,10 @@ function BulkScheduler({
   const scheduledForStudent = existing.filter(
     (x) => x.student_id === studentId && !["completed", "absent"].includes(x.status),
   ).length;
-  const remaining = Math.max(0, (student?.hired_sessions ?? 0) - scheduledForStudent);
+  const hiredForStudent = student
+    ? effectiveSessionCounts(student.id, { hired: student.hired_sessions }).hired
+    : 0;
+  const remaining = Math.max(0, hiredForStudent - scheduledForStudent);
 
   const generated = useMemo(() => {
     if (!startDate || !endDate || days.length === 0) return [] as Date[];
