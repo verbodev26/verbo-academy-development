@@ -521,9 +521,12 @@ function GroupDetailModal({ groupId, onClose }: { groupId: string; onClose: () =
           <Card className="!p-4">
             <div className="mb-2 flex items-center justify-between">
               <div className="text-xs font-semibold text-muted-foreground">Progress</div>
-              <PrimaryButton onClick={() => { markGroupAsPaid(groupId); toast.success("Group marked as paid"); }}>
-                <CreditCard className="h-4 w-4" /> Mark as Paid
-              </PrimaryButton>
+              <div className="flex gap-2">
+                <GroupRescheduleButton groupId={groupId} />
+                <PrimaryButton onClick={() => { markGroupAsPaid(groupId); toast.success("Group marked as paid"); }}>
+                  <CreditCard className="h-4 w-4" /> Mark as Paid
+                </PrimaryButton>
+              </div>
             </div>
             <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
               <span>Sessions</span>
