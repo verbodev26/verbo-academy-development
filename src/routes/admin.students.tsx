@@ -24,6 +24,7 @@ import {
   addStudentToCohort, cohortsForStudent, loadWorkshops,
   removeParticipantFromCohort, subscribeWorkshops,
 } from "@/lib/workshops-store";
+import { groupsByStudentId, subscribeGroups } from "@/lib/groups-store";
 
 export const Route = createFileRoute("/admin/students")({
   component: Page,
@@ -121,7 +122,12 @@ function Page() {
   }, [openNew, focusStudent]);
 
   const allStudents = USERS.filter((u) => u.role === "student");
+  // Group members are managed under the Groups tab — hide them from the
+  // Individual students list to avoid duplication.
+  const groupMap = groupsByStudentId();
   const teachers = USERS.filter((u) => u.role === "teacher");
+
+  useEffect(() => subscribeGroups(() => forceTick((n) => n + 1)), []);
 
   // ---------------------------------------------------------------------------
   // Filter & search state
@@ -138,7 +144,7 @@ function Page() {
   }, [allStudents]);
 
   const filteredStudents = useMemo(() => {
-    let list = [...allStudents];
+    let list = allStudents.filter((s) => !groupMap.has(s.id));
 
     // search by name
     if (searchQuery.trim()) {
