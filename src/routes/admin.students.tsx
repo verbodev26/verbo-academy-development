@@ -1250,7 +1250,20 @@ function StudentDetailModal({
           {student.status === "suspended" ? (
             <GhostButton onClick={() => patch({ status: "active" })} className="!py-1.5 !text-xs"><Play className="h-3.5 w-3.5" /> Reactivate</GhostButton>
           ) : (
-            <GhostButton onClick={() => patch({ status: "suspended" })} className="!py-1.5 !text-xs"><Ban className="h-3.5 w-3.5" /> Suspend</GhostButton>
+            <GhostButton
+              onClick={() => {
+                if (isGrouped) {
+                  removeMember(student.id);
+                  onClose();
+                } else {
+                  patch({ status: "suspended" });
+                }
+              }}
+              disabled={isGrouped && groupInfo?.member.status !== "active"}
+              className="!py-1.5 !text-xs"
+            >
+              <Ban className="h-3.5 w-3.5" /> Suspend
+            </GhostButton>
           )}
           <button
             onClick={() => blocked && patch({ insights_strikes: 0 })}
@@ -1270,12 +1283,14 @@ function StudentDetailModal({
               <Unlock className="h-3.5 w-3.5" /> Unlock Book Clubs ({bcStrikes}/{MAX_BOOKCLUB_STRIKES})
             </button>
           )}
-          <button
-            onClick={markPaid}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-success px-3 py-1.5 text-xs font-semibold text-success-foreground shadow-sm transition-opacity hover:opacity-90"
-          >
-            <CreditCard className="h-3.5 w-3.5" /> Mark as paid
-          </button>
+          {!isGrouped && (
+            <button
+              onClick={markPaid}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-success px-3 py-1.5 text-xs font-semibold text-success-foreground shadow-sm transition-opacity hover:opacity-90"
+            >
+              <CreditCard className="h-3.5 w-3.5" /> Mark as paid
+            </button>
+          )}
         </div>
       </div>
     </Overlay>
