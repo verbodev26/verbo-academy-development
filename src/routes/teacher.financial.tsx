@@ -365,7 +365,7 @@ function MyBalancePage() {
             </div>
           </div>
           <div className="space-y-3">
-            {signals.map((s) => <KpiBar key={s.key} label={s.label} value={s.value} />)}
+            {signals.map((s) => <KpiBar key={s.key} label={s.label} value={s.value} sub={s.sub} />)}
           </div>
           <div className="mt-4 rounded-lg border border-border bg-secondary/30 p-3 text-xs text-muted-foreground">
             {kpis.bonusEligible
@@ -391,7 +391,7 @@ function MyBalancePage() {
           </div>
         </div>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {signals.map((s) => <KpiBar key={s.key} label={s.label} value={s.value} />)}
+          {signals.map((s) => <KpiBar key={s.key} label={s.label} value={s.value} sub={s.sub} />)}
         </div>
       </Card>
 
@@ -438,12 +438,15 @@ function TotalCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function KpiBar({ label, value }: { label: string; value: number }) {
+function KpiBar({ label, value, sub }: { label: string; value: number; sub?: string }) {
   const color = signalColor(value);
   return (
     <div>
       <div className="mb-1 flex justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
+        <span className="text-muted-foreground">
+          {label}
+          {sub && <span className="ml-2 text-[10px] text-muted-foreground/70">{sub}</span>}
+        </span>
         <span className="font-semibold text-foreground">{value}%</span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
