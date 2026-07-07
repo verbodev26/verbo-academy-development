@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { USERS, type User, type Role } from "./mock-data";
+import { isMemberBlocked } from "./groups-store";
 
 interface AuthCtx {
   user: User | null;
@@ -28,6 +29,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
     );
     if (!match) return { ok: false, error: "Invalid credentials. Contact your administrator." };
+    // Group members in Pending Removal or Archived status lose platform access.
+    if (match.role === "student" && isMemberBlocked(match.id)) {
+      return { ok: false, error: "Access revoked. Contact your administrator." };
+    }
     setUser(match);
     localStorage.setItem(KEY, JSON.stringify(match));
     return { ok: true, role: match.role };
