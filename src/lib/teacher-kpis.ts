@@ -11,6 +11,7 @@
 import { type User } from "./mock-data";
 import { loadSessions } from "./sessions-store";
 import { avgRating } from "./teacher-model";
+import { activeStrikeCount } from "./strikes-store";
 
 // ----- Bonus threshold (shared, admin-configurable) -------------------------
 export const BONUS_THRESHOLD_KEY = "verbo:bonus-threshold";
@@ -106,6 +107,8 @@ export interface TeacherKpis {
   reportPunctuality: number;
   completionRate: number;
   teacherAbsenceRate: number;
+  cancellationScore: number;   // 0..100 — (3 - active strikes) / 3 * 100
+  activeStrikes: number;       // raw count, last 6 months, unjustified
   composite: number;
   bonusEligible: boolean;
 }
@@ -128,9 +131,11 @@ export function computeTeacherKpis(t: User, threshold = getBonusThreshold()): Te
   const completionReal = sessionCompletionRate(t.id);
   const completionRate = completionReal ?? clamp(pctInRange(rng(), 75, 99) + bias);
   const teacherAbsenceRate = teacherCausedAbsenceRate(t.id);
+  const strikes = activeStrikeCount(t.id);
+  const cancellationScore = Math.max(0, Math.round(((3 - Math.min(3, strikes)) / 3) * 100));
 
   const composite = Math.round(
-    (connectionPunctuality + planningPunctuality + reportPunctuality + completionRate + ratingNormalized) / 5,
+    (connectionPunctuality + planningPunctuality + reportPunctuality + completionRate + ratingNormalized + cancellationScore) / 6,
   );
 
   return {
@@ -141,6 +146,8 @@ export function computeTeacherKpis(t: User, threshold = getBonusThreshold()): Te
     reportPunctuality,
     completionRate,
     teacherAbsenceRate,
+    cancellationScore,
+    activeStrikes: strikes,
     composite,
     bonusEligible: composite >= threshold,
   };
