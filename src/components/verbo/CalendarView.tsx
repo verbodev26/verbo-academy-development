@@ -264,18 +264,19 @@ function DayList({
 function EventPill({ ev, onClick }: { ev: CalendarEvent; onClick: () => void }) {
   const color = colorForEvent(ev);
   const kindMeta = EVENT_KIND_META[ev.kind];
+  const shortLabel = ev.is_group ? "G" : kindMeta.short;
   return (
     <button
       onClick={onClick}
       className="flex w-full items-center gap-1 truncate rounded-md px-1.5 py-1 text-left text-[10.5px] font-medium text-white shadow-sm transition-opacity hover:opacity-90 cursor-pointer"
       style={{ backgroundColor: color }}
-      title={`${kindMeta.label} — ${ev.title}`}
+      title={`${ev.is_group ? "Group" : kindMeta.label} — ${ev.title}`}
     >
       <span className="rounded bg-white/20 px-1 text-[9px] font-bold leading-none">
-        {kindMeta.short}
+        {shortLabel}
       </span>
       <span className="truncate">
-        {fmtTime(ev.date)} · {ev.title.split(" ")[0]}
+        {fmtTime(ev.date)} · {ev.is_group ? ev.title : ev.title.split(" ")[0]}
       </span>
     </button>
   );
