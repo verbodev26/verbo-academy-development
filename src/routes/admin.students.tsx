@@ -1038,6 +1038,8 @@ function StudentDetailModal({
   const avatar = useAvatar(student.id);
   const product = getProduct(student.product);
   const accessPlan = getAccessPlan(student.access_plan);
+  const groupInfo = groupOfStudent(student.id);
+  const isGrouped = !!groupInfo;
   const strikes = student.insights_strikes ?? 0;
   const blocked = strikes >= MAX_INSIGHT_STRIKES;
   const bcStrikes = student.bookclub_strikes ?? 0;
