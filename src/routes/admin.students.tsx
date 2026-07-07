@@ -24,7 +24,7 @@ import {
   addStudentToCohort, cohortsForStudent, loadWorkshops,
   removeParticipantFromCohort, subscribeWorkshops,
 } from "@/lib/workshops-store";
-import { groupsByStudentId, subscribeGroups } from "@/lib/groups-store";
+import { groupsByStudentId, groupOfStudent, removeMember, subscribeGroups, type Group } from "@/lib/groups-store";
 
 export const Route = createFileRoute("/admin/students")({
   component: Page,
@@ -122,8 +122,8 @@ function Page() {
   }, [openNew, focusStudent]);
 
   const allStudents = USERS.filter((u) => u.role === "student");
-  // Group members are managed under the Groups tab — hide them from the
-  // Individual students list to avoid duplication.
+  // Group members also appear here as their own cards (read/manage individually);
+  // creating/registering group members still happens under the Groups tab.
   const groupMap = groupsByStudentId();
   const teachers = USERS.filter((u) => u.role === "teacher");
 
@@ -144,7 +144,7 @@ function Page() {
   }, [allStudents]);
 
   const filteredStudents = useMemo(() => {
-    let list = allStudents.filter((s) => !groupMap.has(s.id));
+    let list = allStudents.slice();
 
     // search by name
     if (searchQuery.trim()) {
