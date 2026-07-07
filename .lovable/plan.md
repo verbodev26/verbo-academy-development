@@ -1,42 +1,53 @@
 
-# Reflect group-level session counts on grouped students
+# Fully editable Group cards, with propagation to linked places
 
-Right now `hired_sessions` / `remaining_sessions` are read from the `User` record, which is `0` for members of a group because those numbers live on the `Group` (e.g. Tilin — FEMSA belongs to a group with 10 hired sessions, but her user record has 0). Fix: whenever we display or gate on these two numbers, prefer the group's values when the student is in a group.
+The Group Detail modal today only edits ~8 of the ~18 fields captured at registration and never syncs shared fields back to member User records. This patch (a) exposes every registration field in the detail modal, and (b) automatically propagates the fields that are shared with members whenever the Group is edited — so admin/teacher/student surfaces stay in sync.
 
-## 1. New helper — `effectiveSessionCounts(student)`
+## 1. Extend `GroupDetailModal` in `src/routes/admin.groups.tsx`
 
-Add to `src/lib/groups-store.ts`:
+Add the missing fields to the shared-fields grid (line 425), keeping the same order/layout as the Register modal for consistency:
 
-```ts
-export function effectiveSessionCounts(studentId: string, fallback: { hired?: number; remaining?: number }) {
-  const info = groupOfStudent(studentId);
-  if (info) {
-    return {
-      hired: info.group.hired_sessions ?? 0,
-      remaining: info.group.remaining_sessions ?? 0,
-      source: "group" as const,
-    };
-  }
-  return { hired: fallback.hired ?? 0, remaining: fallback.remaining ?? 0, source: "individual" as const };
-}
-```
+- Product (`select`, VIP excluded) — resets `contracted_levels` + `current_roadmap_level` when it changes.
+- Initial English Level (`select` from `getProduct(product).levels`) → writes `current_roadmap_level`.
+- Sessions per Week (`number ≥ 1`) → `sessions_per_week`.
+- Session Duration (`number ≥ 15`) → `session_duration`.
+- Rescheduling Policy (`select` over `RESCHEDULE_PRESETS`) → `reschedule_policy`.
+- Cycle Start (`date`) → `cycle_start`.
+- Assign Teacher (`select`, filtered by `teachersForProduct(product)`) → `teacher_id`.
+- Add-on Access block (3 numeric inputs matching the Register modal): `addon_insights_per_month`, `addon_bookclubs_per_month`, `addon_spotlight_per_month`.
 
-## 2. Apply in `src/routes/admin.students.tsx`
+Existing fields (Group Name, Company / Client, Max Capacity, Access Plan, Hired Sessions, Remaining Sessions, Payment Day, Video Call Link) stay as they are. `hired_sessions` continues to be freely editable; if a user lowers it below `remaining_sessions`, clamp `remaining_sessions` down in the same `updateGroup` call.
 
-- **StudentCard** (lines 357–360): replace direct reads with `effectiveSessionCounts(s.id, { hired: s.hired_sessions, remaining: s.remaining_sessions })` so the "Sessions x/y" bar shows the group's totals for grouped members.
-- **Overview modal** (line 1132): same swap in the `Info label="Sessions"` row.
-- No change to the Register/Edit form fields for individual students; those still edit the user record. For grouped students, editing hired/remaining on the user record is a no-op display-wise since we always fall back to the group — no UX regression.
+## 2. Auto-propagate shared fields — update `updateGroup` in `src/lib/groups-store.ts`
 
-## 3. Apply in `src/routes/admin.sessions.tsx`
+Currently `updateGroup` just persists the group. Rewrite so that after persisting, if any of the following fields changed it also mirrors them onto every non-archived member's `User` record (mutating `USERS`, writing `verbo:student-profile-overrides`, dispatching `verbo:students-updated`):
 
-- **Student cards grid** (line 119): use `effectiveSessionCounts(s.id, { hired: s.hired_sessions }).hired` as the "hired" total so the "Scheduled X / hired" and "Remaining" numbers reflect the group contract.
-- **BulkScheduler validation** (line 207): use the same helper to compute `remaining`, so the "0 hours remaining" warning stops firing incorrectly for group members whose group has capacity.
+| Group field | Mirrored to User field |
+|---|---|
+| `product` | `product` |
+| `focus` | `focus` |
+| `access_plan` | `access_plan` + `hired_plan` |
+| `contracted_levels` | `contracted_levels` |
+| `current_roadmap_level` | `current_roadmap_level` |
+| `company_client` | `company` |
+| `video_call_link` | `video_call_link` |
+| `addon_insights_per_month` | `addon_insights_per_month` |
+| `addon_bookclubs_per_month` | `addon_bookclubs_per_month` |
+| `addon_spotlight_per_month` | `addon_spotlight_per_month` |
+| `addon_workshops_enabled` | `addon_workshops_enabled` |
 
-Scheduled-count logic stays as-is (`sessions.filter(...student_id===s.id...)`). This fixes the visible "0" that blocks scheduling. A dedicated group-shared session model (one event covers all members) is out of scope for this patch — noted in the earlier Groups plan.
+If `teacher_id` changed, upsert `ASSIGNMENTS` for every active member so `/admin/students`, `/admin/sessions`, teacher panel and calendar all reflect the new teacher. If `teacher_id` is cleared, remove those assignments.
+
+Group-level-only fields (`name`, `max_capacity`, `hired_sessions`, `remaining_sessions`, `sessions_per_week`, `session_duration`, `reschedule_policy`, `payment_day`, `cycle_start`, `next_payment`, `last_paid_at`) are NOT copied to members — they live only on the Group and are already read from the Group via `effectiveSessionCounts` and Group Detail elsewhere.
+
+Broadcast both `verbo:groups-updated` (already done) and `verbo:students-updated` so the Students list, Sessions page, teacher panel and calendar re-render immediately.
+
+## 3. No changes to the RegisterGroupModal
+
+Registration flow (`registerGroupWithMembers`) already writes the initial values onto member Users. This patch only adds edit-time parity.
 
 ## Files touched
-- `src/lib/groups-store.ts` — export `effectiveSessionCounts`.
-- `src/routes/admin.students.tsx` — read via helper in StudentCard + Overview.
-- `src/routes/admin.sessions.tsx` — read via helper in student cards grid + BulkScheduler.
+- `src/lib/groups-store.ts` — extend `updateGroup` with the propagation step (mutate USERS + persist profile overrides + upsert ASSIGNMENTS + broadcast students event).
+- `src/routes/admin.groups.tsx` — expand `GroupDetailModal` with the missing fields and the level/product cascade behavior; clamp remaining when hired lowers.
 
-Nothing else changes.
+Nothing else in the codebase needs to change: `admin.students.tsx` already reads live values from `USERS` and `groups-store` through the helpers added earlier, and `/admin/sessions`, teacher calendar, and teacher panel already read those same singletons.

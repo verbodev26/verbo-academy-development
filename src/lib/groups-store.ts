@@ -184,7 +184,78 @@ export function createGroup(input: Omit<Group, "id" | "created_at">): Group {
 }
 
 export function updateGroup(id: string, patch: Partial<Group>) {
+  const before = groupById(id);
   persistGroups(loadGroups().map((g) => (g.id === id ? { ...g, ...patch } : g)));
+  if (!before) return;
+  const after = groupById(id);
+  if (!after) return;
+  propagateGroupToMembers(before, after);
+}
+
+/** Sync shared Group fields onto every non-archived member's User record so
+ *  admin/teacher/student surfaces stay in sync when the group is edited. */
+function propagateGroupToMembers(before: Group, after: Group) {
+  const memberFieldMap: Array<[keyof Group, keyof User | Array<keyof User>]> = [
+    ["product", "product"],
+    ["focus", "focus"],
+    ["access_plan", ["access_plan", "hired_plan"]],
+    ["contracted_levels", "contracted_levels"],
+    ["current_roadmap_level", "current_roadmap_level"],
+    ["company_client", "company"],
+    ["video_call_link", "video_call_link"],
+    ["addon_insights_per_month", "addon_insights_per_month"],
+    ["addon_bookclubs_per_month", "addon_bookclubs_per_month"],
+    ["addon_spotlight_per_month", "addon_spotlight_per_month"],
+    ["addon_workshops_enabled", "addon_workshops_enabled"],
+  ];
+  // Which fields actually changed?
+  const changed: Array<[keyof Group, keyof User | Array<keyof User>]> = memberFieldMap.filter(
+    ([gk]) => JSON.stringify(before[gk]) !== JSON.stringify(after[gk]),
+  );
+  const teacherChanged = before.teacher_id !== after.teacher_id;
+  if (changed.length === 0 && !teacherChanged) return;
+
+  const memberIds = loadGroupMembers()
+    .filter((m) => m.group_id === after.id && m.status !== "archived")
+    .map((m) => m.student_id);
+  if (memberIds.length === 0) return;
+
+  // Mutate USERS + persist profile overrides.
+  let overrides: Record<string, Partial<User>> = {};
+  if (typeof window !== "undefined") {
+    try { overrides = JSON.parse(localStorage.getItem("verbo:student-profile-overrides") || "{}"); }
+    catch { overrides = {}; }
+  }
+  for (const sid of memberIds) {
+    const u = USERS.find((x) => x.id === sid);
+    if (!u) continue;
+    const patch: Partial<User> = {};
+    for (const [gk, uk] of changed) {
+      const value = after[gk] as unknown;
+      const keys = Array.isArray(uk) ? uk : [uk];
+      for (const k of keys) {
+        (u as unknown as Record<string, unknown>)[k as string] = value;
+        (patch as unknown as Record<string, unknown>)[k as string] = value;
+      }
+    }
+    overrides[sid] = { ...(overrides[sid] ?? {}), ...patch };
+
+    if (teacherChanged) {
+      const idx = ASSIGNMENTS.findIndex((a) => a.student_id === sid);
+      if (after.teacher_id) {
+        if (idx >= 0) ASSIGNMENTS[idx].teacher_id = after.teacher_id;
+        else ASSIGNMENTS.push({ teacher_id: after.teacher_id, student_id: sid });
+      } else if (idx >= 0) {
+        ASSIGNMENTS.splice(idx, 1);
+      }
+    }
+  }
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem("verbo:student-profile-overrides", JSON.stringify(overrides));
+      window.dispatchEvent(new CustomEvent("verbo:students-updated"));
+    } catch { /* noop */ }
+  }
 }
 
 export function markGroupAsPaid(id: string) {

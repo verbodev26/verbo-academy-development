@@ -411,6 +411,10 @@ function GroupDetailModal({ groupId, onClose }: { groupId: string; onClose: () =
     updateGroup(groupId, { [k]: v } as Partial<Group>);
   };
 
+  const productLevels = getProduct(g.product)?.levels ?? [];
+  const allTeachers = USERS.filter((u) => u.role === "teacher");
+  const teachersForField = g.product ? teachersForProduct(allTeachers, g.product) : allTeachers;
+
   const hired = g.hired_sessions ?? 0;
   const remaining = g.remaining_sessions ?? 0;
   const done = Math.max(0, hired - remaining);
@@ -438,18 +442,78 @@ function GroupDetailModal({ groupId, onClose }: { groupId: string; onClose: () =
                 {ACCESS_PLAN_IDS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </Field>
+            <Field label="Product">
+              <select className={inputCls} value={g.product ?? ""} onChange={(e) => {
+                const p = (e.target.value || undefined) as ProductId | undefined;
+                const levels = p ? getProduct(p)?.levels ?? [] : [];
+                updateGroup(groupId, {
+                  product: p,
+                  contracted_levels: levels,
+                  current_roadmap_level: levels[0],
+                });
+              }}>
+                <option value="">—</option>
+                {PRODUCTS.filter((p) => p.id !== "vip").map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Initial English Level">
+              <select className={inputCls} value={g.current_roadmap_level ?? ""} onChange={(e) => patchField("current_roadmap_level", e.target.value || undefined)}>
+                <option value="">—</option>
+                {productLevels.map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </Field>
             <Field label="Hired Sessions">
-              <input type="number" min={0} className={inputCls} value={g.hired_sessions} onChange={(e) => patchField("hired_sessions", Number(e.target.value) || 0)} />
+              <input type="number" min={0} className={inputCls} value={g.hired_sessions} onChange={(e) => {
+                const hired = Number(e.target.value) || 0;
+                const remaining = Math.min(g.remaining_sessions ?? 0, hired);
+                updateGroup(groupId, { hired_sessions: hired, remaining_sessions: remaining });
+              }} />
             </Field>
             <Field label="Remaining Sessions">
               <input type="number" min={0} className={inputCls} value={g.remaining_sessions} onChange={(e) => patchField("remaining_sessions", Number(e.target.value) || 0)} />
             </Field>
+            <Field label="Sessions per Week">
+              <input type="number" min={1} className={inputCls} value={g.sessions_per_week ?? 1} onChange={(e) => patchField("sessions_per_week", Number(e.target.value) || 1)} />
+            </Field>
+            <Field label="Session Duration (min)">
+              <input type="number" min={15} className={inputCls} value={g.session_duration ?? 60} onChange={(e) => patchField("session_duration", Number(e.target.value) || 60)} />
+            </Field>
+            <Field label="Rescheduling Policy">
+              <select className={inputCls} value={g.reschedule_policy ?? ""} onChange={(e) => patchField("reschedule_policy", e.target.value || undefined)}>
+                <option value="">—</option>
+                {RESCHEDULE_PRESETS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </Field>
             <Field label="Payment Day">
               <input type="number" min={1} max={31} className={inputCls} value={g.payment_day ?? 1} onChange={(e) => patchField("payment_day", Number(e.target.value) || 1)} />
+            </Field>
+            <Field label="Cycle Start">
+              <input type="date" className={inputCls} value={g.cycle_start ?? ""} onChange={(e) => patchField("cycle_start", e.target.value || undefined)} />
             </Field>
             <Field label="Video Call Link">
               <input className={inputCls} value={g.video_call_link ?? ""} onChange={(e) => patchField("video_call_link", e.target.value)} />
             </Field>
+            <Field label="Assign Teacher">
+              <select className={inputCls} value={g.teacher_id ?? ""} onChange={(e) => patchField("teacher_id", e.target.value || undefined)}>
+                <option value="">Unassigned</option>
+                {teachersForField.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Add-on Access (per member, per month)</div>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Insights / month">
+                <input type="number" min={0} className={inputCls} value={g.addon_insights_per_month ?? 0} onChange={(e) => patchField("addon_insights_per_month", Number(e.target.value) || 0)} />
+              </Field>
+              <Field label="Book Clubs / month">
+                <input type="number" min={0} className={inputCls} value={g.addon_bookclubs_per_month ?? 0} onChange={(e) => patchField("addon_bookclubs_per_month", Number(e.target.value) || 0)} />
+              </Field>
+              <Field label="Spotlight / month">
+                <input type="number" min={0} className={inputCls} value={g.addon_spotlight_per_month ?? 0} onChange={(e) => patchField("addon_spotlight_per_month", Number(e.target.value) || 0)} />
+              </Field>
+            </div>
           </div>
 
           <Card className="!p-4">
