@@ -39,6 +39,16 @@ function sameMonth(iso: string | undefined, mkey: string) {
   const d = new Date(iso); return monthKey(d) === mkey;
 }
 
+// Derive a short "Type" label from the free-text adjustment reason.
+function adjustmentType(reason: string): string {
+  const r = reason.toLowerCase();
+  if (r.includes("spotlight")) return "Spotlight Session";
+  if (r.includes("club") && r.includes("release")) return "Club Release Penalty";
+  if (r.includes("bonus")) return "Bonus";
+  if (r.includes("penalty")) return "Penalty";
+  return "Adjustment";
+}
+
 // KPI signal shape shared with the Performance card + badges.
 type KpiSignal = { key: string; label: string; value: number };
 
