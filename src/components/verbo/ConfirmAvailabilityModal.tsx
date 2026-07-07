@@ -23,7 +23,7 @@ export function ConfirmAvailabilityModal({
         </button>
         <h3 className="text-lg font-semibold tracking-tight text-foreground">Confirm Your Availability</h3>
         <ul className="mt-4 list-disc space-y-2 pl-5 text-sm text-foreground">
-          <li>Any new student, group, or substitution request within your available hours may be assigned directly — no approval needed from you.</li>
+          <li>Any new student, group, or substitution request within your available hours may be assigned directly. No approval needed from you.</li>
           <li>Requests outside your available hours will only be assigned if you agree.</li>
           <li>Your schedule is permanent once confirmed and can only be changed with prior Admin approval.</li>
         </ul>
