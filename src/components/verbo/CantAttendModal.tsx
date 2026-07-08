@@ -33,14 +33,28 @@ export function CantAttendModal({
     [session.date_time],
   );
 
+  // Coverage Notes — reused from My Students. Required (non-empty) when the
+  // cancellation lands ≥24h out (reschedulable → Cancelled cause Teacher),
+  // so any substitute picking up the reschedule has context on the student.
+  const studentId = session.student_id;
+  const requireCoverage = hoursUntil >= 24;
+  const [coverage, setCoverage] = useState<string>(
+    () => getCoverageNote(teacherId, studentId),
+  );
+  const coverageValid = !requireCoverage || coverage.trim().length > 0;
+
   const step1Valid =
-    (reason === "illness" && !!file) ||
-    (reason === "other" && note.trim().length > 0) ||
-    reason === "personal" ||
-    reason === "major_issue";
+    ((reason === "illness" && !!file) ||
+      (reason === "other" && note.trim().length > 0) ||
+      reason === "personal" ||
+      reason === "major_issue") &&
+    coverageValid;
 
   const confirmCancel = () => {
     if (!reason) return;
+    // Persist coverage note first so it is available to the substitute the
+    // moment the cancellation lands (Lesson Plan + Session Details callout).
+    if (requireCoverage) setCoverageNote(teacherId, studentId, coverage.trim());
     const { needsSubstitute } = cancelSessionByTeacher({
       sessionId: session.id,
       teacherId,
