@@ -2,7 +2,7 @@
 import { SESSIONS as SEED_SESSIONS, type Session } from "./mock-data";
 import { setCoverageNote } from "./coverage-notes-store";
 import { saveSubskillEvaluation } from "./performance-store";
-import { decrementGroupRemaining } from "./groups-store";
+import { decrementGroupRemaining, activeMembersOf } from "./groups-store";
 
 export type ExtSessionStatus =
   | "scheduled"
@@ -244,6 +244,62 @@ export function submitGroupSessionReport(input: {
 
   return updated;
 }
+
+// -----------------------------------------------------------------------------
+// Group Session Unanimity — Can't Attend flow.
+//
+// Rule (product-level, "Unanimidad estricta"):
+//   • Cancels/reschedules from a single group member DO NOT cancel the session.
+//     The class still runs for the remaining members. The member's individual
+//     status is tracked in `member_statuses[studentId]`, and the monthly
+//     cancellation quota is always charged to that member.
+//   • Only when EVERY active member of the group has cancelled or requested
+//     a reschedule does the top-level session flip to `cancelled` (auto,
+//     unanimous). In that case group progress is NOT decremented — the class
+//     did not occur — matching the philosophy in `submitGroupSessionReport`.
+// -----------------------------------------------------------------------------
+function memberLeftSession(status: ExtSessionStatus | undefined): boolean {
+  return status === "cancelled" || status === "pending_reschedule";
+}
+
+/** Applies a per-member cancel or reschedule to a group session:
+ *  - Writes `member_statuses[studentId]`.
+ *  - Leaves the top-level status untouched unless the whole roster has left,
+ *    in which case the session auto-cancels (unanimous).
+ *  Returns the resulting top-level status so callers can toast accordingly. */
+export function applyGroupMemberCancellation(
+  sessionId: string,
+  studentId: string,
+  memberStatus: "cancelled" | "pending_reschedule",
+): { unanimous: boolean; topStatus: ExtSessionStatus } {
+  const sessions = loadSessions();
+  const sess = sessions.find((s) => s.id === sessionId);
+  if (!sess || !sess.group_id) {
+    // Fallback: no group — mutate top-level like a regular 1:1.
+    updateSession(sessionId, { status: memberStatus });
+    return { unanimous: false, topStatus: memberStatus };
+  }
+
+  const nextMemberStatuses: Record<string, ExtSessionStatus> = {
+    ...(sess.member_statuses ?? {}),
+    [studentId]: memberStatus,
+  };
+  const roster = activeMembersOf(sess.group_id);
+  const rosterIds = roster.map((m) => m.student_id);
+  const everyoneOut = rosterIds.length > 0
+    && rosterIds.every((id) => memberLeftSession(nextMemberStatuses[id]));
+
+  const patch: Partial<ExtSession> = { member_statuses: nextMemberStatuses };
+  if (everyoneOut) {
+    patch.status = "cancelled";
+  }
+  updateSession(sessionId, patch);
+  return {
+    unanimous: everyoneOut,
+    topStatus: everyoneOut ? "cancelled" : sess.status,
+  };
+}
+
 
 /** Cascade update: when a cohort's teacher or shared link changes, keep
  *  future/non-completed sessions in sync so admin.sessions and the cohort

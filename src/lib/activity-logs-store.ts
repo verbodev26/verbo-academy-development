@@ -19,6 +19,8 @@ import { loadFinancialIssues, FIN_ISSUES_EVENT } from "./financial-issues-store"
 export type ActivityKind =
   | "session_scheduled"
   | "session_rescheduled"
+  | "session_cancelled"
+  | "group_session_auto_cancelled"
   | "session_report_submitted"
   | "club_report_submitted"
   | "financial_adjustment"
@@ -100,6 +102,18 @@ export function buildActivityLog(): ActivityEntry[] {
         timestamp: s.date_time,
         actorId: null, actorName: "Admin", actorRole: "admin",
         personId: s.teacher_id,
+      });
+    }
+    if (s.status === "cancelled") {
+      const isGroup = Boolean(s.group_id);
+      out.push({
+        id: `sess-cancelled:${s.id}`,
+        kind: isGroup ? "group_session_auto_cancelled" : "session_cancelled",
+        action: isGroup ? "Group session auto-cancelled (unanimous)" : "Session cancelled",
+        detail,
+        timestamp: s.date_time,
+        actorId: null, actorName: isGroup ? "System" : "Admin", actorRole: isGroup ? "system" : "admin",
+        personId: s.student_id,
       });
     }
 
@@ -380,6 +394,8 @@ export function useActivityLog(): ActivityEntry[] {
 export const ACTIVITY_KIND_LABELS: Record<ActivityKind, string> = {
   session_scheduled: "Session scheduled",
   session_rescheduled: "Session rescheduled",
+  session_cancelled: "Session cancelled",
+  group_session_auto_cancelled: "Group session auto-cancelled",
   session_report_submitted: "Session Report submitted",
   club_report_submitted: "Club Report submitted",
   financial_adjustment: "Financial adjustment",

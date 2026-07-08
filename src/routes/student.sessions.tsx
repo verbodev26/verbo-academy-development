@@ -13,9 +13,11 @@
 //   c) enough notice + quota OK  → Session Cancellation modal with two
 //      actions: Reschedule (opens Reschedule Request flow) or
 //      Cancel Without Rescheduling.
-//   d) Groups: same 4-branch logic applied individually per member. This
-//      component only shows the acting student's decision — no cross-member
-//      confirmations.
+//   d) Groups: strict unanimity — a member's decision only affects THEIR
+//      `member_statuses[studentId]` and always counts against their monthly
+//      quota. The class keeps running for the remaining members. The session
+//      only auto-cancels top-level when every roster member has cancelled or
+//      requested a reschedule (handled inside `applyGroupMemberCancellation`).
 //
 // The Spotlight Session flow ("Request a Spotlight Session") is a separate
 // modal chain: explainer (5s Understood delay) → slot picker + context text
@@ -28,7 +30,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { USERS, userById } from "@/lib/mock-data";
 import {
-  loadSessions, subscribeSessions, updateSession,
+  loadSessions, subscribeSessions, updateSession, applyGroupMemberCancellation,
   type ExtSession, type ExtSessionStatus,
 } from "@/lib/sessions-store";
 import { CalendarView } from "@/components/verbo/CalendarView";
@@ -257,22 +259,44 @@ function CantAttendRouter({
   const hours = hoursUntil(session.date_time);
   const insideLateWindow = hours < policy.noticeHours;
   const quotaExhausted = used >= quota;
+  const isGroup = Boolean(session.group_id);
 
+  // For groups, "Absent" is recorded per-member (top-level stays scheduled
+  // unless the whole roster is out). For 1:1, top-level flips to Absent.
   const confirmAbsent = () => {
-    updateSession(session.id, { status: "absent" });
-    toast("Session marked as Absent.");
+    if (isGroup) {
+      const nextMemberStatuses = { ...(session.member_statuses ?? {}), [user.id]: "absent" as ExtSessionStatus };
+      updateSession(session.id, { member_statuses: nextMemberStatuses });
+      toast("You've been marked Absent. The session continues for the other members.");
+    } else {
+      updateSession(session.id, { status: "absent" });
+      toast("Session marked as Absent.");
+    }
     onClose();
   };
   const confirmCancelNoReschedule = () => {
-    updateSession(session.id, { status: "cancelled" });
-    toast("Session cancelled. Credit forfeited.");
+    if (isGroup) {
+      const res = applyGroupMemberCancellation(session.id, user.id, "cancelled");
+      toast(
+        res.unanimous
+          ? "All members cancelled — the group session has been cancelled."
+          : "You've cancelled this group session. Credit forfeited. The class continues for the remaining members.",
+      );
+    } else {
+      updateSession(session.id, { status: "cancelled" });
+      toast("Session cancelled. Credit forfeited.");
+    }
     onClose();
   };
 
   if (insideLateWindow) {
     return (
       <LateCancellationModal
-        firstLine="Cancellation received with less than the notice required by your plan. The session will be marked as Absent and forfeited. No reschedule is available."
+        firstLine={
+          isGroup
+            ? "Cancellation received with less than the notice required by your plan. You'll be marked Absent for this group session. The class continues for the remaining members. No reschedule is available."
+            : "Cancellation received with less than the notice required by your plan. The session will be marked as Absent and forfeited. No reschedule is available."
+        }
         onClose={onClose}
         onConfirm={confirmAbsent}
       />
@@ -281,7 +305,11 @@ function CantAttendRouter({
   if (quotaExhausted) {
     return (
       <LateCancellationModal
-        firstLine="You've used all the reschedules allowed by your plan this cycle. The session will be marked as Absent and forfeited. No reschedule is available."
+        firstLine={
+          isGroup
+            ? "You've used all the reschedules allowed by your plan this cycle. You'll be marked Absent for this group session. The class continues for the remaining members. No reschedule is available."
+            : "You've used all the reschedules allowed by your plan this cycle. The session will be marked as Absent and forfeited. No reschedule is available."
+        }
         onClose={onClose}
         onConfirm={confirmAbsent}
       />
@@ -292,12 +320,14 @@ function CantAttendRouter({
       policy={policy}
       quota={quota}
       used={used}
+      isGroup={isGroup}
       onClose={onClose}
       onReschedule={onReschedule}
       onCancelNoReschedule={confirmCancelNoReschedule}
     />
   );
 }
+
 
 function LateCancellationModal({
   firstLine, onClose, onConfirm,
@@ -332,11 +362,12 @@ function LateCancellationModal({
 }
 
 function SessionCancellationModal({
-  policy, quota, used, onClose, onReschedule, onCancelNoReschedule,
+  policy, quota, used, isGroup, onClose, onReschedule, onCancelNoReschedule,
 }: {
   policy: { noticeHours: number; maxPct: number };
   quota: number;
   used: number;
+  isGroup?: boolean;
   onClose: () => void;
   onReschedule: () => void;
   onCancelNoReschedule: () => void;
@@ -352,6 +383,11 @@ function SessionCancellationModal({
           Your membership allows you to cancel or reschedule up to <strong>{policy.maxPct}%</strong> of
           your booked sessions without penalty. You've used <strong>{used} of {quota}</strong> reschedules this cycle.
         </p>
+        {isGroup && (
+          <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 ring-1 ring-amber-200">
+            This is a group session. Your decision only affects your seat and counts against your monthly quota — the class will continue for the remaining members unless every member opts out.
+          </p>
+        )}
         <div className="mt-6 flex flex-col gap-2">
           <button
             onClick={onReschedule}
@@ -376,9 +412,15 @@ function SessionCancellationModal({
 // declared availability with ≥24h notice.
 // ---------------------------------------------------------------------------
 function RescheduleRequestModal({ session, onClose }: { session: ExtSession; onClose: () => void }) {
+  const { user } = useAuth();
   const [dt, setDt] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const studentUser = userById(session.student_id);
+  const isGroup = Boolean(session.group_id);
+  // For group sessions, the acting student is the logged-in user (each member
+  // has their own quota + member_status). For 1:1, fall back to the top-level
+  // student_id so the flow keeps working outside a session context.
+  const actingStudentId = isGroup && user ? user.id : session.student_id;
+  const studentUser = userById(actingStudentId);
   const product = studentUser?.product;
 
   const qualifiedTeachers = useMemo(() => {
@@ -394,17 +436,28 @@ function RescheduleRequestModal({ session, onClose }: { session: ExtSession; onC
     if (!anyAvail) { setError("No qualified teacher has that slot open. Please pick another time."); return; }
     addStudentRequest({
       kind: "reschedule",
-      student_id: session.student_id,
+      student_id: actingStudentId,
       assigned_teacher_id: session.teacher_id,
       origin_session_id: session.id,
       proposed_datetime: iso,
       duration_minutes: session.duration_minutes,
     });
-    // Mark original as pending_reschedule until claimed.
-    updateSession(session.id, { status: "pending_reschedule" });
-    toast.success("Reschedule Request published. Teachers have been notified.");
+    if (isGroup) {
+      // Group: mutate only THIS member's status. Session top-level only flips
+      // to cancelled if the whole roster has left (unanimity).
+      const res = applyGroupMemberCancellation(session.id, actingStudentId, "pending_reschedule");
+      toast.success(
+        res.unanimous
+          ? "All members reschedule requested — the group session has been cancelled."
+          : "Reschedule Request published. The group session continues for the remaining members.",
+      );
+    } else {
+      updateSession(session.id, { status: "pending_reschedule" });
+      toast.success("Reschedule Request published. Teachers have been notified.");
+    }
     onClose();
   };
+
 
   return (
     <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">

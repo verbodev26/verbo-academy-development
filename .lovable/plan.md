@@ -1,30 +1,42 @@
-## Findings
+## Group Session Unanimity — Can't Attend flow
 
-### Point 1 — Admin > Performance Sessions Unit Modal (`src/routes/admin.courses.tsx`, `UnitModal` ~line 299)
+Regla confirmada: **Unanimidad estricta** + cuota individual siempre cuenta.
 
-**(a) Cápsula toggle:** already present as a two-button grid but with two rough edges:
-- The right button is labeled **"Upload Video"**, not **"Upload File"** — inconsistent with the toggle names in VIP and Money Lab.
-- The disabled tooltip + fallback text both say `"Available after the Supabase migration"`. Internal rule: never say "Supabase" in user-facing copy.
+### Comportamiento objetivo
 
-**(b) Pre/Post-Session Activities:** already separated. This modal only owns Title / Unit Number / Video / PDF. Activities are opened via a separate `ActivityModal` (`src/components/verbo/course-modals.tsx`) that has an explicit `Pre-Session / Post-Session` toggle and a listing grouped `PhaseGroup("Pre-Session")` + `PhaseGroup("Post-Session")`. No fusion.
+| Escenario | Sesión top-level | Miembros que cancelaron | Miembros restantes | Group remaining | Cuota mensual |
+|---|---|---|---|---|---|
+| 1 de 3 cancela | `scheduled` (sigue en pie) | `member_statuses[id] = cancelled` (o `pending_reschedule`) | Clase ocurre normal | Se decrementa al reportar (clase ocurrió) | +1 al que canceló |
+| 2 de 3 cancelan | `scheduled` (sigue en pie con 1) | `cancelled` cada uno | Clase ocurre con 1 alumno | Se decrementa al reportar | +1 a cada uno |
+| 3 de 3 cancelan | **`cancelled` top-level** (auto) | Los 3 en `cancelled` | — | **NO se decrementa** (clase no ocurrió) | +1 a cada uno |
 
-**Fixes for Point 1:**
-1. In `admin.courses.tsx` `UnitModal`: rename button label `"Upload Video"` → `"Upload File"`.
-2. Same modal: replace the two "Supabase migration" strings with `"Available after the Cloud storage migration"` (matches VIP wording).
+Nota: para `pending_reschedule`, la unanimidad se evalúa por "miembro ya no asistirá en la fecha original" (cancelled OR pending_reschedule cuentan como "salió"). Si los 3 salen → top-level `cancelled` (los reschedule requests individuales quedan vivos en `student-requests-store`).
 
-### Point 2 — Activity Logs miss report events
+### Cambios de código
 
-`src/lib/activity-logs-store.ts` currently derives from sessions, clubs, club-reports, strikes, availability, release-requests — but **not** from `student-reports-store` or `financial-issues-store`. So filing a report shows up in the bell but not in Admin > Activity Logs.
+**1. `src/lib/sessions-store.ts`** — nueva helper `evaluateGroupUnanimity(sessionId)`:
+- Lee `member_statuses` de la sesión.
+- Cuenta miembros del group (via `groups-store`) vs miembros marcados como `cancelled` o `pending_reschedule`.
+- Si todos coinciden → set top-level `status = 'cancelled'`, disparar `activity-logs-store` con evento "Group session auto-cancelled (unanimous)".
+- No decrementa `groupRemaining` (la sesión no ocurrió) — coherente con la lógica ya existente en `submitGroupSessionReport`.
 
-**Fixes for Point 2:**
-1. In `activity-logs-store.ts`:
-   - Add `ActivityKind` value `"report_filed"`.
-   - Import `readStudentReportsRaw` pattern + `REPORTS_EVENT` from `student-reports-store`, and `loadFinancialIssues` + `FIN_ISSUES_EVENT` from `financial-issues-store`.
-   - Add two derivation branches in `buildActivityLog()` that both push entries with `kind: "report_filed"`:
-     - Student report → `action: "Student report filed"`, actor = teacher, personId = student, detail = `Teacher → Student — "text preview"`.
-     - Financial issue → `action: "Financial issue reported"`, actor = teacher, detail = `Teacher — "text preview"`.
-   - Extend `SOURCE_EVENTS` with `REPORTS_EVENT` and `FIN_ISSUES_EVENT` so the log recomputes when a report is filed.
-   - Add `report_filed: "Report filed"` to `ACTIVITY_KIND_LABELS` so the Event type filter in `admin.activity-logs.tsx` picks it up automatically (that page reads the labels map to build the dropdown).
-2. No changes needed in `admin.activity-logs.tsx` — its filter is auto-populated from `ACTIVITY_KIND_LABELS`.
+**2. `src/lib/student-requests-store.ts`** — en las funciones que aplican cancel/reschedule a un miembro de group:
+- Tras mutar `member_statuses[studentId]`, llamar `evaluateGroupUnanimity(sessionId)`.
+- La cuota mensual del miembro ya se contabiliza (política actual); confirmar que se dispara igual para group members.
 
-Files touched: `src/routes/admin.courses.tsx`, `src/lib/activity-logs-store.ts`.
+**3. `src/routes/student.sessions.tsx`** — Can't Attend modal, cuando la sesión tiene `group_id`:
+- Actualizar el texto del confirm modal para dejar claro que **la clase seguirá para los demás miembros** salvo que los 3 cancelen.
+- Añadir línea informativa: *"This will count against your monthly cancellation quota. The session continues for the remaining members."*
+- El branch de 4 opciones (late window / quota exhausted / valid reschedule / valid cancel) permanece idéntico — solo cambia el texto contextual.
+- Actualizar el comentario de línea 16-17 para reflejar la regla nueva.
+
+**4. `src/routes/teacher.clubs.tsx`** — cuando una group session se auto-cancela por unanimidad:
+- El teacher la ve desaparecer de su agenda con badge "Auto-cancelled (all members)" en la lista de cancelled.
+
+**5. `src/routes/admin.sessions.tsx`** — Activity Logs debe reflejar el auto-cancel unánime como evento separado (event type "Group session auto-cancelled"). Añadir al filtro Event Type.
+
+### Fuera de scope
+
+- No cambia la lógica de `submitGroupSessionReport` (ya es correcta: si algún miembro asistió, la clase se marca completed y decrementa remaining).
+- No toca 1:1 ni Spotlight flows.
+- No cambia colores/estatus del calendario.
