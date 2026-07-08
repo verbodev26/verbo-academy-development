@@ -14,12 +14,16 @@ function fmtTime(iso: string) {
 }
 
 export function SessionDetailsModal({
-  session, plan, title, mode, onClose, onJoin, onCantAttend, onEditPlan,
+  session, plan, title, mode, coverageNote, onClose, onJoin, onCantAttend, onEditPlan,
 }: {
   session: ExtSession;
   plan?: LessonPlan;
   title: string;
   mode: "ready" | "completed";
+  /** Coverage Notes authored by the titular teacher for this student. When
+   *  set, a highlighted callout is rendered so a substitute sees it the
+   *  moment they open the session — no need to open the Lesson Plan. */
+  coverageNote?: string;
   onClose: () => void;
   onJoin?: () => void;
   onCantAttend?: () => void;
