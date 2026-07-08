@@ -703,7 +703,7 @@ function TeacherDashboard() {
               </tr>
             </thead>
             <tbody>
-              {recentLive.length === 0 && (
+              {recentLive.length === 0 && recentClubReports.length === 0 && (
                 <tr><td colSpan={5} className="px-6 py-6 text-center text-sm text-muted-foreground">No recent sessions.</td></tr>
               )}
               {recentLive.map((s) => {
@@ -721,7 +721,9 @@ function TeacherDashboard() {
                   : s.status === "absent" || s.status === "no_show" ? "danger"
                   : s.status === "delayed" ? "warning"
                   : "default";
-                const origin = s.origin === "workshop" ? "Workshop" : s.origin === "course" ? "Course" : null;
+                // Performance Sessions default to "Course" when the origin
+                // field is missing on legacy seed data — never blank.
+                const origin = s.origin === "workshop" ? "Workshop" : "Course";
                 return (
                   <tr
                     key={s.id}
@@ -740,14 +742,30 @@ function TeacherDashboard() {
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">{fmt(s.date_time)}</td>
                     <td className="px-6 py-4">
-                      {origin ? (
-                        <span className="inline-flex rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{origin}</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                      <span className="inline-flex rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{origin}</span>
                     </td>
                     <td className="px-6 py-4"><Pill tone={tone as any}>{label}</Pill></td>
                     <td className="px-6 py-4 text-muted-foreground">{s.student_rating ? `${s.student_rating}★` : "—"}</td>
+                  </tr>
+                );
+              })}
+              {recentClubReports.map((r) => {
+                const ev = eventById.get(r.event_id);
+                const title = ev?.title ?? "Club event";
+                const dateISO = ev?.date ?? r.submitted_at;
+                const originLabel = clubReportOriginLabel[r.event_type] ?? "Club";
+                return (
+                  <tr
+                    key={`clubreport-${r.event_id}`}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="px-6 py-4 text-foreground">{title}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{fmt(dateISO)}</td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{originLabel}</span>
+                    </td>
+                    <td className="px-6 py-4"><Pill tone="success">Completed</Pill></td>
+                    <td className="px-6 py-4 text-muted-foreground">—</td>
                   </tr>
                 );
               })}
