@@ -300,6 +300,37 @@ export function buildActivityLog(): ActivityEntry[] {
     });
   }
 
+  // ---- Student reports (Teacher > Panel > Report) ---------------------
+  for (const r of loadStudentReports()) {
+    const teacher = userName(r.teacher_id);
+    const student = userName(r.student_id);
+    const preview = r.text.length > 80 ? `${r.text.slice(0, 80)}…` : r.text;
+    out.push({
+      id: `student-report:${r.id}`,
+      kind: "report_filed",
+      action: "Student report filed",
+      detail: `${teacher} → ${student}${preview ? ` — "${preview}"` : ""}`,
+      timestamp: r.created_at,
+      actorId: r.teacher_id, actorName: teacher, actorRole: "teacher",
+      personId: r.student_id,
+    });
+  }
+
+  // ---- Financial issues (Teacher > Financial > Report) ----------------
+  for (const f of loadFinancialIssues()) {
+    const teacher = userName(f.teacher_id);
+    const preview = f.text.length > 80 ? `${f.text.slice(0, 80)}…` : f.text;
+    out.push({
+      id: `fin-issue:${f.id}`,
+      kind: "report_filed",
+      action: "Financial issue reported",
+      detail: `${teacher}${preview ? ` — "${preview}"` : ""}`,
+      timestamp: f.created_at,
+      actorId: f.teacher_id, actorName: teacher, actorRole: "teacher",
+      personId: f.teacher_id,
+    });
+  }
+
   // Sort newest first, de-dupe by id (defensive).
   const seen = new Set<string>();
   return out
