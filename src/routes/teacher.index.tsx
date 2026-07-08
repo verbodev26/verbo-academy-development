@@ -622,7 +622,7 @@ function TeacherDashboard() {
 function QuickAction({ to, icon: Icon, label }: { to: string; icon: LucideIcon; label: string }) {
   return (
     <Link
-      to={to}
+      to={to as any}
       className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 shadow-soft transition-shadow hover:shadow-floating"
     >
       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/15 text-accent">
