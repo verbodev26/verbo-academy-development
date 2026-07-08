@@ -411,40 +411,96 @@ function SessionCancellationModal({
 // Reschedule Request — pick a new slot backed by ANY qualified teacher's
 // declared availability with ≥24h notice.
 // ---------------------------------------------------------------------------
+function todayYMD(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+function fmtSlotTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+/** Grid of valid :00 / :30 start times for the chosen date. Selecting a slot
+ *  writes the ISO datetime; students can't type an arbitrary minute. */
+function SlotPickerGrid({
+  dateYMD, durationMin, qualifiedTeacherIds, selectedISO, onSelect,
+}: {
+  dateYMD: string;
+  durationMin: number;
+  qualifiedTeacherIds: string[];
+  selectedISO: string;
+  onSelect: (iso: string) => void;
+}) {
+  const slots = useMemo(
+    () => findAvailableStartSlots({ dateYMD, durationMin, qualifiedTeacherIds }),
+    [dateYMD, durationMin, qualifiedTeacherIds],
+  );
+  if (slots.length === 0) {
+    return (
+      <div className="mt-2 rounded-lg border border-dashed border-input bg-secondary/30 p-4 text-center text-xs text-muted-foreground">
+        No available start times on this date. Try another day.
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2 grid max-h-48 grid-cols-4 gap-1.5 overflow-y-auto pr-1">
+      {slots.map((iso) => {
+        const active = iso === selectedISO;
+        return (
+          <button
+            key={iso}
+            type="button"
+            onClick={() => onSelect(iso)}
+            className={`cursor-pointer rounded-md px-2 py-1.5 text-xs font-medium ring-1 transition-colors ${
+              active
+                ? "bg-[#01304a] text-white ring-[#01304a]"
+                : "bg-background text-foreground ring-input hover:bg-secondary"
+            }`}
+          >
+            {fmtSlotTime(iso)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function RescheduleRequestModal({ session, onClose }: { session: ExtSession; onClose: () => void }) {
   const { user } = useAuth();
-  const [dt, setDt] = useState("");
+  const [dateYMD, setDateYMD] = useState<string>(todayYMD());
+  const [slotISO, setSlotISO] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const isGroup = Boolean(session.group_id);
-  // For group sessions, the acting student is the logged-in user (each member
-  // has their own quota + member_status). For 1:1, fall back to the top-level
-  // student_id so the flow keeps working outside a session context.
   const actingStudentId = isGroup && user ? user.id : session.student_id;
   const studentUser = userById(actingStudentId);
   const product = studentUser?.product;
+  // Duration for the reschedule ALWAYS inherits from the student's profile
+  // (Access Plan defines the allowed values; Admin fixed one on registration).
+  // Fall back to the original session's duration only if the profile is
+  // missing that field, and finally to 60min.
+  const durationMin = studentUser?.session_duration ?? session.duration_minutes ?? 60;
 
   const qualifiedTeachers = useMemo(() => {
     return USERS.filter((u) => u.role === "teacher" && u.teacher_status === "active"
       && (!product || (u.qualified_products ?? []).includes(product)));
   }, [product]);
+  const qualifiedIds = useMemo(() => qualifiedTeachers.map((t) => t.id), [qualifiedTeachers]);
 
   const submit = () => {
-    if (!dt) { setError("Pick a date and time."); return; }
-    const iso = new Date(dt).toISOString();
-    if (hoursUntil(iso) < 24) { setError("Reschedule requires at least 24 hours of notice."); return; }
-    const anyAvail = qualifiedTeachers.some((t) => isTeacherAvailableAt(t.id, iso, session.duration_minutes));
-    if (!anyAvail) { setError("No qualified teacher has that slot open. Please pick another time."); return; }
+    if (!slotISO) { setError("Pick one of the available start times."); return; }
+    const stillOk = qualifiedIds.some((tid) => isTeacherAvailableAt(tid, slotISO, durationMin));
+    if (!stillOk) { setError("That slot is no longer available. Please pick another."); return; }
     addStudentRequest({
       kind: "reschedule",
       student_id: actingStudentId,
       assigned_teacher_id: session.teacher_id,
       origin_session_id: session.id,
-      proposed_datetime: iso,
-      duration_minutes: session.duration_minutes,
+      proposed_datetime: slotISO,
+      duration_minutes: durationMin,
     });
     if (isGroup) {
-      // Group: mutate only THIS member's status. Session top-level only flips
-      // to cancelled if the whole roster has left (unanimity).
       const res = applyGroupMemberCancellation(session.id, actingStudentId, "pending_reschedule");
       toast.success(
         res.unanimous
@@ -458,7 +514,6 @@ function RescheduleRequestModal({ session, onClose }: { session: ExtSession; onC
     onClose();
   };
 
-
   return (
     <div onClick={onClose} className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div onClick={(e) => e.stopPropagation()} className="relative w-full max-w-md rounded-2xl bg-card p-6 shadow-floating">
@@ -468,15 +523,26 @@ function RescheduleRequestModal({ session, onClose }: { session: ExtSession; onC
           <h3 className="text-base font-semibold text-foreground">Reschedule Request</h3>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
-          Pick a new time. Only slots matching a qualified teacher's declared availability with at least 24h notice will be accepted.
+          Pick one of the available start times. Duration is fixed at <strong>{durationMin} min</strong> (from your plan). Start times are on the hour or half hour, and require at least 24h notice.
         </p>
         <div className="mt-4">
-          <label className="text-xs font-medium text-foreground">New date &amp; time</label>
+          <label className="text-xs font-medium text-foreground">Date</label>
           <input
-            type="datetime-local"
-            value={dt}
-            onChange={(e) => { setDt(e.target.value); setError(null); }}
+            type="date"
+            value={dateYMD}
+            min={todayYMD()}
+            onChange={(e) => { setDateYMD(e.target.value); setSlotISO(""); setError(null); }}
             className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+        <div className="mt-3">
+          <label className="text-xs font-medium text-foreground">Available start times</label>
+          <SlotPickerGrid
+            dateYMD={dateYMD}
+            durationMin={durationMin}
+            qualifiedTeacherIds={qualifiedIds}
+            selectedISO={slotISO}
+            onSelect={(iso) => { setSlotISO(iso); setError(null); }}
           />
         </div>
         {error && (
@@ -493,6 +559,7 @@ function RescheduleRequestModal({ session, onClose }: { session: ExtSession; onC
     </div>
   );
 }
+
 
 // ---------------------------------------------------------------------------
 // Spotlight Request flow — explainer (5s Understood delay) → slot + context.
