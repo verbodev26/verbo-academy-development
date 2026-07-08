@@ -427,3 +427,13 @@
 .animate-report-glow {
   animation: report-glow-pulse 1.2s ease-in-out infinite;
 }
+
+/* Reduced-motion fallback: keep the overdue glyph visibly red-glowing
+   without any motion for users who opt out of animations. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-report-glow {
+    animation: none;
+    filter: drop-shadow(0 0 4px rgba(220, 38, 38, 0.85));
+    opacity: 1;
+  }
+}
