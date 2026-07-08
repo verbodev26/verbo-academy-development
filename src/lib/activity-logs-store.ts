@@ -13,6 +13,8 @@ import { loadClubReports, CLUB_REPORTS_EVENT } from "./club-reports-store";
 import { loadStrikes, STRIKES_EVENT } from "./strikes-store";
 import { listChangeRequests, AVAIL_EVENT } from "./availability-store";
 import { teacherStatus } from "./teacher-model";
+import { loadStudentReports, REPORTS_EVENT } from "./student-reports-store";
+import { loadFinancialIssues, FIN_ISSUES_EVENT } from "./financial-issues-store";
 
 export type ActivityKind =
   | "session_scheduled"
