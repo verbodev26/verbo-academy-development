@@ -348,6 +348,35 @@ function adminNotifications(): Notification[] {
     });
   }
 
+  // ---- Student reports filed by teachers --------------------------------
+  for (const r of readStudentReportsRaw()) {
+    const t = USERS.find((u) => u.id === r.teacher_id);
+    const st = USERS.find((u) => u.id === r.student_id);
+    out.push({
+      id: `student-report:${r.id}`,
+      kind: "student_report_filed",
+      title: "New student report filed",
+      body: `${t?.name ?? "Teacher"} → ${st?.name ?? "Student"}`,
+      createdAt: r.created_at,
+      to: "/admin/students",
+      read: false,
+    });
+  }
+
+  // ---- Financial issues reported by teachers ----------------------------
+  for (const i of loadFinancialIssues()) {
+    const t = USERS.find((u) => u.id === i.teacher_id);
+    out.push({
+      id: `fin-issue:${i.id}`,
+      kind: "financial_issue_reported",
+      title: "New financial issue reported",
+      body: `${t?.name ?? "Teacher"}${i.text ? ` — ${i.text.slice(0, 80)}` : ""}`,
+      createdAt: i.created_at,
+      to: "/admin/financial",
+      read: false,
+    });
+  }
+
   return out;
 }
 
