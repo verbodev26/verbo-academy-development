@@ -344,6 +344,7 @@ export function buildActivityLog(): ActivityEntry[] {
 const SOURCE_EVENTS = [
   SESSIONS_EVENT, CLUBS_EVENT, RELEASE_REQUESTS_EVENT,
   CLUB_REPORTS_EVENT, STRIKES_EVENT, AVAIL_EVENT,
+  REPORTS_EVENT, FIN_ISSUES_EVENT,
 ];
 
 function subscribe(cb: () => void): () => void {
