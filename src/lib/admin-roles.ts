@@ -54,9 +54,10 @@ export function hydrateAdminRoles() {
   SEEDED.forEach((u) => { if (!USERS.find((x) => x.id === u.id)) USERS.push(u); });
   // Persisted created users.
   readCreated().forEach((u) => { if (!USERS.find((x) => x.id === u.id)) USERS.push(u); });
-  // Apply status overrides.
-  const st = readStatus();
-  USERS.forEach((u) => { if (st[u.id]) u.status = st[u.id].status === "deactivated" ? "suspended" : "active"; });
+  // Legacy status-override key is only used for internal admins; teacher /
+  // student deactivation piggybacks on their own status fields hydrated
+  // elsewhere (hydrateStudents + teacher profile overrides).
+
 }
 
 export function getAdminType(user: User | null | undefined): AdminType | null {
