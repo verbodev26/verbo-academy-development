@@ -104,6 +104,18 @@ export function buildActivityLog(): ActivityEntry[] {
         personId: s.teacher_id,
       });
     }
+    if (s.status === "cancelled") {
+      const isGroup = Boolean(s.group_id);
+      out.push({
+        id: `sess-cancelled:${s.id}`,
+        kind: isGroup ? "group_session_auto_cancelled" : "session_cancelled",
+        action: isGroup ? "Group session auto-cancelled (unanimous)" : "Session cancelled",
+        detail,
+        timestamp: s.date_time,
+        actorId: null, actorName: isGroup ? "System" : "Admin", actorRole: isGroup ? "system" : "admin",
+        personId: s.student_id,
+      });
+    }
 
     // Session Report submitted
     if (s.report_submitted_at) {
