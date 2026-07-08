@@ -123,10 +123,27 @@ function TeacherDashboard() {
   const myLive = liveSessions.filter((s) => s.teacher_id === user.id);
   const in7d = now + 7 * 24 * 3600_000;
   const upcomingLiveStatuses = new Set(["scheduled", "ready", "rescheduled", "rearranged", "delayed"]);
-  const upcoming7d = myLive.filter((s) => {
+  // Count every active session (Scheduled + Ready + rescheduled/rearranged/
+  // delayed) inside the next 7 days. We union both data sources so the
+  // number matches what "Plan your upcoming Sessions" / "Complete your
+  // sessions" actually show: `mySessions` is the freshly-seeded in-memory
+  // mirror, `liveSessions` is the persisted store. A single event may exist
+  // in both — dedupe by id so groups still count as one session.
+  const inactiveForCount = new Set(["cancelled", "completed", "absent", "no_show"]);
+  const upcoming7dIds = new Set<string>();
+  for (const s of mySessions) {
     const t = +new Date(s.date_time);
-    return upcomingLiveStatuses.has(s.status) && t >= now && t <= in7d;
-  });
+    if (inactiveForCount.has(s.status)) continue;
+    if (t < now || t > in7d) continue;
+    upcoming7dIds.add(s.id);
+  }
+  for (const s of myLive) {
+    const t = +new Date(s.date_time);
+    if (inactiveForCount.has(s.status)) continue;
+    if (t < now || t > in7d) continue;
+    upcoming7dIds.add(s.id);
+  }
+  const upcoming7dCount = upcoming7dIds.size;
   const thirtyAgo = now - 30 * 24 * 3600_000;
   const ratedLast30 = myLive.filter(
     (s) => typeof s.student_rating === "number" && +new Date(s.date_time) >= thirtyAgo,
@@ -338,6 +355,20 @@ function TeacherDashboard() {
     .sort((a, b) => +new Date(b.date_time) - +new Date(a.date_time))
     .slice(0, 6);
 
+  // ---- Recent Activity: Club Reports (Insight / Book Club / Spotlight) ----
+  // Each submitted Club Report renders as its own row so the activity feed
+  // stays complete without any Performance-Session-only assumptions.
+  const eventById = new Map(allTeacherEvents.map((e) => [e.id, e]));
+  const clubReportOriginLabel: Record<string, string> = {
+    insight: "Insight",
+    book: "Book Club",
+    spotlight: "Spotlight Session",
+  };
+  const recentClubReports = Object.values(clubReports)
+    .filter((r) => r.teacher_id === user.id)
+    .sort((a, b) => +new Date(b.submitted_at) - +new Date(a.submitted_at))
+    .slice(0, 6);
+
   const handleSubmit = (
     sessionId: string,
     attendance: "present" | "delayed" | "absent",
@@ -407,7 +438,7 @@ function TeacherDashboard() {
           className="block cursor-pointer rounded-2xl border border-border bg-card p-6 shadow-soft transition-shadow hover:shadow-floating"
         >
           <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Upcoming Sessions</div>
-          <div className="mt-3 text-3xl font-semibold tracking-tight text-black">{upcoming7d.length}</div>
+          <div className="mt-3 text-3xl font-semibold tracking-tight text-black">{upcoming7dCount}</div>
           <div className="mt-1 text-xs text-muted-foreground">next 7 days</div>
         </Link>
         <button
@@ -672,7 +703,7 @@ function TeacherDashboard() {
               </tr>
             </thead>
             <tbody>
-              {recentLive.length === 0 && (
+              {recentLive.length === 0 && recentClubReports.length === 0 && (
                 <tr><td colSpan={5} className="px-6 py-6 text-center text-sm text-muted-foreground">No recent sessions.</td></tr>
               )}
               {recentLive.map((s) => {
@@ -690,7 +721,9 @@ function TeacherDashboard() {
                   : s.status === "absent" || s.status === "no_show" ? "danger"
                   : s.status === "delayed" ? "warning"
                   : "default";
-                const origin = s.origin === "workshop" ? "Workshop" : s.origin === "course" ? "Course" : null;
+                // Performance Sessions default to "Course" when the origin
+                // field is missing on legacy seed data — never blank.
+                const origin = s.origin === "workshop" ? "Workshop" : "Course";
                 return (
                   <tr
                     key={s.id}
@@ -709,14 +742,30 @@ function TeacherDashboard() {
                     </td>
                     <td className="px-6 py-4 text-muted-foreground">{fmt(s.date_time)}</td>
                     <td className="px-6 py-4">
-                      {origin ? (
-                        <span className="inline-flex rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{origin}</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                      <span className="inline-flex rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{origin}</span>
                     </td>
                     <td className="px-6 py-4"><Pill tone={tone as any}>{label}</Pill></td>
                     <td className="px-6 py-4 text-muted-foreground">{s.student_rating ? `${s.student_rating}★` : "—"}</td>
+                  </tr>
+                );
+              })}
+              {recentClubReports.map((r) => {
+                const ev = eventById.get(r.event_id);
+                const title = ev?.title ?? "Club event";
+                const dateISO = ev?.date ?? r.submitted_at;
+                const originLabel = clubReportOriginLabel[r.event_type] ?? "Club";
+                return (
+                  <tr
+                    key={`clubreport-${r.event_id}`}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td className="px-6 py-4 text-foreground">{title}</td>
+                    <td className="px-6 py-4 text-muted-foreground">{fmt(dateISO)}</td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{originLabel}</span>
+                    </td>
+                    <td className="px-6 py-4"><Pill tone="success">Completed</Pill></td>
+                    <td className="px-6 py-4 text-muted-foreground">—</td>
                   </tr>
                 );
               })}
