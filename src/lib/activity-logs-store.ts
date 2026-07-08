@@ -70,12 +70,7 @@ export function buildActivityLog(): ActivityEntry[] {
   const out: ActivityEntry[] = [];
 
   // ---- Sessions --------------------------------------------------------
-  const allSessions = [
-    ...loadSessions(),
-    ...(SESSIONS as unknown as ReturnType<typeof loadSessions>).filter(
-      (s) => !loadSessions().some((x) => x.id === s.id),
-    ),
-  ];
+  const allSessions = loadSessions();
   for (const s of allSessions) {
     const teacher = userName(s.teacher_id);
     const student = userName(s.student_id);
