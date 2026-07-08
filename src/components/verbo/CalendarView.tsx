@@ -274,28 +274,34 @@ function DayList({
 }
 
 function EventPill({ ev, onClick }: { ev: CalendarEvent; onClick: () => void }) {
-  const color = colorForEvent(ev);
+  const display = eventPillDisplay(ev);
   const kindMeta = EVENT_KIND_META[ev.kind];
-  const shortLabel = ev.is_group ? "G" : kindMeta.short;
   const isClub = ev.kind === "insight" || ev.kind === "book_club";
   const seats = isClub && ev.spots_total != null
     ? `${ev.spots_taken ?? 0}/${ev.spots_total} Seats`
     : null;
+  const cellLabelInline = display.cellLabel && !ev.sub_status
+    ? ` · ${display.cellLabel}`
+    : "";
   return (
     <div className="group relative">
       <button
         onClick={onClick}
         className="flex w-full items-center gap-1 truncate rounded-md px-1.5 py-1 text-left text-[10.5px] font-medium text-white shadow-sm transition-opacity hover:opacity-90 cursor-pointer"
-        style={{ backgroundColor: color }}
-        title={`${ev.is_group ? "Group" : kindMeta.label} — ${ev.title}`}
+        style={{ backgroundColor: display.color }}
+        title={
+          ev.sub_status
+            ? `${SUB_STATUS_META[ev.sub_status].label} — ${ev.title}`
+            : `${ev.is_group ? "Group" : kindMeta.label} — ${ev.title}`
+        }
       >
         <span className="rounded bg-white/20 px-1 text-[9px] font-bold leading-none">
-          {shortLabel}
+          {display.short}
         </span>
         <span className="truncate">
           {isClub
             ? `${fmtTime(ev.date)} · ${ev.title}${seats ? ` · ${seats}` : ""}`
-            : `${fmtTime(ev.date)} · ${ev.is_group ? ev.title : ev.title.split(" ")[0]}`}
+            : `${fmtTime(ev.date)} · ${ev.is_group ? ev.title : ev.title.split(" ")[0]}${cellLabelInline}`}
         </span>
       </button>
       {isClub && ev.enrolled_names && ev.enrolled_names.length > 0 && (
