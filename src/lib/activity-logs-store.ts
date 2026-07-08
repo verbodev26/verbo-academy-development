@@ -33,7 +33,8 @@ export type ActivityKind =
   | "strike_justified"
   | "avail_request_approved"
   | "avail_request_rejected"
-  | "release_request_submitted";
+  | "release_request_submitted"
+  | "report_filed";
 
 export type ActorRole = "admin" | "teacher" | "student" | "system";
 
