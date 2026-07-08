@@ -18,10 +18,11 @@ import {
   CALENDAR_STATUS_META,
   CANONICAL_STATUS_ORDER,
   EVENT_KIND_META,
+  eventPillDisplay,
   type CalendarEvent,
   type CalendarEventKind,
 } from "@/lib/calendar-events";
-import type { ExtSessionStatus } from "@/lib/sessions-store";
+import { SUB_STATUS_META, type ExtSessionStatus } from "@/lib/sessions-store";
 
 export type CalendarViewMode = "month" | "day";
 
