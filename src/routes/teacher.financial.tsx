@@ -429,7 +429,45 @@ function MyBalancePage() {
   );
 }
 
-// --- subcomponents ----------------------------------------------------------
+// --- Financial issue modal --------------------------------------------------
+function FinancialIssueModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (text: string) => void }) {
+  const [text, setText] = useState("");
+  const trimmed = text.trim();
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-elevated" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-gradient-to-br from-[#01304a] to-[#024366] p-5 text-white">
+          <div className="text-base font-semibold">Report a Financial Issue</div>
+          <div className="mt-0.5 text-xs text-white/70">Admin will see this in their notifications and can follow up from here.</div>
+        </div>
+        <div className="space-y-3 p-5">
+          <label className="block">
+            <div className="mb-1.5 text-xs font-semibold text-foreground">What's the issue?</div>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={5}
+              placeholder="E.g., a completed session is missing from this month's summary."
+              className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </label>
+        </div>
+        <div className="flex items-center justify-end gap-3 border-t border-border bg-secondary/30 p-4">
+          <button type="button" onClick={onClose} className="rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground hover:bg-secondary">Cancel</button>
+          <button
+            type="button"
+            disabled={!trimmed}
+            onClick={() => onSubmit(trimmed)}
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            Send to Admin
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SummaryCard({
   label, value, sub, expanded, onClick,
 }: { label: string; value: string; sub: string; expanded: boolean; onClick: () => void }) {
