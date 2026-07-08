@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ProfileModal } from "./ProfileModal";
 import { AdminProfileModal } from "./AdminProfileModal";
 import { useAvatar } from "@/lib/avatar-store";
+import { NotificationsBell } from "./NotificationsBell";
 
 export interface NavItem { to: string; label: string }
 export interface NavGroup { label: string; items: NavItem[] }
