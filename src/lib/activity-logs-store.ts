@@ -22,6 +22,8 @@ export type ActivityKind =
   | "session_cancelled"
   | "group_session_auto_cancelled"
   | "session_report_submitted"
+  | "session_report_amended"
+  | "student_flagged_illness"
   | "club_report_submitted"
   | "financial_adjustment"
   | "rating_submitted"
@@ -130,6 +132,19 @@ export function buildActivityLog(): ActivityEntry[] {
       });
     }
 
+    // Session Report admin amendments (post-lock corrections)
+    for (const edit of s.report_admin_edits ?? []) {
+      out.push({
+        id: `sess-amend:${s.id}:${edit.at}:${edit.field}:${edit.studentId ?? ""}`,
+        kind: "session_report_amended",
+        action: "Session Report amended by Admin",
+        detail: `${teacher} · ${student} — ${edit.field} ${edit.from || "∅"} → ${edit.to || "∅"}`,
+        timestamp: edit.at,
+        actorId: edit.actorId, actorName: edit.actorName ?? userName(edit.actorId), actorRole: "admin",
+        personId: edit.studentId ?? s.student_id,
+      });
+    }
+
     // Rating submitted by student
     if (typeof s.student_rating === "number") {
       out.push({
@@ -168,6 +183,45 @@ export function buildActivityLog(): ActivityEntry[] {
       });
     }
   }
+
+  // ---- Student flagged (≥3 Absent Illness in a rolling 30-day window) ----
+  // Derived synthetic entry: buckets absences per student across allSessions,
+  // then emits ONE log per bucket that crosses the threshold.
+  {
+    const windowMs = 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const byStudent = new Map<string, string[]>();
+    for (const s of allSessions) {
+      const ts = +new Date(s.date_time);
+      if (now - ts > windowMs) continue;
+      // Top-level absence with Absent Illness sub-status.
+      if (s.status === "absent" && s.attendance_sub_status === "absent_illness") {
+        if (!byStudent.has(s.student_id)) byStudent.set(s.student_id, []);
+        byStudent.get(s.student_id)!.push(s.date_time);
+      }
+      // Group session per-member illness sub-status.
+      for (const [sid, sub] of Object.entries(s.member_sub_statuses ?? {})) {
+        if (sub === "absent_illness") {
+          if (!byStudent.has(sid)) byStudent.set(sid, []);
+          byStudent.get(sid)!.push(s.date_time);
+        }
+      }
+    }
+    for (const [studentId, dates] of byStudent) {
+      if (dates.length < 3) continue;
+      dates.sort();
+      out.push({
+        id: `flag-illness:${studentId}:${dates[dates.length - 1]}`,
+        kind: "student_flagged_illness",
+        action: "Student flagged: frequent Illness justification (3+)",
+        detail: `${userName(studentId)} — ${dates.length} Absent Illness in the last 30 days`,
+        timestamp: dates[dates.length - 1],
+        actorId: null, actorName: "System", actorRole: "system",
+        personId: studentId,
+      });
+    }
+  }
+
 
   // ---- Club Reports (Insight / Book / Spotlight) ----------------------
   const reports = loadClubReports();
@@ -397,6 +451,8 @@ export const ACTIVITY_KIND_LABELS: Record<ActivityKind, string> = {
   session_cancelled: "Session cancelled",
   group_session_auto_cancelled: "Group session auto-cancelled",
   session_report_submitted: "Session Report submitted",
+  session_report_amended: "Session Report amended",
+  student_flagged_illness: "Student flagged (frequent illness)",
   club_report_submitted: "Club Report submitted",
   financial_adjustment: "Financial adjustment",
   rating_submitted: "Rating submitted",

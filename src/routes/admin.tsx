@@ -31,6 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/admin/materials",  label: "Material Complementario" },
   ]},
   { label: "Clubs", items: [{ to: "/admin/clubs", label: "Clubs" }] },
+  { label: "Calendar", items: [{ to: "/admin/holidays", label: "Holidays" }] },
   { label: "Financial", items: [
     { to: "/admin/financial/money-lab", label: "The Money Lab" },
   ]},

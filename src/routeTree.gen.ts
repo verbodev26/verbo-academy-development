@@ -42,6 +42,7 @@ import { Route as AdminStudentsRouteImport } from './routes/admin.students'
 import { Route as AdminSessionsRouteImport } from './routes/admin.sessions'
 import { Route as AdminMaterialsRouteImport } from './routes/admin.materials'
 import { Route as AdminKpisRouteImport } from './routes/admin.kpis'
+import { Route as AdminHolidaysRouteImport } from './routes/admin.holidays'
 import { Route as AdminGroupsRouteImport } from './routes/admin.groups'
 import { Route as AdminCoursesRouteImport } from './routes/admin.courses'
 import { Route as AdminClubsRouteImport } from './routes/admin.clubs'
@@ -214,6 +215,11 @@ const AdminKpisRoute = AdminKpisRouteImport.update({
   path: '/kpis',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminHolidaysRoute = AdminHolidaysRouteImport.update({
+  id: '/holidays',
+  path: '/holidays',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminGroupsRoute = AdminGroupsRouteImport.update({
   id: '/groups',
   path: '/groups',
@@ -257,6 +263,7 @@ export interface FileRoutesByFullPath {
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/groups': typeof AdminGroupsRoute
+  '/admin/holidays': typeof AdminHolidaysRoute
   '/admin/kpis': typeof AdminKpisRoute
   '/admin/materials': typeof AdminMaterialsRoute
   '/admin/sessions': typeof AdminSessionsRoute
@@ -295,6 +302,7 @@ export interface FileRoutesByTo {
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/groups': typeof AdminGroupsRoute
+  '/admin/holidays': typeof AdminHolidaysRoute
   '/admin/kpis': typeof AdminKpisRoute
   '/admin/materials': typeof AdminMaterialsRoute
   '/admin/sessions': typeof AdminSessionsRoute
@@ -337,6 +345,7 @@ export interface FileRoutesById {
   '/admin/clubs': typeof AdminClubsRoute
   '/admin/courses': typeof AdminCoursesRoute
   '/admin/groups': typeof AdminGroupsRoute
+  '/admin/holidays': typeof AdminHolidaysRoute
   '/admin/kpis': typeof AdminKpisRoute
   '/admin/materials': typeof AdminMaterialsRoute
   '/admin/sessions': typeof AdminSessionsRoute
@@ -380,6 +389,7 @@ export interface FileRouteTypes {
     | '/admin/clubs'
     | '/admin/courses'
     | '/admin/groups'
+    | '/admin/holidays'
     | '/admin/kpis'
     | '/admin/materials'
     | '/admin/sessions'
@@ -418,6 +428,7 @@ export interface FileRouteTypes {
     | '/admin/clubs'
     | '/admin/courses'
     | '/admin/groups'
+    | '/admin/holidays'
     | '/admin/kpis'
     | '/admin/materials'
     | '/admin/sessions'
@@ -459,6 +470,7 @@ export interface FileRouteTypes {
     | '/admin/clubs'
     | '/admin/courses'
     | '/admin/groups'
+    | '/admin/holidays'
     | '/admin/kpis'
     | '/admin/materials'
     | '/admin/sessions'
@@ -731,6 +743,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminKpisRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/holidays': {
+      id: '/admin/holidays'
+      path: '/holidays'
+      fullPath: '/admin/holidays'
+      preLoaderRoute: typeof AdminHolidaysRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/groups': {
       id: '/admin/groups'
       path: '/groups'
@@ -782,6 +801,7 @@ interface AdminRouteChildren {
   AdminClubsRoute: typeof AdminClubsRoute
   AdminCoursesRoute: typeof AdminCoursesRoute
   AdminGroupsRoute: typeof AdminGroupsRoute
+  AdminHolidaysRoute: typeof AdminHolidaysRoute
   AdminKpisRoute: typeof AdminKpisRoute
   AdminMaterialsRoute: typeof AdminMaterialsRoute
   AdminSessionsRoute: typeof AdminSessionsRoute
@@ -799,6 +819,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminClubsRoute: AdminClubsRoute,
   AdminCoursesRoute: AdminCoursesRoute,
   AdminGroupsRoute: AdminGroupsRoute,
+  AdminHolidaysRoute: AdminHolidaysRoute,
   AdminKpisRoute: AdminKpisRoute,
   AdminMaterialsRoute: AdminMaterialsRoute,
   AdminSessionsRoute: AdminSessionsRoute,

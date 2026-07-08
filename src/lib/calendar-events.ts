@@ -13,8 +13,8 @@
 // that surface belongs to. When Spotlight Sessions get their own store,
 // wire it here — no CalendarView changes required.
 
-import type { ExtSession, ExtSessionStatus } from "./sessions-store";
-import { loadSessions } from "./sessions-store";
+import type { ExtSession, ExtSessionStatus, AttendanceSubStatus } from "./sessions-store";
+import { loadSessions, SUB_STATUS_META } from "./sessions-store";
 import { loadClubs, type Club, type ClubType, type TimeStatus } from "./clubs-store";
 import { groupsByStudentId } from "./groups-store";
 
@@ -43,12 +43,15 @@ export interface CalendarEvent {
   spots_taken?: number;
   spots_total?: number;
   enrolled_names?: string[];
+  /** Refinement of Absent/Cancelled status. When set, the pill renders the
+   *  2-letter initials + the sub-status color instead of the base color. */
+  sub_status?: AttendanceSubStatus;
   // Passthrough refs so click handlers can open the right modal / route.
   session?: ExtSession;
   club?: Club;
 }
 
-function sessionEvent(s: ExtSession, title: string): CalendarEvent {
+function sessionEvent(s: ExtSession, title: string, subStatus?: AttendanceSubStatus): CalendarEvent {
   return {
     id: s.id,
     kind: s.origin === "workshop" ? "workshop" : "class",
@@ -60,6 +63,7 @@ function sessionEvent(s: ExtSession, title: string): CalendarEvent {
     origin: s.origin ?? "course",
     is_group: !!s.group_id,
     group_id: s.group_id,
+    sub_status: subStatus ?? s.attendance_sub_status,
     session: s,
   };
 }
@@ -137,13 +141,13 @@ export function studentCalendarEvents(studentId: string, opts?: {
 }): CalendarEvent[] {
   const events: CalendarEvent[] = [];
   for (const s of loadSessions()) {
-    // A student sees any session where they are the direct student, plus
-    // group sessions where they're a member (member_statuses).
     const isMember = !!s.member_statuses && Object.keys(s.member_statuses).includes(studentId);
     if (s.student_id !== studentId && !isMember) continue;
-    if (s.origin === "workshop") continue; // workshops surface in their own tab
+    if (s.origin === "workshop") continue;
     const teacherName = opts?.teacherNameOf?.(s.teacher_id) ?? "Teacher";
-    const ev = sessionEvent(s, `Session with ${teacherName}`);
+    // For group sessions the student's own sub-status is the one we render.
+    const memberSub = s.group_id ? s.member_sub_statuses?.[studentId] : undefined;
+    const ev = sessionEvent(s, `Session with ${teacherName}`, memberSub);
     events.push(ev);
   }
   return events;
@@ -165,20 +169,36 @@ export const CALENDAR_STATUS_META: Record<ExtSessionStatus, { label: string; col
   ready:              { label: "Ready",              color: "#8b5cf6" },
   completed:          { label: "Completed",          color: "#16a34a" },
   absent:             { label: "Absent",             color: "#dc2626" },
-  cancelled:          { label: "Cancelled",          color: "#be185d" },
+  // Cancelled reassigned to a slate blue-gray, distinct from Scheduled's
+  // #94a3b8. The lighter tint used for justified-cancelled variants lives in
+  // SUB_STATUS_META (#cbd5e1).
+  cancelled:          { label: "Cancelled",          color: "#64748B" },
   pending_reschedule: { label: "Pending Reschedule", color: "#b45309" },
   no_show:            { label: "No Show",            color: "#334155" },
-  // Not part of the canonical 7 but tolerated by the type — mapped to a
-  // muted color so any stray legacy value still renders sanely.
   rescheduled:        { label: "Rescheduled",        color: "#94a3b8" },
   rearranged:         { label: "Rearranged",         color: "#eab308" },
   delayed:            { label: "Delayed",            color: "#eab308" },
-  // New status: student replaced a regular 1:1 with a Spotlight in the same
-  // slot. Distinct indigo so it never reads as Cancelled (pink) or Completed
-  // (green) in any panel.
   converted_to_spotlight: { label: "Converted to Spotlight", color: "#4f46e5" },
 };
 
 export const CANONICAL_STATUS_ORDER: ExtSessionStatus[] = [
   "scheduled", "ready", "completed", "absent", "cancelled", "pending_reschedule", "no_show",
 ];
+
+/** Renderer helper: given an event, return the pill color + short label to
+ *  display in the calendar cell. Sub-status wins over base status when set. */
+export function eventPillDisplay(ev: CalendarEvent): { color: string; short: string; cellLabel: string } {
+  if (ev.sub_status) {
+    const meta = SUB_STATUS_META[ev.sub_status];
+    return { color: meta.color, short: meta.initials, cellLabel: meta.initials };
+  }
+  const kind = EVENT_KIND_META[ev.kind];
+  const status = ev.status as ExtSessionStatus | undefined;
+  const color = (ev.kind === "class" || ev.kind === "workshop") && status
+    ? (CALENDAR_STATUS_META[status]?.color ?? kind.color)
+    : kind.color;
+  const cellLabel = status && (status === "absent" || status === "cancelled")
+    ? CALENDAR_STATUS_META[status].label
+    : "";
+  return { color, short: ev.is_group ? "G" : kind.short, cellLabel };
+}

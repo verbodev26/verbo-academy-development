@@ -31,6 +31,7 @@ import { useAuth } from "@/lib/auth";
 import { USERS, userById } from "@/lib/mock-data";
 import {
   loadSessions, subscribeSessions, updateSession, applyGroupMemberCancellation,
+  SUB_STATUS_META,
   type ExtSession, type ExtSessionStatus,
 } from "@/lib/sessions-store";
 import { CalendarView } from "@/components/verbo/CalendarView";
@@ -210,7 +211,19 @@ function EventDetailsModal({
         {isClass && session && (
           <div className="mt-4 space-y-2 text-sm">
             <Row label="Teacher" value={teacherName ?? "—"} />
-            <Row label="Status" value={statusMeta?.label ?? "—"} accent={statusMeta?.color} />
+            <Row
+              label="Status"
+              value={
+                session.attendance_sub_status
+                  ? `${statusMeta?.label ?? ""} · ${SUB_STATUS_META[session.attendance_sub_status].label}`.trim().replace(/^·\s*/, "")
+                  : (statusMeta?.label ?? "—")
+              }
+              accent={
+                session.attendance_sub_status
+                  ? SUB_STATUS_META[session.attendance_sub_status].color
+                  : statusMeta?.color
+              }
+            />
             {session.teams_link && <Row label="Video Call" value="Ready" />}
           </div>
         )}
@@ -278,7 +291,7 @@ function CantAttendRouter({
     if (isGroup) {
       const res = applyGroupMemberCancellation(session.id, user.id, "cancelled");
       toast(
-        res.unanimous
+        res.outcome.kind === "unanimous_cancel"
           ? "All members cancelled — the group session has been cancelled."
           : "You've cancelled this group session. Credit forfeited. The class continues for the remaining members.",
       );
@@ -503,8 +516,8 @@ function RescheduleRequestModal({ session, onClose }: { session: ExtSession; onC
     if (isGroup) {
       const res = applyGroupMemberCancellation(session.id, actingStudentId, "pending_reschedule");
       toast.success(
-        res.unanimous
-          ? "All members reschedule requested — the group session has been cancelled."
+        res.outcome.kind === "unanimous_reschedule"
+          ? "All members requested a reschedule — the group session will be moved."
           : "Reschedule Request published. The group session continues for the remaining members.",
       );
     } else {

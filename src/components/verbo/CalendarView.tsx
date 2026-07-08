@@ -18,10 +18,11 @@ import {
   CALENDAR_STATUS_META,
   CANONICAL_STATUS_ORDER,
   EVENT_KIND_META,
+  eventPillDisplay,
   type CalendarEvent,
   type CalendarEventKind,
 } from "@/lib/calendar-events";
-import type { ExtSessionStatus } from "@/lib/sessions-store";
+import { SUB_STATUS_META, type ExtSessionStatus } from "@/lib/sessions-store";
 
 export type CalendarViewMode = "month" | "day";
 
@@ -47,11 +48,7 @@ function fmtTime(iso: string) {
 }
 
 function colorForEvent(ev: CalendarEvent): string {
-  // Sessions use the canonical status color; clubs & spotlights use their kind color.
-  if ((ev.kind === "class" || ev.kind === "workshop") && ev.status && ev.status in CALENDAR_STATUS_META) {
-    return CALENDAR_STATUS_META[ev.status as ExtSessionStatus].color;
-  }
-  return EVENT_KIND_META[ev.kind].color;
+  return eventPillDisplay(ev).color;
 }
 
 export function CalendarView({
@@ -250,12 +247,22 @@ function DayList({
             {e.subtitle && <div className="truncate text-xs text-muted-foreground">{e.subtitle}</div>}
           </div>
           {e.status && (e.kind === "class" || e.kind === "workshop") && (
-            <span
-              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
-              style={{ background: CALENDAR_STATUS_META[e.status as ExtSessionStatus]?.color ?? "#94a3b8" }}
-            >
-              {CALENDAR_STATUS_META[e.status as ExtSessionStatus]?.label ?? e.status}
-            </span>
+            e.sub_status ? (
+              <span
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                style={{ background: SUB_STATUS_META[e.sub_status].color }}
+                title={SUB_STATUS_META[e.sub_status].label}
+              >
+                {SUB_STATUS_META[e.sub_status].initials}
+              </span>
+            ) : (
+              <span
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                style={{ background: CALENDAR_STATUS_META[e.status as ExtSessionStatus]?.color ?? "#94a3b8" }}
+              >
+                {CALENDAR_STATUS_META[e.status as ExtSessionStatus]?.label ?? e.status}
+              </span>
+            )
           )}
           {e.origin === "workshop" && (
             <span className="rounded-md border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">WS</span>
@@ -267,28 +274,34 @@ function DayList({
 }
 
 function EventPill({ ev, onClick }: { ev: CalendarEvent; onClick: () => void }) {
-  const color = colorForEvent(ev);
+  const display = eventPillDisplay(ev);
   const kindMeta = EVENT_KIND_META[ev.kind];
-  const shortLabel = ev.is_group ? "G" : kindMeta.short;
   const isClub = ev.kind === "insight" || ev.kind === "book_club";
   const seats = isClub && ev.spots_total != null
     ? `${ev.spots_taken ?? 0}/${ev.spots_total} Seats`
     : null;
+  const cellLabelInline = display.cellLabel && !ev.sub_status
+    ? ` · ${display.cellLabel}`
+    : "";
   return (
     <div className="group relative">
       <button
         onClick={onClick}
         className="flex w-full items-center gap-1 truncate rounded-md px-1.5 py-1 text-left text-[10.5px] font-medium text-white shadow-sm transition-opacity hover:opacity-90 cursor-pointer"
-        style={{ backgroundColor: color }}
-        title={`${ev.is_group ? "Group" : kindMeta.label} — ${ev.title}`}
+        style={{ backgroundColor: display.color }}
+        title={
+          ev.sub_status
+            ? `${SUB_STATUS_META[ev.sub_status].label} — ${ev.title}`
+            : `${ev.is_group ? "Group" : kindMeta.label} — ${ev.title}`
+        }
       >
         <span className="rounded bg-white/20 px-1 text-[9px] font-bold leading-none">
-          {shortLabel}
+          {display.short}
         </span>
         <span className="truncate">
           {isClub
             ? `${fmtTime(ev.date)} · ${ev.title}${seats ? ` · ${seats}` : ""}`
-            : `${fmtTime(ev.date)} · ${ev.is_group ? ev.title : ev.title.split(" ")[0]}`}
+            : `${fmtTime(ev.date)} · ${ev.is_group ? ev.title : ev.title.split(" ")[0]}${cellLabelInline}`}
         </span>
       </button>
       {isClub && ev.enrolled_names && ev.enrolled_names.length > 0 && (
