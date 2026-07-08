@@ -7,12 +7,13 @@
 // so all downstream effects (session → cancelled, strike ledger, auto-freeze
 // at 3 strikes, Needs Substitute flag when <24h) stay in one place.
 import { useMemo, useState } from "react";
-import { X, AlertTriangle } from "lucide-react";
+import { X, AlertTriangle, NotebookPen } from "lucide-react";
 import { GhostButton, PrimaryButton } from "@/components/verbo/ui";
 import type { ExtSession } from "@/lib/sessions-store";
 import {
   cancelSessionByTeacher, CANCEL_REASON_LABEL, type CancelReason,
 } from "@/lib/strikes-store";
+import { getCoverageNote, setCoverageNote } from "@/lib/coverage-notes-store";
 
 export function CantAttendModal({
   session, teacherId, onClose, onDone,
