@@ -233,6 +233,7 @@ function Page() {
           plan={plans[detailsFor.session.id]}
           title={detailsFor.title}
           mode={detailsFor.mode}
+          coverageNote={getCoverageNoteForStudent(detailsFor.session.student_id)}
           onClose={() => setDetailsFor(null)}
           onCantAttend={() => { const s = detailsFor.session; setDetailsFor(null); setCancelling(s); }}
           onEditPlan={() => { const s = detailsFor.session; setDetailsFor(null); setPlanning(s); }}
