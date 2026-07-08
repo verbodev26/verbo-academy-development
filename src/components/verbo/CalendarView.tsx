@@ -48,11 +48,7 @@ function fmtTime(iso: string) {
 }
 
 function colorForEvent(ev: CalendarEvent): string {
-  // Sessions use the canonical status color; clubs & spotlights use their kind color.
-  if ((ev.kind === "class" || ev.kind === "workshop") && ev.status && ev.status in CALENDAR_STATUS_META) {
-    return CALENDAR_STATUS_META[ev.status as ExtSessionStatus].color;
-  }
-  return EVENT_KIND_META[ev.kind].color;
+  return eventPillDisplay(ev).color;
 }
 
 export function CalendarView({
