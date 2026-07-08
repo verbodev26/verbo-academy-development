@@ -26,6 +26,7 @@ import { subscribeStrikes } from "@/lib/strikes-store";
 import { addReleaseRequest, type Club } from "@/lib/clubs-store";
 import { ClubReportModal, type ClubReportEventInput } from "@/components/verbo/ClubReportModal";
 import { getClubReport, subscribeClubReports } from "@/lib/club-reports-store";
+import { getCoverageNoteForStudent, subscribeCoverageNotes } from "@/lib/coverage-notes-store";
 
 export const Route = createFileRoute("/teacher/calendar")({ component: Page });
 
