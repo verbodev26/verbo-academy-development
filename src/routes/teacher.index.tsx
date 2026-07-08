@@ -982,6 +982,27 @@ function ReportModal({ session, perf, subskills, onClose, onSubmit }: {
                     penalize the student's attendance.
                   </p>
                 </div>
+                {absentCause === "student" && (
+                  <div>
+                    <label className="text-xs font-medium text-foreground">Justification (optional)</label>
+                    <select
+                      value={absentSub ?? ""}
+                      onChange={(e) => setAbsentSub((e.target.value || null) as AttendanceSubStatus | null)}
+                      disabled={!justificationOpen}
+                      className="mt-2 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                    >
+                      <option value="">Absent (no justification — affects attendance metrics)</option>
+                      <option value="absent_work">{SUB_STATUS_META.absent_work.label} (no metric penalty)</option>
+                      <option value="absent_illness">{SUB_STATUS_META.absent_illness.label} (no metric penalty)</option>
+                      <option value="absent_vacation">{SUB_STATUS_META.absent_vacation.label} (no metric penalty)</option>
+                    </select>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {justificationOpen
+                        ? "Justifications remove the metric penalty. 3+ Absent Illness in the same period auto-flag the student for Admin review."
+                        : "Justification window closed (past month end). Only Admin can add or change a justification now."}
+                    </p>
+                  </div>
+                )}
                 <div>
                 <label className="text-xs font-medium text-foreground">Teacher's comments <span className="text-muted-foreground">(required)</span></label>
                 <textarea
