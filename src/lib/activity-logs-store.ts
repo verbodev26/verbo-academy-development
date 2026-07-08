@@ -132,6 +132,19 @@ export function buildActivityLog(): ActivityEntry[] {
       });
     }
 
+    // Session Report admin amendments (post-lock corrections)
+    for (const edit of s.report_admin_edits ?? []) {
+      out.push({
+        id: `sess-amend:${s.id}:${edit.at}:${edit.field}:${edit.studentId ?? ""}`,
+        kind: "session_report_amended",
+        action: "Session Report amended by Admin",
+        detail: `${teacher} · ${student} — ${edit.field} ${edit.from || "∅"} → ${edit.to || "∅"}`,
+        timestamp: edit.at,
+        actorId: edit.actorId, actorName: edit.actorName ?? userName(edit.actorId), actorRole: "admin",
+        personId: edit.studentId ?? s.student_id,
+      });
+    }
+
     // Rating submitted by student
     if (typeof s.student_rating === "number") {
       out.push({
