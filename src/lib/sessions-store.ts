@@ -14,7 +14,10 @@ export type ExtSessionStatus =
   | "delayed"
   | "cancelled"
   | "pending_reschedule"
-  | "no_show";
+  | "no_show"
+  // Student replaced this 1:1 with a Spotlight in the same slot. Not a strike,
+  // not Cancelled, not Absent — its own status with its own indigo color.
+  | "converted_to_spotlight";
 
 export interface ExtSession extends Omit<Session, "status"> {
   status: ExtSessionStatus;
