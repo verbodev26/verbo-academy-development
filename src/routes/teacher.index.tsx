@@ -873,16 +873,18 @@ function ReportModal({ session, perf, subskills, onClose, onSubmit }: {
   perf: PerformanceRating;
   subskills: Record<string, number>;
   onClose: () => void;
-  onSubmit: (id: string, attendance: Attendance, perf: PerformanceRating, subskills: Record<string, number>, absentCause?: "student" | "teacher") => void;
+  onSubmit: (id: string, attendance: Attendance, perf: PerformanceRating, subskills: Record<string, number>, absentCause?: "student" | "teacher", subStatus?: AttendanceSubStatus | null) => void;
 }) {
   const student = userById(session.student_id);
   const [attendance, setAttendance] = useState<Attendance>("present");
-  // Only meaningful when attendance is "absent" — reused from the Admin
-  // Sessions engine's canonical absent_cause selector.
   const [absentCause, setAbsentCause] = useState<"student" | "teacher">("student");
+  // Optional sub-status. `null` means plain Absent — DOES affect metrics.
+  // AW/AI/AV all skip the metric penalty (justified). Locked past month end.
+  const [absentSub, setAbsentSub] = useState<AttendanceSubStatus | null>(null);
   const [notes, setNotes] = useState("");
   const [entries, setEntries] = useState<Entry[]>(() => Array.from({ length: MIN_ENTRIES }, makeEntry));
   const [submitted, setSubmitted] = useState(false);
+  const justificationOpen = isJustificationWindowOpen(session.date_time);
 
   const bgFor = (opt: Attendance) => opt === "present" ? "#22c55e" : opt === "absent" ? "#ef4444" : "#f38934";
 
@@ -901,7 +903,7 @@ function ReportModal({ session, perf, subskills, onClose, onSubmit }: {
   const handleSubmit = () => {
     if (!canSubmit) return;
     setSubmitted(true);
-    onSubmit(session.id, attendance, perf, subskills, isAbsent ? absentCause : undefined);
+    onSubmit(session.id, attendance, perf, subskills, isAbsent ? absentCause : undefined, isAbsent ? absentSub : null);
   };
 
   return (
