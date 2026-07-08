@@ -1,17 +1,23 @@
-import { createFileRoute, useSearch, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useSearch, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { SESSIONS, studentsOfTeacher, userById, type Session, type SessionStatus, type Level } from "@/lib/mock-data";
+import { SESSIONS, ASSIGNMENTS, USERS, studentsOfTeacher, userById, type Session, type SessionStatus, type Level } from "@/lib/mock-data";
 import { Card, GhostButton, MetricCard, Pill, PrimaryButton, SectionTitle } from "@/components/verbo/ui";
-import { CalendarClock, FileEdit, X, Lock, Plus, Trash2, Download, CheckCircle2, Mic, PenLine, Ear, BookOpen, ChevronRight, Video, type LucideIcon } from "lucide-react";
+import { CalendarClock, FileEdit, X, Lock, Plus, Trash2, Download, CheckCircle2, Mic, PenLine, Ear, BookOpen, ChevronRight, Video, Star, AlertTriangle, Trophy, CalendarDays, Wallet, Sparkles as SparklesIcon, GraduationCap, type LucideIcon } from "lucide-react";
 import { savePerformance, type PerformanceRating } from "@/lib/performance-store";
 import { MACRO_SKILLS as SHARED_MACRO_SKILLS, skillKey as sharedSkillKey, type BaseKey as SharedBaseKey } from "@/lib/skills-taxonomy";
-import { submitSessionReport, updateSession } from "@/lib/sessions-store";
+import { submitSessionReport, updateSession, loadSessions, subscribeSessions, type ExtSession } from "@/lib/sessions-store";
 import { PlanModal } from "@/components/verbo/PlanModal";
 import { loadLevels, subscribeLevels } from "@/lib/courses-store";
 import { loadLessonPlans, saveLessonPlan, subscribeLessonPlans, getLessonPlan, type LessonPlan } from "@/lib/lesson-plans-store";
-import type { ExtSession } from "@/lib/sessions-store";
 import { markVipUnitDone, clearVipUnitDoneForSession } from "@/lib/vip-courses-store";
+import { computeTeacherKpis, getBonusThreshold, ratingBand } from "@/lib/teacher-kpis";
+import { avgRating } from "@/lib/teacher-model";
+import { activeStrikeCount } from "@/lib/strikes-store";
+import { listChangeRequests, isTeacherAvailableAt, subscribeAvailability } from "@/lib/availability-store";
+import { loadClubs, subscribeClubs, type Club } from "@/lib/clubs-store";
+import { groupById } from "@/lib/groups-store";
+import { SessionDetailsModal } from "@/components/verbo/SessionDetailsModal";
 
 export const Route = createFileRoute("/teacher/")({
   // Optional deep-link from the Calendar page → auto-open the Session Report
@@ -41,6 +47,16 @@ function TeacherDashboard() {
   const [planning, setPlanning] = useState<Session | null>(null);
   const [levels, setLevels] = useState<Level[]>([]);
   const [plans, setPlans] = useState<Record<string, LessonPlan>>({});
+  // Live-synced canonical sessions (used by summary cards, Needs Your
+  // Attention, and Recent Activity). Everything else in the dashboard
+  // still reads the legacy `sessions` mirror so the report/plan flows
+  // keep their local mutation model.
+  const [liveSessions, setLiveSessions] = useState<ExtSession[]>(() =>
+    typeof window === "undefined" ? [] : loadSessions()
+  );
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [availTick, setAvailTick] = useState(0);
+  const [viewing, setViewing] = useState<ExtSession | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000 * 30);
@@ -53,7 +69,12 @@ function TeacherDashboard() {
     setPlans(loadLessonPlans());
     const u1 = subscribeLevels(() => setLevels(loadLevels()));
     const u2 = subscribeLessonPlans(() => setPlans(loadLessonPlans()));
-    return () => { u1(); u2(); };
+    setLiveSessions(loadSessions());
+    setClubs(loadClubs());
+    const u3 = subscribeSessions(() => setLiveSessions(loadSessions()));
+    const u4 = subscribeClubs(() => setClubs(loadClubs()));
+    const u5 = subscribeAvailability(() => setAvailTick((n) => n + 1));
+    return () => { u1(); u2(); u3(); u4(); u5(); };
   }, []);
 
   // If we arrived with ?report=<id>, auto-open Step 1 for that session
@@ -86,6 +107,142 @@ function TeacherDashboard() {
   const upcoming = mySessions.filter((s) => s.status === "scheduled").sort((a, b) => +new Date(a.date_time) - +new Date(b.date_time));
   const recent = mySessions.filter((s) => s.status !== "scheduled").slice(0, 5);
   const toPlan = upcoming.slice(0, 3);
+
+  // ---- Real-data derivations (cards, Needs Attention, Recent Activity) ----
+  const teacherUser = USERS.find((u) => u.id === user.id && u.role === "teacher") ?? null;
+  const myLive = liveSessions.filter((s) => s.teacher_id === user.id);
+  const in7d = now + 7 * 24 * 3600_000;
+  const upcomingLiveStatuses = new Set(["scheduled", "ready", "rescheduled", "rearranged", "delayed"]);
+  const upcoming7d = myLive.filter((s) => {
+    const t = +new Date(s.date_time);
+    return upcomingLiveStatuses.has(s.status) && t >= now && t <= in7d;
+  });
+  const thirtyAgo = now - 30 * 24 * 3600_000;
+  const ratedLast30 = myLive.filter(
+    (s) => typeof s.student_rating === "number" && +new Date(s.date_time) >= thirtyAgo,
+  );
+  const avgRating30 =
+    ratedLast30.length === 0
+      ? null
+      : Math.round(
+          (ratedLast30.reduce((a, s) => a + (s.student_rating ?? 0), 0) / ratedLast30.length) * 10,
+        ) / 10;
+
+  // KPI/Performance card
+  const kpis = teacherUser ? computeTeacherKpis(teacherUser, getBonusThreshold()) : null;
+  const rating30Band = ratingBand(avgRating30);
+  const KPI_GOOD = 85;
+  const KPI_CRITICAL = 70;
+  const signals = kpis
+    ? [
+        kpis.connectionPunctuality, kpis.planningPunctuality, kpis.reportPunctuality,
+        kpis.completionRate, kpis.ratingNormalized, kpis.cancellationScore,
+      ]
+    : [];
+  const belowTarget = signals.filter((v) => v < KPI_GOOD).length;
+  const anyCritical = signals.some((v) => v < KPI_CRITICAL);
+  const warningLevel: "none" | "yellow" | "red" =
+    belowTarget === 0 ? "none" : belowTarget >= 2 || anyCritical ? "red" : "yellow";
+  const strikes = teacherUser ? activeStrikeCount(teacherUser.id) : 0;
+
+  // ---- Needs Your Attention items ----
+  type AttentionItem = { id: string; icon: LucideIcon; text: string; tone: "warning" | "danger" | "info"; cta?: { label: string; to?: string; onClick?: () => void; search?: Record<string, string> } };
+  const attention: AttentionItem[] = [];
+
+  // (a) Sessions past their end with no report submitted.
+  const missingReports = myLive.filter((s) => {
+    const end = +new Date(s.date_time) + s.duration_minutes * 60_000;
+    if (end > now) return false;
+    if (s.report_submitted_at) return false;
+    if (["absent", "cancelled", "no_show", "completed"].includes(s.status)) {
+      return s.status === "completed" && !s.report_submitted_at;
+    }
+    return true;
+  });
+  for (const s of missingReports.slice(0, 3)) {
+    const end = +new Date(s.date_time) + s.duration_minutes * 60_000;
+    const deadline = end + REPORT_WINDOW_MS;
+    const overdue = now > deadline;
+    const who = s.group_id ? groupById(s.group_id)?.name ?? "Group" : userById(s.student_id)?.name ?? "Session";
+    attention.push({
+      id: `report-${s.id}`,
+      icon: FileEdit,
+      tone: overdue ? "danger" : "warning",
+      text: overdue
+        ? `Session Report overdue — ${who} (${fmt(s.date_time)})`
+        : `Session Report pending — ${who} (${fmt(s.date_time)})`,
+      cta: { label: overdue ? "Open Report" : "Fill Report", to: "/teacher", search: { report: s.id } },
+    });
+  }
+
+  // (b) 2/3 strikes warning.
+  if (strikes === 2) {
+    attention.push({
+      id: "strikes-2",
+      icon: AlertTriangle,
+      tone: "danger",
+      text: "You are at 2/3 Strikes (6 months). One more Cancellation / No-Show will trigger an automatic Freeze.",
+      cta: { label: "View Balance", to: "/teacher/financial" },
+    });
+  }
+
+  // (c) Pending availability change request.
+  const myPending = listChangeRequests("pending").find((r) => r.teacherId === user.id);
+  if (myPending) {
+    attention.push({
+      id: "avail-pending",
+      icon: CalendarDays,
+      tone: "info",
+      text: "Your Availability Change Request is pending admin review.",
+      cta: { label: "View", to: "/teacher/availability" },
+    });
+  }
+  void availTick; // ensure re-render when availability updates
+
+  // (d) Available (unclaimed) upcoming clubs that fit teacher's availability.
+  const openClubs = clubs.filter((c) => {
+    if (c.teacher_id) return false;
+    if (c.status === "completed" || c.status === "cancelled") return false;
+    if (+new Date(c.date) < now) return false;
+    return isTeacherAvailableAt(user.id, c.date, c.duration_minutes ?? 60);
+  });
+  for (const c of openClubs.slice(0, 2)) {
+    attention.push({
+      id: `club-${c.id}`,
+      icon: SparklesIcon,
+      tone: "info",
+      text: `Club needs a teacher: "${c.title}" — matches your availability.`,
+      cta: { label: "View Available Clubs", to: "/teacher/clubs", search: { highlight: c.id } },
+    });
+  }
+
+  // (e) Flagged reviews (1-2★) in last 7 days.
+  const sevenAgo = now - 7 * 24 * 3600_000;
+  const flagged = myLive.filter(
+    (s) => typeof s.student_rating === "number" && (s.student_rating as number) <= 2 && +new Date(s.date_time) >= sevenAgo,
+  );
+  for (const s of flagged.slice(0, 2)) {
+    const st = userById(s.student_id);
+    attention.push({
+      id: `flag-${s.id}`,
+      icon: Star,
+      tone: "danger",
+      text: `Low rating (${s.student_rating}★) from ${st?.name ?? "a student"} — review their card.`,
+      cta: { label: "Open Student", to: "/teacher/students", search: st ? { student: st.id } : undefined },
+    });
+  }
+
+  // ---- Quick Actions (visibility mirrors nav) ----
+  const hasVipStudent = USERS.some(
+    (u) => u.role === "student" && u.product === "vip" &&
+      ASSIGNMENTS.some((a) => a.teacher_id === user.id && a.student_id === u.id),
+  );
+
+  // ---- Recent Activity (real data) ----
+  const recentLive = [...myLive]
+    .filter((s) => !upcomingLiveStatuses.has(s.status))
+    .sort((a, b) => +new Date(b.date_time) - +new Date(a.date_time))
+    .slice(0, 6);
 
   const handleSubmit = (
     sessionId: string,
@@ -143,10 +300,102 @@ function TeacherDashboard() {
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-black">{user.name}</h1>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <MetricCard label="Assigned students" value={String(students.length)} />
-        <MetricCard label="Upcoming sessions" value={String(upcoming.length)} sub="next 7 days" />
-        <MetricCard label="Avg rating" value="4.7★" sub="last 30 days" />
+      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCard label="Assigned Students" value={String(students.length)} />
+        <MetricCard label="Upcoming Sessions" value={String(upcoming7d.length)} sub="next 7 days" />
+        <MetricCard
+          label="Avg Rating"
+          value={avgRating30 != null ? `${avgRating30.toFixed(1)}★` : "—"}
+          sub="last 30 days"
+        />
+        <Link
+          to="/teacher/financial"
+          className="group block rounded-2xl border border-border bg-card p-6 shadow-soft transition-shadow hover:shadow-floating"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Performance</div>
+            <div className="flex flex-wrap justify-end gap-1">
+              {kpis?.bonusEligible && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success">
+                  <Trophy className="h-3 w-3" /> Bonus Eligible
+                </span>
+              )}
+              {warningLevel === "yellow" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                  <AlertTriangle className="h-3 w-3" /> 1 KPI Below Target
+                </span>
+              )}
+              {warningLevel === "red" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                  <AlertTriangle className="h-3 w-3" /> {belowTarget} KPIs Below Target
+                </span>
+              )}
+              {strikes > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                  {Math.min(3, strikes)}/3 Strikes (6 months)
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="mt-3 text-3xl font-semibold tracking-tight text-black">{kpis?.composite ?? 0}%</div>
+          <div className="mt-1 flex items-center gap-1.5 text-xs">
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold"
+              style={{ backgroundColor: rating30Band.bg, color: rating30Band.fg }}
+            >
+              <Star className="h-3 w-3 fill-current" /> {avgRating30 != null ? avgRating30.toFixed(1) : "—"}
+            </span>
+            <span className="text-muted-foreground">Composite Score · view balance</span>
+          </div>
+        </Link>
+      </section>
+
+      {/* Needs Your Attention */}
+      <section>
+        <SectionTitle>Needs Your Attention</SectionTitle>
+        <Card className="!p-0">
+          {attention.length === 0 ? (
+            <div className="flex items-center gap-2 px-6 py-6 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-success" /> You're all caught up.
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {attention.map((it) => {
+                const Icon = it.icon;
+                const tone =
+                  it.tone === "danger" ? "text-destructive"
+                  : it.tone === "warning" ? "text-amber-600"
+                  : "text-accent";
+                return (
+                  <li key={it.id} className="flex flex-wrap items-center gap-3 px-6 py-3.5">
+                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary ${tone}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1 text-sm text-foreground">{it.text}</div>
+                    {it.cta && (
+                      it.cta.to ? (
+                        <a
+                          href={it.cta.to + (it.cta.search ? `?${new URLSearchParams(it.cta.search).toString()}` : "")}
+                          onClick={(e) => { e.preventDefault(); navigate({ to: it.cta!.to as any, search: (it.cta!.search ?? {}) as never }); }}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
+                        >
+                          {it.cta.label} <ChevronRight className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <button
+                          onClick={it.cta.onClick}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
+                        >
+                          {it.cta.label} <ChevronRight className="h-3 w-3" />
+                        </button>
+                      )
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
       </section>
 
       <section className="grid gap-6 md:grid-cols-2">
@@ -247,26 +496,75 @@ function TeacherDashboard() {
       </section>
 
       <section>
-        <SectionTitle>Recent activity</SectionTitle>
+        <SectionTitle>Quick Actions</SectionTitle>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickAction to="/teacher/availability" icon={CalendarDays} label="My Availability" />
+          <QuickAction to="/teacher/clubs" icon={SparklesIcon} label="Available Clubs" />
+          <QuickAction to="/teacher/financial" icon={Wallet} label="My Balance" />
+          {hasVipStudent && (
+            <QuickAction to="/teacher/vip" icon={GraduationCap} label="Course Builder VIP" />
+          )}
+        </div>
+      </section>
+
+      <section>
+        <SectionTitle>Recent Activity</SectionTitle>
         <Card className="!p-0">
           <table className="w-full text-sm">
             <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr className="border-b border-border">
-                <th className="px-6 py-3 font-medium">Student</th>
+                <th className="px-6 py-3 font-medium">Student / Group</th>
                 <th className="px-6 py-3 font-medium">Date</th>
+                <th className="px-6 py-3 font-medium">Origin</th>
                 <th className="px-6 py-3 font-medium">Status</th>
                 <th className="px-6 py-3 font-medium">Rating</th>
               </tr>
             </thead>
             <tbody>
-              {recent.map((s) => {
+              {recentLive.length === 0 && (
+                <tr><td colSpan={5} className="px-6 py-6 text-center text-sm text-muted-foreground">No recent sessions.</td></tr>
+              )}
+              {recentLive.map((s) => {
+                const group = s.group_id ? groupById(s.group_id) : null;
                 const student = userById(s.student_id);
-                const tone = s._noReport ? "warning" : s.status === "completed" ? "success" : s.status === "absent" ? "danger" : s.status === "delayed" ? "warning" : "default";
-                const label = s._noReport ? "Completed without report" : s.status;
+                const label =
+                  s.status === "completed" ? (s.report_submitted_at ? "Completed" : "Completed without report")
+                  : s.status === "absent" ? "Absent"
+                  : s.status === "cancelled" ? "Cancelled"
+                  : s.status === "no_show" ? "No-show"
+                  : s.status === "delayed" ? "Delayed"
+                  : s.status.charAt(0).toUpperCase() + s.status.slice(1);
+                const tone =
+                  s.status === "completed" && s.report_submitted_at ? "success"
+                  : s.status === "completed" ? "warning"
+                  : s.status === "absent" || s.status === "no_show" ? "danger"
+                  : s.status === "delayed" ? "warning"
+                  : "default";
+                const origin = s.origin === "workshop" ? "Workshop" : s.origin === "course" ? "Course" : null;
                 return (
-                  <tr key={s.id} className="border-b border-border last:border-0">
-                    <td className="px-6 py-4 text-foreground">{student?.name}</td>
+                  <tr
+                    key={s.id}
+                    onClick={() => setViewing(s)}
+                    className="cursor-pointer border-b border-border transition-colors hover:bg-secondary/40 last:border-0"
+                  >
+                    <td className="px-6 py-4 text-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        {group && (
+                          <span className="inline-flex h-5 items-center rounded-md bg-accent/15 px-1.5 text-[10px] font-bold text-accent">
+                            G · {group.name}
+                          </span>
+                        )}
+                        {group ? group.name : student?.name ?? "—"}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-muted-foreground">{fmt(s.date_time)}</td>
+                    <td className="px-6 py-4">
+                      {origin ? (
+                        <span className="inline-flex rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{origin}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4"><Pill tone={tone as any}>{label}</Pill></td>
                     <td className="px-6 py-4 text-muted-foreground">{s.student_rating ? `${s.student_rating}★` : "—"}</td>
                   </tr>
@@ -305,7 +603,34 @@ function TeacherDashboard() {
           onSave={handleSavePlan}
         />
       )}
+      {viewing && (
+        <SessionDetailsModal
+          session={viewing}
+          plan={plans[viewing.id]}
+          title={
+            viewing.group_id ? (groupById(viewing.group_id)?.name ?? "Group Session")
+            : userById(viewing.student_id)?.name ?? "Session"
+          }
+          mode={viewing.status === "completed" || viewing.status === "absent" ? "completed" : "ready"}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function QuickAction({ to, icon: Icon, label }: { to: string; icon: LucideIcon; label: string }) {
+  return (
+    <Link
+      to={to as any}
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 shadow-soft transition-shadow hover:shadow-floating"
+    >
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/15 text-accent">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0 text-sm font-semibold text-foreground">{label}</div>
+      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+    </Link>
   );
 }
 
