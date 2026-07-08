@@ -1,18 +1,33 @@
 ## Goal
 
-Eliminate the visible "Completed without report" state in the Teacher Dashboard's Recent Activity table. Per the new rule, a session can only reach `completed` status through the Session Report submit flow (which writes `report_submitted_at`), so this label is unreachable and misleading.
+Color-code the icon of each "Session Report pending/overdue" item in the Teacher Dashboard's **Needs Your Attention** list based on how much of the 24h reporting window is left. Purely visual — the KPI logic (only overdue past 24h affects Report Punctuality) already exists and is not changed here.
 
-## Change
+## Rules (icon only)
 
-**File:** `src/routes/teacher.index.tsx` (lines ~527–542)
+Let `remaining = (session_end + 24h) - now`.
 
-- Simplify the `label` mapping: when `s.status === "completed"`, always render `"Completed"` (drop the `report_submitted_at` ternary).
-- Simplify the `tone` mapping: when `s.status === "completed"`, always use `"success"` (drop the warning branch tied to missing report).
+| Remaining        | Icon         | Color                         | Extras                       |
+| ---------------- | ------------ | ----------------------------- | ---------------------------- |
+| 15h to <24h      | `FileEdit`   | green (`text-emerald-600`)    | —                            |
+| 8h to <15h       | `FileEdit`   | yellow (`text-amber-500`)     | —                            |
+| >0h to <8h       | `FileEdit`   | red (`text-red-600`)          | —                            |
+| overdue (≤0h)    | `AlertCircle`| red (`text-red-600`)          | glow-pulse animation on icon |
 
-No other files touched. The underlying data model (`report_submitted_at`, `submitSessionReport`) is unchanged — this only removes the dead display branch. The 24h window + proportional Report Punctuality KPI decay you described are a separate change; not in scope here (call it out if you'd like it built next).
+Icon-wrapper background stays the neutral `bg-secondary` in all cases so the color reads on the glyph, not the chip.
 
-## Out of scope (flag for a follow-up)
+## Changes
 
-- Enforcing "Class Notes required to submit report" inside the Session Report modal.
-- Implementing the Report Punctuality decay curve past the 24h window.
-Say the word and I'll queue those as the next patch.
+**`src/routes/teacher.index.tsx`**
+- Extend `AttentionItem` with optional `iconClassName` (glyph color) and `iconWrapClassName` (extra classes for the wrapper — used to attach the glow-pulse animation when overdue).
+- In the missing-report loop (lines ~162–176), compute `remaining` and pick `icon` + `iconClassName` from the table above; for the overdue branch swap in `AlertCircle` and add the pulse class.
+- In the render (lines ~365–372), if `it.iconClassName` is set, use it instead of the default `tone`-derived color; append `it.iconWrapClassName` to the wrapper.
+
+**`src/styles.css`**
+- Add a small `@keyframes report-glow-pulse` + `.animate-report-glow` utility: pulses a red `drop-shadow` on the icon (opacity/intensity ~1s ease-in-out infinite). Scoped so it only affects the icon, not the wrapper.
+
+Nothing else touched. `AlertCircle` is already exported by `lucide-react` (add to the existing import list if not present).
+
+## Out of scope
+
+- Actual Report Punctuality KPI decay curve past 24h (already flagged in a previous turn as a follow-up).
+- Applying the same color scale to other attention items (strikes, availability, clubs) — only the missing-report items get the countdown coloring.
