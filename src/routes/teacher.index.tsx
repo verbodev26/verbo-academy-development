@@ -47,6 +47,16 @@ function TeacherDashboard() {
   const [planning, setPlanning] = useState<Session | null>(null);
   const [levels, setLevels] = useState<Level[]>([]);
   const [plans, setPlans] = useState<Record<string, LessonPlan>>({});
+  // Live-synced canonical sessions (used by summary cards, Needs Your
+  // Attention, and Recent Activity). Everything else in the dashboard
+  // still reads the legacy `sessions` mirror so the report/plan flows
+  // keep their local mutation model.
+  const [liveSessions, setLiveSessions] = useState<ExtSession[]>(() =>
+    typeof window === "undefined" ? [] : loadSessions()
+  );
+  const [clubs, setClubs] = useState<Club[]>([]);
+  const [availTick, setAvailTick] = useState(0);
+  const [viewing, setViewing] = useState<ExtSession | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000 * 30);
@@ -59,7 +69,12 @@ function TeacherDashboard() {
     setPlans(loadLessonPlans());
     const u1 = subscribeLevels(() => setLevels(loadLevels()));
     const u2 = subscribeLessonPlans(() => setPlans(loadLessonPlans()));
-    return () => { u1(); u2(); };
+    setLiveSessions(loadSessions());
+    setClubs(loadClubs());
+    const u3 = subscribeSessions(() => setLiveSessions(loadSessions()));
+    const u4 = subscribeClubs(() => setClubs(loadClubs()));
+    const u5 = subscribeAvailability(() => setAvailTick((n) => n + 1));
+    return () => { u1(); u2(); u3(); u4(); u5(); };
   }, []);
 
   // If we arrived with ?report=<id>, auto-open Step 1 for that session
