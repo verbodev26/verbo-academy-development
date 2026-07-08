@@ -376,36 +376,29 @@ function TeacherDashboard() {
     perf: PerformanceRating,
     subskills: Record<string, number>,
     absentCause?: "student" | "teacher",
+    subStatus?: AttendanceSubStatus | null,
   ) => {
     if (!user) return;
     const session = sessions.find((s) => s.id === sessionId);
-    // 1. Local dashboard mirror (Session interface only stores 4 statuses).
     setSessions((prev) => prev.map((s) => {
       if (s.id !== sessionId) return s;
       const status: SessionStatus = attendance === "absent" ? "absent" : "completed";
       return { ...s, status, _noReport: false };
     }));
-    // 2. Canonical shared sessions-store: status + attendance metadata +
-    //    real subskill scores + coverage-note auto-clear (all inside helper).
     submitSessionReport({
       sessionId,
       teacherId: user.id,
       studentId: session?.student_id ?? "",
       attendance,
       absentCause,
+      subStatus: subStatus ?? null,
       subskills,
     });
-    // 2b. VIP unit unlock: if this session's plan links a VIP unit and the
-    //     session is now Completed, mark that unit done. Otherwise clear any
-    //     prior completion (e.g. Absent report on a session that had closed
-    //     a unit before via a re-tag) so unlock state stays truthful.
     const plan = getLessonPlan(sessionId);
     if (plan?.vip_unit_id) {
       if (attendance !== "absent") markVipUnitDone(plan.vip_unit_id, sessionId);
       else clearVipUnitDoneForSession(sessionId);
     }
-    // 3. Legacy back-compat: some seed sessions never touched sessions-store
-    //    yet; savePerformance keeps the 4-base map warm for them.
     if (attendance !== "absent") savePerformance(sessionId, perf);
     setEditing(null);
   };
