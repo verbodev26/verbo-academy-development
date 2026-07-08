@@ -184,6 +184,45 @@ export function buildActivityLog(): ActivityEntry[] {
     }
   }
 
+  // ---- Student flagged (≥3 Absent Illness in a rolling 30-day window) ----
+  // Derived synthetic entry: buckets absences per student across allSessions,
+  // then emits ONE log per bucket that crosses the threshold.
+  {
+    const windowMs = 30 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const byStudent = new Map<string, string[]>();
+    for (const s of allSessions) {
+      const ts = +new Date(s.date_time);
+      if (now - ts > windowMs) continue;
+      // Top-level absence with Absent Illness sub-status.
+      if (s.status === "absent" && s.attendance_sub_status === "absent_illness") {
+        if (!byStudent.has(s.student_id)) byStudent.set(s.student_id, []);
+        byStudent.get(s.student_id)!.push(s.date_time);
+      }
+      // Group session per-member illness sub-status.
+      for (const [sid, sub] of Object.entries(s.member_sub_statuses ?? {})) {
+        if (sub === "absent_illness") {
+          if (!byStudent.has(sid)) byStudent.set(sid, []);
+          byStudent.get(sid)!.push(s.date_time);
+        }
+      }
+    }
+    for (const [studentId, dates] of byStudent) {
+      if (dates.length < 3) continue;
+      dates.sort();
+      out.push({
+        id: `flag-illness:${studentId}:${dates[dates.length - 1]}`,
+        kind: "student_flagged_illness",
+        action: "Student flagged: frequent Illness justification (3+)",
+        detail: `${userName(studentId)} — ${dates.length} Absent Illness in the last 30 days`,
+        timestamp: dates[dates.length - 1],
+        actorId: null, actorName: "System", actorRole: "system",
+        personId: studentId,
+      });
+    }
+  }
+
+
   // ---- Club Reports (Insight / Book / Spotlight) ----------------------
   const reports = loadClubReports();
   const clubsById = new Map(loadClubs().map((c) => [c.id, c]));
