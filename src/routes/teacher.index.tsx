@@ -123,10 +123,27 @@ function TeacherDashboard() {
   const myLive = liveSessions.filter((s) => s.teacher_id === user.id);
   const in7d = now + 7 * 24 * 3600_000;
   const upcomingLiveStatuses = new Set(["scheduled", "ready", "rescheduled", "rearranged", "delayed"]);
-  const upcoming7d = myLive.filter((s) => {
+  // Count every active session (Scheduled + Ready + rescheduled/rearranged/
+  // delayed) inside the next 7 days. We union both data sources so the
+  // number matches what "Plan your upcoming Sessions" / "Complete your
+  // sessions" actually show: `mySessions` is the freshly-seeded in-memory
+  // mirror, `liveSessions` is the persisted store. A single event may exist
+  // in both — dedupe by id so groups still count as one session.
+  const inactiveForCount = new Set(["cancelled", "completed", "absent", "no_show"]);
+  const upcoming7dIds = new Set<string>();
+  for (const s of mySessions) {
     const t = +new Date(s.date_time);
-    return upcomingLiveStatuses.has(s.status) && t >= now && t <= in7d;
-  });
+    if (inactiveForCount.has(s.status)) continue;
+    if (t < now || t > in7d) continue;
+    upcoming7dIds.add(s.id);
+  }
+  for (const s of myLive) {
+    const t = +new Date(s.date_time);
+    if (inactiveForCount.has(s.status)) continue;
+    if (t < now || t > in7d) continue;
+    upcoming7dIds.add(s.id);
+  }
+  const upcoming7dCount = upcoming7dIds.size;
   const thirtyAgo = now - 30 * 24 * 3600_000;
   const ratedLast30 = myLive.filter(
     (s) => typeof s.student_rating === "number" && +new Date(s.date_time) >= thirtyAgo,
