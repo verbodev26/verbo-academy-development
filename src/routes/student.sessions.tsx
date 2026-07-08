@@ -608,45 +608,56 @@ function SpotlightRequestFlow({ studentId, onClose }: { studentId: string; onClo
 }
 
 function SpotlightFormModal({ studentId, onClose }: { studentId: string; onClose: () => void }) {
-  const [dt, setDt] = useState("");
+  const [dateYMD, setDateYMD] = useState<string>(todayYMD());
+  const [slotISO, setSlotISO] = useState<string>("");
   const [context, setContext] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [confirmOverlap, setConfirmOverlap] = useState<{ session: ExtSession; iso: string } | null>(null);
 
+  // Spotlight duration is ALWAYS 60 minutes, regardless of the student's
+  // regular session_duration.
+  const SPOTLIGHT_DURATION = 60;
+  const studentUser = userById(studentId);
+  const product = studentUser?.product;
+  const qualifiedIds = useMemo(
+    () => USERS.filter((u) => u.role === "teacher" && u.teacher_status === "active"
+      && (!product || (u.qualified_products ?? []).includes(product)))
+      .map((t) => t.id),
+    [product],
+  );
+
   const submit = () => {
-    if (!dt) { setError("Pick a date and time."); return; }
+    if (!slotISO) { setError("Pick one of the available start times."); return; }
     if (context.trim().length === 0) { setError("Please describe what you need for your Spotlight."); return; }
-    const iso = new Date(dt).toISOString();
-    if (hoursUntil(iso) < 24) { setError("Spotlight requires at least 24 hours of notice."); return; }
     // Overlap check with an existing regular 1:1 for this student at the
     // exact same start.
     const overlap = loadSessions().find((s) =>
       s.student_id === studentId &&
       !s.origin && // regular 1:1
       s.status !== "completed" && s.status !== "absent" && s.status !== "cancelled" &&
-      +new Date(s.date_time) === +new Date(iso),
+      +new Date(s.date_time) === +new Date(slotISO),
     );
     if (overlap) {
-      setConfirmOverlap({ session: overlap, iso });
+      setConfirmOverlap({ session: overlap, iso: slotISO });
       return;
     }
-    publishSpotlightRequest(iso, context);
+    publishSpotlightRequest(slotISO, context);
   };
 
   const publishSpotlightRequest = (iso: string, ctx: string) => {
-    const studentUser = userById(studentId);
     addStudentRequest({
       kind: "spotlight",
       student_id: studentId,
       assigned_teacher_id: undefined,
       proposed_datetime: iso,
-      duration_minutes: 60,
+      duration_minutes: SPOTLIGHT_DURATION,
       spotlight_context: ctx.trim(),
       last_report_summary: studentUser ? `Level ${studentUser.current_level ?? "—"}` : undefined,
     });
     toast.success("Spotlight Request published. Teachers have been notified.");
     onClose();
   };
+
 
   if (confirmOverlap) {
     const teacherName = userById(confirmOverlap.session.teacher_id)?.name ?? "your teacher";
