@@ -108,6 +108,142 @@ function TeacherDashboard() {
   const recent = mySessions.filter((s) => s.status !== "scheduled").slice(0, 5);
   const toPlan = upcoming.slice(0, 3);
 
+  // ---- Real-data derivations (cards, Needs Attention, Recent Activity) ----
+  const teacherUser = USERS.find((u) => u.id === user.id && u.role === "teacher") ?? null;
+  const myLive = liveSessions.filter((s) => s.teacher_id === user.id);
+  const in7d = now + 7 * 24 * 3600_000;
+  const upcomingLiveStatuses = new Set(["scheduled", "ready", "rescheduled", "rearranged", "delayed"]);
+  const upcoming7d = myLive.filter((s) => {
+    const t = +new Date(s.date_time);
+    return upcomingLiveStatuses.has(s.status) && t >= now && t <= in7d;
+  });
+  const thirtyAgo = now - 30 * 24 * 3600_000;
+  const ratedLast30 = myLive.filter(
+    (s) => typeof s.student_rating === "number" && +new Date(s.date_time) >= thirtyAgo,
+  );
+  const avgRating30 =
+    ratedLast30.length === 0
+      ? null
+      : Math.round(
+          (ratedLast30.reduce((a, s) => a + (s.student_rating ?? 0), 0) / ratedLast30.length) * 10,
+        ) / 10;
+
+  // KPI/Performance card
+  const kpis = teacherUser ? computeTeacherKpis(teacherUser, getBonusThreshold()) : null;
+  const rating30Band = ratingBand(avgRating30);
+  const KPI_GOOD = 85;
+  const KPI_CRITICAL = 70;
+  const signals = kpis
+    ? [
+        kpis.connectionPunctuality, kpis.planningPunctuality, kpis.reportPunctuality,
+        kpis.completionRate, kpis.ratingNormalized, kpis.cancellationScore,
+      ]
+    : [];
+  const belowTarget = signals.filter((v) => v < KPI_GOOD).length;
+  const anyCritical = signals.some((v) => v < KPI_CRITICAL);
+  const warningLevel: "none" | "yellow" | "red" =
+    belowTarget === 0 ? "none" : belowTarget >= 2 || anyCritical ? "red" : "yellow";
+  const strikes = teacherUser ? activeStrikeCount(teacherUser.id) : 0;
+
+  // ---- Needs Your Attention items ----
+  type AttentionItem = { id: string; icon: LucideIcon; text: string; tone: "warning" | "danger" | "info"; cta?: { label: string; to?: string; onClick?: () => void; search?: Record<string, string> } };
+  const attention: AttentionItem[] = [];
+
+  // (a) Sessions past their end with no report submitted.
+  const missingReports = myLive.filter((s) => {
+    const end = +new Date(s.date_time) + s.duration_minutes * 60_000;
+    if (end > now) return false;
+    if (s.report_submitted_at) return false;
+    if (["absent", "cancelled", "no_show", "completed"].includes(s.status)) {
+      return s.status === "completed" && !s.report_submitted_at;
+    }
+    return true;
+  });
+  for (const s of missingReports.slice(0, 3)) {
+    const end = +new Date(s.date_time) + s.duration_minutes * 60_000;
+    const deadline = end + REPORT_WINDOW_MS;
+    const overdue = now > deadline;
+    const who = s.group_id ? groupById(s.group_id)?.name ?? "Group" : userById(s.student_id)?.name ?? "Session";
+    attention.push({
+      id: `report-${s.id}`,
+      icon: FileEdit,
+      tone: overdue ? "danger" : "warning",
+      text: overdue
+        ? `Session Report overdue — ${who} (${fmt(s.date_time)})`
+        : `Session Report pending — ${who} (${fmt(s.date_time)})`,
+      cta: { label: overdue ? "Open Report" : "Fill Report", to: "/teacher", search: { report: s.id } },
+    });
+  }
+
+  // (b) 2/3 strikes warning.
+  if (strikes === 2) {
+    attention.push({
+      id: "strikes-2",
+      icon: AlertTriangle,
+      tone: "danger",
+      text: "You are at 2/3 Strikes (6 months). One more Cancellation / No-Show will trigger an automatic Freeze.",
+      cta: { label: "View Balance", to: "/teacher/financial" },
+    });
+  }
+
+  // (c) Pending availability change request.
+  const myPending = listChangeRequests("pending").find((r) => r.teacherId === user.id);
+  if (myPending) {
+    attention.push({
+      id: "avail-pending",
+      icon: CalendarDays,
+      tone: "info",
+      text: "Your Availability Change Request is pending admin review.",
+      cta: { label: "View", to: "/teacher/availability" },
+    });
+  }
+  void availTick; // ensure re-render when availability updates
+
+  // (d) Available (unclaimed) upcoming clubs that fit teacher's availability.
+  const openClubs = clubs.filter((c) => {
+    if (c.teacher_id) return false;
+    if (c.status === "completed" || c.status === "cancelled") return false;
+    if (+new Date(c.date) < now) return false;
+    return isTeacherAvailableAt(user.id, c.date, c.duration_minutes ?? 60);
+  });
+  for (const c of openClubs.slice(0, 2)) {
+    attention.push({
+      id: `club-${c.id}`,
+      icon: SparklesIcon,
+      tone: "info",
+      text: `Club needs a teacher: "${c.title}" — matches your availability.`,
+      cta: { label: "View Available Clubs", to: "/teacher/clubs", search: { highlight: c.id } },
+    });
+  }
+
+  // (e) Flagged reviews (1-2★) in last 7 days.
+  const sevenAgo = now - 7 * 24 * 3600_000;
+  const flagged = myLive.filter(
+    (s) => typeof s.student_rating === "number" && (s.student_rating as number) <= 2 && +new Date(s.date_time) >= sevenAgo,
+  );
+  for (const s of flagged.slice(0, 2)) {
+    const st = userById(s.student_id);
+    attention.push({
+      id: `flag-${s.id}`,
+      icon: Star,
+      tone: "danger",
+      text: `Low rating (${s.student_rating}★) from ${st?.name ?? "a student"} — review their card.`,
+      cta: { label: "Open Student", to: "/teacher/students", search: st ? { student: st.id } : undefined },
+    });
+  }
+
+  // ---- Quick Actions (visibility mirrors nav) ----
+  const hasVipStudent = USERS.some(
+    (u) => u.role === "student" && u.product === "vip" &&
+      ASSIGNMENTS.some((a) => a.teacher_id === user.id && a.student_id === u.id),
+  );
+
+  // ---- Recent Activity (real data) ----
+  const recentLive = [...myLive]
+    .filter((s) => !upcomingLiveStatuses.has(s.status))
+    .sort((a, b) => +new Date(b.date_time) - +new Date(a.date_time))
+    .slice(0, 6);
+
   const handleSubmit = (
     sessionId: string,
     attendance: "present" | "delayed" | "absent",
