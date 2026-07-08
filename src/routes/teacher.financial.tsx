@@ -401,15 +401,30 @@ function MyBalancePage() {
         </p>
       </Card>
 
-      {/* Report an Issue (visual only) */}
-      <div className="flex justify-end pt-2">
+      {/* Report an Issue → sends a notification to Admin (bell) */}
+      <div className="flex flex-col items-end gap-1 pt-2">
+        {reportSent && (
+          <span className="text-xs text-success">Issue reported to Admin.</span>
+        )}
         <button
           type="button"
+          onClick={() => { setReportSent(false); setReportOpen(true); }}
           className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground shadow-soft transition-colors hover:bg-secondary"
         >
           <MessageCircleWarning className="h-4 w-4" /> Report an Issue
         </button>
       </div>
+
+      {reportOpen && teacher && (
+        <FinancialIssueModal
+          onClose={() => setReportOpen(false)}
+          onSubmit={(text) => {
+            addFinancialIssue({ teacherId: teacher.id, text });
+            setReportOpen(false);
+            setReportSent(true);
+          }}
+        />
+      )}
     </div>
   );
 }
