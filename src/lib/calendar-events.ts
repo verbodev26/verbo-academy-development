@@ -132,8 +132,8 @@ export function teacherCalendarEvents(teacherId: string, opts?: {
 
 /** Meta a chip/legend can render for each supported event kind. */
 export const EVENT_KIND_META: Record<CalendarEventKind, { label: string; color: string; short: string }> = {
-  class:      { label: "Clase regular",  color: "#01304a", short: "1:1" },
-  workshop:   { label: "Taller",         color: "#7c3aed", short: "WS" },
+  class:      { label: "1:1 Class",      color: "#01304a", short: "1:1" },
+  workshop:   { label: "Workshop",       color: "#7c3aed", short: "WS" },
   insight:    { label: "Insight",        color: "#0ea5e9", short: "IN" },
   book_club:  { label: "Book Club",      color: "#d97706", short: "BC" },
   spotlight:  { label: "Spotlight",      color: "#06b6d4", short: "SP" },

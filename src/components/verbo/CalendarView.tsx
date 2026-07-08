@@ -3,8 +3,8 @@
 // Consumers pass a flat list of `CalendarEvent` (see calendar-events.ts)
 // and this component handles:
 //   - Month grid + Day view toggle.
-//   - Event-kind filter chips (Clase regular / Book Club / Insight /
-//     Spotlight / Taller).
+//   - Event-kind filter chips (1:1 Class / Book Club / Insight /
+//     Spotlight / Workshop).
 //   - Canonical 7-status legend.
 //   - Origin badge (Course / Workshop) on each pill.
 //
