@@ -613,6 +613,35 @@ function TeacherDashboard() {
                 </Card>
               );
             })}
+            {pendingClubEvents.map((ev) => {
+              const meta = EVENT_KIND_META[ev.kind];
+              return (
+                <Card key={`club-${ev.id}`} className="flex flex-col gap-3 !p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                      <SparklesIcon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className="rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white"
+                          style={{ background: meta.color }}
+                        >
+                          {meta.label}
+                        </span>
+                        <span className="truncate text-sm font-medium text-foreground">{ev.title}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">{fmt(ev.date)} · {ev.duration_minutes} min</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <PrimaryButton onClick={() => openClubReport(ev)}>
+                      <FileEdit className="h-4 w-4" /> Fill Report
+                    </PrimaryButton>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>
