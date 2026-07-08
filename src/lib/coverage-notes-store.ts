@@ -40,6 +40,17 @@ export function getCoverageNote(teacherId: string, studentId: string): string {
   return readAll()[keyOf(teacherId, studentId)] ?? "";
 }
 
+/** Substitute-side lookup: returns the note authored by ANY titular teacher
+ *  for this student. Used by Session Details / Lesson Plan when the current
+ *  viewer is a substitute and does not know the titular teacher id. */
+export function getCoverageNoteForStudent(studentId: string): string {
+  const all = readAll();
+  for (const [k, v] of Object.entries(all)) {
+    if (k.endsWith(`:${studentId}`) && v.trim()) return v;
+  }
+  return "";
+}
+
 export function setCoverageNote(teacherId: string, studentId: string, note: string) {
   const map = readAll();
   const k = keyOf(teacherId, studentId);
