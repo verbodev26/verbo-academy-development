@@ -76,7 +76,7 @@ export function buildActivityLog(): ActivityEntry[] {
     const student = userName(s.student_id);
     const detail = `${teacher} → ${student} · ${fmtDate(s.date_time)}`;
 
-    // Scheduled / rescheduled
+    // Scheduled / rescheduled — a human admin action.
     if (s.status === "scheduled" || s.status === "ready") {
       out.push({
         id: `sess-sched:${s.id}`,
@@ -84,7 +84,7 @@ export function buildActivityLog(): ActivityEntry[] {
         action: "Session scheduled",
         detail,
         timestamp: s.date_time,
-        actorId: null, actorName: "System", actorRole: "system",
+        actorId: null, actorName: "Admin", actorRole: "admin",
         personId: s.teacher_id,
       });
     }
@@ -95,7 +95,7 @@ export function buildActivityLog(): ActivityEntry[] {
         action: "Session rescheduled",
         detail,
         timestamp: s.date_time,
-        actorId: null, actorName: "System", actorRole: "system",
+        actorId: null, actorName: "Admin", actorRole: "admin",
         personId: s.teacher_id,
       });
     }
@@ -135,7 +135,7 @@ export function buildActivityLog(): ActivityEntry[] {
         action: s.absent_cause === "teacher" ? "Absent — Teacher" : "Absent — Student",
         detail,
         timestamp: s.date_time,
-        actorId: null, actorName: "System", actorRole: "system",
+        actorId: null, actorName: "Admin", actorRole: "admin",
         personId: s.absent_cause === "teacher" ? s.teacher_id : s.student_id,
       });
     }
@@ -146,7 +146,7 @@ export function buildActivityLog(): ActivityEntry[] {
         action: "No Show",
         detail,
         timestamp: s.date_time,
-        actorId: null, actorName: "System", actorRole: "system",
+        actorId: null, actorName: "Admin", actorRole: "admin",
         personId: s.student_id,
       });
     }
@@ -191,7 +191,7 @@ export function buildActivityLog(): ActivityEntry[] {
       action: `${c.type === "book" ? "Book Club" : "Insight"} created`,
       detail: `${c.title} · ${fmtDate(c.date)}`,
       timestamp: c.date,
-      actorId: null, actorName: "System", actorRole: "system",
+      actorId: null, actorName: "Admin", actorRole: "admin",
     });
     if (c.teacher_id && c.claimed_at) {
       out.push({
@@ -216,7 +216,7 @@ export function buildActivityLog(): ActivityEntry[] {
         action: `Financial adjustment (${money(a.amount)})`,
         detail: `${t.name} — ${a.reason}`,
         timestamp: a.date,
-        actorId: null, actorName: "System", actorRole: "admin",
+        actorId: null, actorName: "Admin", actorRole: "admin",
         personId: t.id,
       });
     }

@@ -1,7 +1,7 @@
 import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { UserPlus, Pencil, X, ShieldCheck, ShieldAlert } from "lucide-react";
-import { USERS, type User, type Role, type AdminType } from "@/lib/mock-data";
+import { USERS, type User, type AdminType } from "@/lib/mock-data";
 import { Card, SectionTitle, PrimaryButton, GhostButton, Pill } from "@/components/verbo/ui";
 import { useAuth } from "@/lib/auth";
 import {
@@ -153,18 +153,25 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<Role>("admin");
-  const [adminType, setAdminType] = useState<AdminType>("super_admin");
-  const [coordType, setCoordType] = useState<"operations" | "financial">("operations");
+  // Single unified "Role" field for internal users:
+  //   "super_admin"  → Super Admin
+  //   "coordinator"  → Coordinator (requires a type below)
+  const [uiRole, setUiRole] = useState<"super_admin" | "coordinator">("super_admin");
+  const [coordType, setCoordType] = useState<"operations" | "financial" | "">("");
+
+  const canSubmit =
+    name.trim() && email.trim() && password.length >= 4 &&
+    (uiRole === "super_admin" || (uiRole === "coordinator" && coordType !== ""));
 
   const submit = () => {
-    const finalAdminType: AdminType | undefined =
-      role === "admin"
-        ? adminType === "super_admin"
-          ? "super_admin"
-          : coordType === "operations" ? "coordinator_ops" : "coordinator_fin"
-        : undefined;
-    const res = createInternalUser({ name, email, password, role, admin_type: finalAdminType });
+    if (!canSubmit) return;
+    const finalAdminType: AdminType =
+      uiRole === "super_admin"
+        ? "super_admin"
+        : coordType === "operations" ? "coordinator_ops" : "coordinator_fin";
+    const res = createInternalUser({
+      name, email, password, role: "admin", admin_type: finalAdminType,
+    });
     if (!res.ok) { toast.error(res.error); return; }
     toast.success("User created.");
     onClose();
@@ -198,39 +205,41 @@ function CreateUserModal({ onClose }: { onClose: () => void }) {
 
           <div>
             <label className="block text-xs font-medium text-muted-foreground">Role</label>
-            <select value={role} onChange={(e) => setRole(e.target.value as Role)}
+            <select value={uiRole}
+              onChange={(e) => {
+                const v = e.target.value as "super_admin" | "coordinator";
+                setUiRole(v);
+                if (v === "super_admin") setCoordType("");
+              }}
               className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-              <option value="admin">Super Admin / Coordinator</option>
+              <option value="super_admin">Super Admin</option>
+              <option value="coordinator">Coordinator</option>
             </select>
             <p className="mt-1 text-xs text-muted-foreground">
-              To create a Teacher or Student, use the dedicated flow in Admin &gt; Teachers or Admin &gt; Students.
+              Teacher and Student accounts are created from their dedicated flows:
+              Admin &gt; Teachers &gt; Register Teacher and Admin &gt; Students &gt; Register Student.
             </p>
           </div>
 
-          {role === "admin" && (
+          {uiRole === "coordinator" && (
             <div>
-              <label className="block text-xs font-medium text-muted-foreground">Admin type</label>
-              <select value={adminType} onChange={(e) => setAdminType(e.target.value as AdminType)}
+              <label className="block text-xs font-medium text-muted-foreground">Coordinator type</label>
+              <select value={coordType}
+                onChange={(e) => setCoordType(e.target.value as "operations" | "financial" | "")}
                 className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-                <option value="super_admin">Super Admin (full access)</option>
-                <option value="coordinator_ops">Coordinator</option>
+                <option value="">Select a type…</option>
+                <option value="operations">Operations — full nav except Financial</option>
+                <option value="financial">Financial — Money Lab &amp; KPIs only</option>
               </select>
-              {adminType !== "super_admin" && (
-                <div className="mt-3">
-                  <label className="block text-xs font-medium text-muted-foreground">Coordinator type</label>
-                  <select value={coordType} onChange={(e) => setCoordType(e.target.value as "operations" | "financial")}
-                    className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-                    <option value="operations">Operations — full nav except Financial</option>
-                    <option value="financial">Financial — Money Lab &amp; KPIs only</option>
-                  </select>
-                </div>
+              {coordType === "" && (
+                <p className="mt-1 text-xs text-destructive">Coordinator type is required.</p>
               )}
             </div>
           )}
         </div>
         <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
           <GhostButton onClick={onClose}>Cancel</GhostButton>
-          <PrimaryButton onClick={submit}>Create user</PrimaryButton>
+          <PrimaryButton onClick={submit} disabled={!canSubmit}>Create user</PrimaryButton>
         </div>
       </div>
     </div>
