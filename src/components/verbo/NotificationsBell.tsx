@@ -3,7 +3,7 @@
 // mark it read. See src/lib/notifications-store.ts for source of truth.
 import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import {
   useNotifications, markNotificationRead, markAllNotificationsRead,
