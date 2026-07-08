@@ -130,6 +130,26 @@ export function teacherCalendarEvents(teacherId: string, opts?: {
   return events;
 }
 
+/** Every event a student should see on their calendar. Mirrors the teacher
+ *  adapter but scoped to the student's own sessions + booked clubs. */
+export function studentCalendarEvents(studentId: string, opts?: {
+  teacherNameOf?: (id: string) => string | undefined;
+}): CalendarEvent[] {
+  const events: CalendarEvent[] = [];
+  for (const s of loadSessions()) {
+    // A student sees any session where they are the direct student, plus
+    // group sessions where they're a member (member_statuses).
+    const isMember = !!s.member_statuses && Object.keys(s.member_statuses).includes(studentId);
+    if (s.student_id !== studentId && !isMember) continue;
+    if (s.origin === "workshop") continue; // workshops surface in their own tab
+    const teacherName = opts?.teacherNameOf?.(s.teacher_id) ?? "Teacher";
+    const ev = sessionEvent(s, `Session with ${teacherName}`);
+    events.push(ev);
+  }
+  return events;
+}
+
+
 /** Meta a chip/legend can render for each supported event kind. */
 export const EVENT_KIND_META: Record<CalendarEventKind, { label: string; color: string; short: string }> = {
   class:      { label: "1:1 Class",      color: "#01304a", short: "1:1" },
@@ -153,6 +173,10 @@ export const CALENDAR_STATUS_META: Record<ExtSessionStatus, { label: string; col
   rescheduled:        { label: "Rescheduled",        color: "#94a3b8" },
   rearranged:         { label: "Rearranged",         color: "#eab308" },
   delayed:            { label: "Delayed",            color: "#eab308" },
+  // New status: student replaced a regular 1:1 with a Spotlight in the same
+  // slot. Distinct indigo so it never reads as Cancelled (pink) or Completed
+  // (green) in any panel.
+  converted_to_spotlight: { label: "Converted to Spotlight", color: "#4f46e5" },
 };
 
 export const CANONICAL_STATUS_ORDER: ExtSessionStatus[] = [

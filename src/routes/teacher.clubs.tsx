@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Sparkles, BookOpen, MessageCircle, X, Undo2 } from "lucide-react";
+import { Sparkles, BookOpen, MessageCircle, X, Undo2, CalendarClock, User } from "lucide-react";
 import { Card, GhostButton, PrimaryButton, SectionTitle } from "@/components/verbo/ui";
 import { useAuth } from "@/lib/auth";
 import {
@@ -10,6 +10,11 @@ import {
   loadReleaseRequests, subscribeReleaseRequests, addReleaseRequest,
   FREE_RELEASE_WINDOW_MS,
 } from "@/lib/clubs-store";
+import {
+  loadStudentRequests, subscribeStudentRequests, claimStudentRequest,
+  type StudentRequest,
+} from "@/lib/student-requests-store";
+import { userById } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/teacher/clubs")({ component: Page });
 
@@ -30,13 +35,14 @@ function typeBadge(t: ClubType) {
     : { label: "Book Club", cls: "bg-primary/10 text-primary", Icon: BookOpen };
 }
 
-type SubView = "available" | "mine";
+type SubView = "available" | "mine" | "reschedule_requests" | "spotlight_requests";
 type Filter = "all" | ClubType;
 
 function Page() {
   const { user } = useAuth();
   const [clubs, setClubs] = useState<Club[]>([]);
   const [requests, setRequests] = useState<ClubReleaseRequest[]>([]);
+  const [studentReqs, setStudentReqs] = useState<StudentRequest[]>([]);
   const [sub, setSub] = useState<SubView>("available");
   const [filter, setFilter] = useState<Filter>("all");
   // Live "Release" banner state (last claim by this teacher in this tab).
@@ -47,9 +53,11 @@ function Page() {
   useEffect(() => {
     setClubs(loadClubs());
     setRequests(loadReleaseRequests());
+    setStudentReqs(loadStudentRequests());
     const u1 = subscribeClubs(() => setClubs(loadClubs()));
     const u2 = subscribeReleaseRequests(() => setRequests(loadReleaseRequests()));
-    return () => { u1(); u2(); };
+    const u3 = subscribeStudentRequests(() => setStudentReqs(loadStudentRequests()));
+    return () => { u1(); u2(); u3(); };
   }, []);
 
   // Tick every second while banner is active.
@@ -148,22 +156,49 @@ function Page() {
       )}
 
       {/* Sub-view switcher */}
-      <div className="inline-flex rounded-lg border border-border bg-secondary/40 p-1">
+      <div className="inline-flex flex-wrap rounded-lg border border-border bg-secondary/40 p-1">
         {([
           { id: "available" as const, label: "Available Clubs" },
           { id: "mine" as const, label: "My Clubs" },
-        ]).map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setSub(t.id)}
-            className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-all ${
-              sub === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+          { id: "reschedule_requests" as const, label: "Reschedule Requests" },
+          { id: "spotlight_requests" as const, label: "Spotlight Requests" },
+        ]).map((t) => {
+          const badgeCount = t.id === "reschedule_requests"
+            ? studentReqs.filter((r) => r.kind === "reschedule" && (r.status === "open" || r.status === "escalated")).length
+            : t.id === "spotlight_requests"
+              ? studentReqs.filter((r) => r.kind === "spotlight" && (r.status === "open" || r.status === "escalated")).length
+              : 0;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setSub(t.id)}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-sm font-medium transition-all ${
+                sub === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+              {badgeCount > 0 && (
+                <span className="rounded-full bg-[#f38934] px-1.5 text-[10px] font-bold text-white">{badgeCount}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
+
+      {(sub === "reschedule_requests" || sub === "spotlight_requests") && user && (
+        <StudentRequestsSection
+          kind={sub === "reschedule_requests" ? "reschedule" : "spotlight"}
+          teacherId={user.id}
+          requests={studentReqs}
+          onClaim={(id) => {
+            const claimed = claimStudentRequest(id, user.id);
+            if (!claimed) toast.error("This request was just claimed by another teacher");
+            else toast.success("Request claimed and added to your calendar");
+            setStudentReqs(loadStudentRequests());
+          }}
+        />
+      )}
+
 
       {sub === "available" && (
         <>
@@ -304,6 +339,93 @@ function RequestReleaseModal({ club, onClose, onSubmit }: { club: Club; onClose:
           <GhostButton onClick={onClose}>Cancel</GhostButton>
           <PrimaryButton onClick={() => onSubmit(reason.trim())}>Submit Request</PrimaryButton>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reschedule / Spotlight Requests — student-originated queues.
+// ---------------------------------------------------------------------------
+function StudentRequestsSection({
+  kind, teacherId, requests, onClaim,
+}: {
+  kind: "reschedule" | "spotlight";
+  teacherId: string;
+  requests: StudentRequest[];
+  onClaim: (id: string) => void;
+}) {
+  const list = useMemo(
+    () => requests
+      .filter((r) => r.kind === kind && (r.status === "open" || r.status === "escalated"))
+      .sort((a, b) => {
+        // Own-student first, then earliest requested_at.
+        const aOwn = a.assigned_teacher_id === teacherId ? 0 : 1;
+        const bOwn = b.assigned_teacher_id === teacherId ? 0 : 1;
+        if (aOwn !== bOwn) return aOwn - bOwn;
+        return +new Date(a.requested_at) - +new Date(b.requested_at);
+      }),
+    [requests, teacherId, kind],
+  );
+
+  if (list.length === 0) {
+    return (
+      <Card><p className="text-sm text-muted-foreground">No {kind === "reschedule" ? "Reschedule" : "Spotlight"} Requests waiting to be claimed.</p></Card>
+    );
+  }
+
+  const accent = kind === "reschedule" ? "#f38934" : "#0d9488";
+  const KindIcon = kind === "reschedule" ? CalendarClock : Sparkles;
+
+  return (
+    <div className="space-y-3">
+      <SectionTitle>{kind === "reschedule" ? "Reschedule Requests" : "Spotlight Requests"}</SectionTitle>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {list.map((r) => {
+          const student = userById(r.student_id);
+          const yourStudent = r.assigned_teacher_id === teacherId;
+          const escalated = r.status === "escalated";
+          return (
+            <Card key={r.id} className="!p-0 overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3" style={{ background: `${accent}15` }}>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold" style={{ color: accent }}>
+                  <KindIcon className="h-3.5 w-3.5" />
+                  {kind === "reschedule" ? "Reschedule" : "Spotlight"}
+                </span>
+                {yourStudent && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#01304a] px-2 py-0.5 text-[10px] font-bold text-white">
+                    <User className="h-3 w-3" /> Your Student
+                  </span>
+                )}
+                {escalated && !yourStudent && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">Unclaimed 8h+</span>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col gap-2 p-4 text-sm">
+                <div className="font-semibold text-foreground">{student?.name ?? "Student"}</div>
+                <div className="text-xs text-muted-foreground">
+                  {new Date(r.proposed_datetime).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · {r.duration_minutes} min
+                </div>
+                {kind === "spotlight" && r.spotlight_context && (
+                  <div className="rounded-lg bg-secondary/50 px-3 py-2 text-[11px] text-foreground">
+                    <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Student's context</div>
+                    {r.spotlight_context}
+                  </div>
+                )}
+                {r.last_report_summary && (
+                  <div className="text-[11px] text-muted-foreground">
+                    <span className="font-semibold">Last covered:</span> {r.last_report_summary}
+                  </div>
+                )}
+                <div className="mt-auto pt-3">
+                  <PrimaryButton className="w-full justify-center" onClick={() => onClaim(r.id)}>
+                    Claim
+                  </PrimaryButton>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

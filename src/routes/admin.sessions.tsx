@@ -32,6 +32,7 @@ const STATUS_META: Record<ExtSessionStatus, { label: string; bg: string; color: 
   rescheduled: { label: "Rescheduled", bg: "#f1f5f9", color: "#475569" },
   rearranged: { label: "Rearranged", bg: "#fde68a", color: "#92400e" },
   delayed: { label: "Delayed", bg: "#fde68a", color: "#92400e" },
+  converted_to_spotlight: { label: "Converted to Spotlight", bg: "#e0e7ff", color: "#4f46e5" },
 };
 
 // The 7 statuses offered in the edit dropdown.
@@ -75,6 +76,9 @@ function Page() {
           Bulk-schedule live classes and manage each student's calendar from a single executive view.
         </p>
       </div>
+
+      <UnclaimedRequestsBanner />
+
 
       {/* Bulk schedule panel */}
       <Card className="!p-0 overflow-hidden">
@@ -772,6 +776,115 @@ function BulkEditForm({
         >
           Apply Bulk Changes
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Unclaimed Requests — student-originated Reschedule / Spotlight requests
+// that no qualified teacher picked up within 8h. Admin manually assigns using
+// the fair-rotation candidate list (fewest requests handled this month).
+// ---------------------------------------------------------------------------
+import {
+  loadStudentRequests, subscribeStudentRequests, adminAssignRequest,
+  fairRotationCandidates, type StudentRequest,
+} from "@/lib/student-requests-store";
+
+function UnclaimedRequestsBanner() {
+  const [list, setList] = useState<StudentRequest[]>(() => loadStudentRequests());
+  const [assigning, setAssigning] = useState<StudentRequest | null>(null);
+  useEffect(() => subscribeStudentRequests(() => setList(loadStudentRequests())), []);
+  const escalated = list.filter((r) => r.status === "escalated");
+  if (escalated.length === 0) return null;
+  return (
+    <Card className="border-amber-300 bg-amber-50">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-lg bg-amber-500 text-white">
+            <AlertTriangle className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-foreground">Unclaimed Request queue</div>
+            <div className="text-xs text-muted-foreground">
+              {escalated.length} student request{escalated.length === 1 ? "" : "s"} went 8h+ without being claimed and need manual assignment.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 space-y-2">
+        {escalated.map((r) => {
+          const student = userById(r.student_id);
+          return (
+            <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs">
+              <div>
+                <div className="font-semibold text-foreground">
+                  {r.kind === "spotlight" ? "Spotlight" : "Reschedule"} · {student?.name ?? "Student"}
+                </div>
+                <div className="text-muted-foreground">
+                  {new Date(r.proposed_datetime).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })} · {r.duration_minutes} min
+                </div>
+              </div>
+              <GhostButton onClick={() => setAssigning(r)}>Assign teacher</GhostButton>
+            </div>
+          );
+        })}
+      </div>
+      {assigning && (
+        <AssignTeacherModal
+          request={assigning}
+          onClose={() => setAssigning(null)}
+          onAssigned={() => setAssigning(null)}
+        />
+      )}
+    </Card>
+  );
+}
+
+function AssignTeacherModal({ request, onClose, onAssigned }: {
+  request: StudentRequest;
+  onClose: () => void;
+  onAssigned: () => void;
+}) {
+  const student = userById(request.student_id);
+  const qualified = USERS.filter((u) =>
+    u.role === "teacher" && u.teacher_status === "active"
+    && (!student?.product || (u.qualified_products ?? []).includes(student.product))
+  ).map((t) => t.id);
+  const ranked = fairRotationCandidates(qualified);
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-card p-6 shadow-floating">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">Assign teacher</h3>
+            <p className="mt-1 text-xs text-muted-foreground">Ranked by fewest Reschedule / Spotlight Requests handled this month.</p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="mt-4 space-y-2">
+          {ranked.length === 0 && <p className="text-xs text-muted-foreground">No qualified active teachers available.</p>}
+          {ranked.map((c, i) => {
+            const t = userById(c.teacherId);
+            return (
+              <div key={c.teacherId} className="flex items-center justify-between rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                <div>
+                  <div className="font-medium text-foreground">
+                    {t?.name ?? c.teacherId}
+                    {i === 0 && <span className="ml-2 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success">Suggested</span>}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">{c.load} request{c.load === 1 ? "" : "s"} this month</div>
+                </div>
+                <PrimaryButton onClick={() => {
+                  adminAssignRequest(request.id, c.teacherId);
+                  onAssigned();
+                }}>
+                  Assign
+                </PrimaryButton>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

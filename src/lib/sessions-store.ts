@@ -14,7 +14,10 @@ export type ExtSessionStatus =
   | "delayed"
   | "cancelled"
   | "pending_reschedule"
-  | "no_show";
+  | "no_show"
+  // Student replaced this 1:1 with a Spotlight in the same slot. Not a strike,
+  // not Cancelled, not Absent — its own status with its own indigo color.
+  | "converted_to_spotlight";
 
 export interface ExtSession extends Omit<Session, "status"> {
   status: ExtSessionStatus;
@@ -271,6 +274,7 @@ export const WORKSHOP_STATUS_META: Record<
   rescheduled: { label: "Rescheduled", bg: "#f1f5f9", color: "#475569" },
   rearranged: { label: "Rearranged", bg: "#fde68a", color: "#92400e" },
   delayed: { label: "Delayed", bg: "#fde68a", color: "#92400e" },
+  converted_to_spotlight: { label: "Converted to Spotlight", bg: "#e0e7ff", color: "#4f46e5" },
 };
 export const WORKSHOP_STATUS_OPTIONS: ExtSessionStatus[] = [
   "scheduled", "ready", "completed", "absent", "cancelled", "pending_reschedule", "no_show",
