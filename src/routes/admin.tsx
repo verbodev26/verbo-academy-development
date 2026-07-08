@@ -167,13 +167,35 @@ function NavTab({ group }: { group: NavGroup }) {
 }
 
 function Layout() {
+  hydrateAdminRoles();
+  const { user } = useAuth();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const adminType = getAdminType(user);
+
+  const visibleGroups = useMemo(() => {
+    if (!adminType) return [] as NavGroup[];
+    return NAV_GROUPS.filter((g) => {
+      if (g.label === "Users") return adminType === "super_admin";
+      // A group is visible if any of its items is allowed for this admin type.
+      return g.items.some((it) => canAccessAdminPath(adminType, it.to));
+    }).map((g) => ({
+      ...g,
+      items: g.items.filter((it) => canAccessAdminPath(adminType!, it.to)),
+    }));
+  }, [adminType]);
+
+  // Guard against direct URL access to forbidden sections.
+  if (adminType && !canAccessAdminPath(adminType, pathname)) {
+    return <Navigate to={defaultAdminLanding(adminType)} />;
+  }
+
   return (
     <RoleGuard allow="admin">
       <div className="min-h-screen bg-background">
         <TopNav items={[{ to: "/admin", label: "Admin Panel" }]} />
         <div className="border-b border-border bg-background">
           <nav aria-label="Admin sections" className="mx-auto flex max-w-7xl flex-wrap gap-1 px-6">
-            {NAV_GROUPS.map((g) => <NavTab key={g.label} group={g} />)}
+            {visibleGroups.map((g) => <NavTab key={g.label} group={g} />)}
           </nav>
         </div>
         <main className="mx-auto max-w-7xl px-6 py-10">
