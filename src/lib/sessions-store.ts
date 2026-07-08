@@ -276,57 +276,146 @@ export function submitGroupSessionReport(input: {
 // -----------------------------------------------------------------------------
 // Group Session Unanimity — Can't Attend flow.
 //
-// Rule (product-level, "Unanimidad estricta"):
-//   • Cancels/reschedules from a single group member DO NOT cancel the session.
-//     The class still runs for the remaining members. The member's individual
-//     status is tracked in `member_statuses[studentId]`, and the monthly
-//     cancellation quota is always charged to that member.
-//   • Only when EVERY active member of the group has cancelled or requested
-//     a reschedule does the top-level session flip to `cancelled` (auto,
-//     unanimous). In that case group progress is NOT decremented — the class
-//     did not occur — matching the philosophy in `submitGroupSessionReport`.
+// STRICT LITERAL rule:
+//   • Everyone chooses "cancel"       → top-level status = "cancelled".
+//   • Everyone chooses "reschedule"   → top-level status = "pending_reschedule"
+//     (the caller wires the single group Reschedule Request separately).
+//   • Anything else (mixed or partial) → top-level stays untouched. Individual
+//     members who cancelled keep `member_statuses[id] = "cancelled"`; when the
+//     class actually happens without them, they will show up as Absent in the
+//     Session Report by default (teacher may then re-classify).
 // -----------------------------------------------------------------------------
-function memberLeftSession(status: ExtSessionStatus | undefined): boolean {
-  return status === "cancelled" || status === "pending_reschedule";
+
+export type GroupUnanimityOutcome =
+  | { kind: "none" }
+  | { kind: "unanimous_cancel" }
+  | { kind: "unanimous_reschedule" };
+
+/** Pure evaluator — returns what the top-level status *should* be given the
+ *  current member_statuses map. Does not mutate. */
+export function evaluateGroupUnanimity(
+  session: ExtSession,
+  overrideMemberStatuses?: Record<string, ExtSessionStatus>,
+): GroupUnanimityOutcome {
+  if (!session.group_id) return { kind: "none" };
+  const memberStatuses = overrideMemberStatuses ?? session.member_statuses ?? {};
+  const rosterIds = activeMembersOf(session.group_id).map((m) => m.student_id);
+  if (rosterIds.length === 0) return { kind: "none" };
+  const values = rosterIds.map((id) => memberStatuses[id]);
+  if (values.every((v) => v === "cancelled")) return { kind: "unanimous_cancel" };
+  if (values.every((v) => v === "pending_reschedule")) return { kind: "unanimous_reschedule" };
+  return { kind: "none" };
 }
 
-/** Applies a per-member cancel or reschedule to a group session:
- *  - Writes `member_statuses[studentId]`.
- *  - Leaves the top-level status untouched unless the whole roster has left,
- *    in which case the session auto-cancels (unanimous).
- *  Returns the resulting top-level status so callers can toast accordingly. */
+/** Applies a per-member cancel or reschedule to a group session and evaluates
+ *  strict unanimity. Returns the outcome so the caller can toast / trigger a
+ *  group-level Reschedule Request when unanimity flips top-level state. */
 export function applyGroupMemberCancellation(
   sessionId: string,
   studentId: string,
   memberStatus: "cancelled" | "pending_reschedule",
-): { unanimous: boolean; topStatus: ExtSessionStatus } {
+): { outcome: GroupUnanimityOutcome; topStatus: ExtSessionStatus } {
   const sessions = loadSessions();
   const sess = sessions.find((s) => s.id === sessionId);
   if (!sess || !sess.group_id) {
-    // Fallback: no group — mutate top-level like a regular 1:1.
     updateSession(sessionId, { status: memberStatus });
-    return { unanimous: false, topStatus: memberStatus };
+    return { outcome: { kind: "none" }, topStatus: memberStatus };
   }
 
   const nextMemberStatuses: Record<string, ExtSessionStatus> = {
     ...(sess.member_statuses ?? {}),
     [studentId]: memberStatus,
   };
-  const roster = activeMembersOf(sess.group_id);
-  const rosterIds = roster.map((m) => m.student_id);
-  const everyoneOut = rosterIds.length > 0
-    && rosterIds.every((id) => memberLeftSession(nextMemberStatuses[id]));
-
+  const outcome = evaluateGroupUnanimity(sess, nextMemberStatuses);
   const patch: Partial<ExtSession> = { member_statuses: nextMemberStatuses };
-  if (everyoneOut) {
-    patch.status = "cancelled";
-  }
+  if (outcome.kind === "unanimous_cancel") patch.status = "cancelled";
+  else if (outcome.kind === "unanimous_reschedule") patch.status = "pending_reschedule";
   updateSession(sessionId, patch);
   return {
-    unanimous: everyoneOut,
-    topStatus: everyoneOut ? "cancelled" : sess.status,
+    outcome,
+    topStatus: (patch.status ?? sess.status) as ExtSessionStatus,
   };
 }
+
+// -----------------------------------------------------------------------------
+// Admin overrides after a Session Report is locked.
+// -----------------------------------------------------------------------------
+export function adminAmendSession(
+  sessionId: string,
+  actor: { id: string; name?: string },
+  edit: {
+    studentId?: string;
+    field: ReportAdminEdit["field"];
+    to: string;
+    note?: string;
+  },
+): ExtSession | null {
+  const sessions = loadSessions();
+  const s = sessions.find((x) => x.id === sessionId);
+  if (!s) return null;
+
+  let from = "";
+  const patch: Partial<ExtSession> = {};
+  if (edit.field === "status") {
+    from = s.status;
+    patch.status = edit.to as ExtSessionStatus;
+  } else if (edit.field === "sub_status") {
+    from = s.attendance_sub_status ?? "";
+    patch.attendance_sub_status = (edit.to || undefined) as AttendanceSubStatus | undefined;
+  } else if (edit.field === "member_status" && edit.studentId) {
+    from = s.member_statuses?.[edit.studentId] ?? "";
+    patch.member_statuses = { ...(s.member_statuses ?? {}), [edit.studentId]: edit.to as ExtSessionStatus };
+  } else if (edit.field === "member_sub_status" && edit.studentId) {
+    from = s.member_sub_statuses?.[edit.studentId] ?? "";
+    const map = { ...(s.member_sub_statuses ?? {}) };
+    if (edit.to) map[edit.studentId] = edit.to as AttendanceSubStatus;
+    else delete map[edit.studentId];
+    patch.member_sub_statuses = map;
+  } else {
+    return s as ExtSession;
+  }
+
+  const auditEntry: ReportAdminEdit = {
+    at: new Date().toISOString(),
+    actorId: actor.id,
+    actorName: actor.name,
+    studentId: edit.studentId,
+    field: edit.field,
+    from,
+    to: edit.to,
+    note: edit.note,
+  };
+  patch.report_admin_edits = [...(s.report_admin_edits ?? []), auditEntry];
+  updateSession(sessionId, patch);
+  return { ...s, ...patch } as ExtSession;
+}
+
+// -----------------------------------------------------------------------------
+// Sub-status meta (labels, initials, palette, month-end justification window).
+// -----------------------------------------------------------------------------
+export const SUB_STATUS_META: Record<
+  AttendanceSubStatus,
+  { label: string; initials: string; parent: "absent" | "cancelled"; color: string }
+> = {
+  absent_work:       { label: "Absent Work",       initials: "AW", parent: "absent",    color: "#ea580c" },
+  absent_illness:    { label: "Absent Illness",    initials: "AI", parent: "absent",    color: "#ea580c" },
+  absent_vacation:   { label: "Absent Vacation",   initials: "AV", parent: "absent",    color: "#ea580c" },
+  cancelled_illness: { label: "Cancelled Illness", initials: "CI", parent: "cancelled", color: "#cbd5e1" },
+  cancelled_holiday: { label: "Cancelled Holiday", initials: "CH", parent: "cancelled", color: "#cbd5e1" },
+  cancelled_work:    { label: "Cancelled Work",    initials: "CW", parent: "cancelled", color: "#cbd5e1" },
+};
+
+/** Sub-status justifications can only be applied or edited while the session's
+ *  month is still open (until the last calendar day of that month). Admin
+ *  overrides via `adminAmendSession` bypass this rule (see the Session Report
+ *  spec — no time limit for admin corrections). */
+export function isJustificationWindowOpen(sessionDateISO: string, now: Date = new Date()): boolean {
+  const d = new Date(sessionDateISO);
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+  return now.getTime() <= lastDay.getTime();
+}
+
+
 
 
 /** Cascade update: when a cohort's teacher or shared link changes, keep
