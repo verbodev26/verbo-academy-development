@@ -1,7 +1,7 @@
 // Session Details modal used by the Teacher Calendar for Ready and
 // Completed Performance Sessions. Read-only view of the plan/report plus
 // action shortcuts (Join Live Session, Can't Attend, Edit Lesson Plan).
-import { X, Video, CalendarClock, FileEdit } from "lucide-react";
+import { X, Video, CalendarClock, FileEdit, NotebookPen } from "lucide-react";
 import { GhostButton, PrimaryButton } from "@/components/verbo/ui";
 import type { ExtSession } from "@/lib/sessions-store";
 import type { LessonPlan } from "@/lib/lesson-plans-store";
