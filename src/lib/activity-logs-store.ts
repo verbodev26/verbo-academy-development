@@ -19,6 +19,8 @@ import { loadFinancialIssues, FIN_ISSUES_EVENT } from "./financial-issues-store"
 export type ActivityKind =
   | "session_scheduled"
   | "session_rescheduled"
+  | "session_cancelled"
+  | "group_session_auto_cancelled"
   | "session_report_submitted"
   | "club_report_submitted"
   | "financial_adjustment"
