@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { USERS, type User, type Role } from "./mock-data";
 import { isMemberBlocked } from "./groups-store";
+import { hydrateAdminRoles, isUserDeactivated } from "./admin-roles";
 
 interface AuthCtx {
   user: User | null;
@@ -18,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    hydrateAdminRoles();
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) setUser(JSON.parse(raw));
@@ -25,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login: AuthCtx["login"] = (email, password) => {
+    hydrateAdminRoles();
     const match = USERS.find(
       (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password,
     );
@@ -32,6 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Group members in Pending Removal or Archived status lose platform access.
     if (match.role === "student" && isMemberBlocked(match.id)) {
       return { ok: false, error: "Access revoked. Contact your administrator." };
+    }
+    if (isUserDeactivated(match.id)) {
+      return { ok: false, error: "Account deactivated. Contact your administrator." };
     }
     setUser(match);
     localStorage.setItem(KEY, JSON.stringify(match));

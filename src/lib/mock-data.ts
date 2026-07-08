@@ -1,5 +1,6 @@
 // Mock database — replace with Lovable Cloud later.
 export type Role = "student" | "teacher" | "admin";
+export type AdminType = "super_admin" | "coordinator_ops" | "coordinator_fin";
 
 export interface User {
   id: string;
@@ -8,6 +9,7 @@ export interface User {
   password: string;
   role: Role;
   current_level?: string;
+  admin_type?: AdminType; // only meaningful when role === "admin"
   attendance_percentage?: number;
   avatar?: string;
   // Corporate profile (students)
