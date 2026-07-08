@@ -32,6 +32,7 @@ import { Route as StudentPerformanceRouteImport } from './routes/student.perform
 import { Route as StudentCoursesRouteImport } from './routes/student.courses'
 import { Route as StudentBoostRouteImport } from './routes/student.boost'
 import { Route as AdminWorkshopsRouteImport } from './routes/admin.workshops'
+import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTeachersRouteImport } from './routes/admin.teachers'
 import { Route as AdminStudentsRouteImport } from './routes/admin.students'
 import { Route as AdminSessionsRouteImport } from './routes/admin.sessions'
@@ -158,6 +159,11 @@ const AdminWorkshopsRoute = AdminWorkshopsRouteImport.update({
   path: '/workshops',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminTeachersRoute = AdminTeachersRouteImport.update({
   id: '/teachers',
   path: '/teachers',
@@ -225,6 +231,7 @@ export interface FileRoutesByFullPath {
   '/admin/sessions': typeof AdminSessionsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/teachers': typeof AdminTeachersRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/workshops': typeof AdminWorkshopsRoute
   '/student/boost': typeof StudentBoostRoute
   '/student/courses': typeof StudentCoursesRoute
@@ -257,6 +264,7 @@ export interface FileRoutesByTo {
   '/admin/sessions': typeof AdminSessionsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/teachers': typeof AdminTeachersRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/workshops': typeof AdminWorkshopsRoute
   '/student/boost': typeof StudentBoostRoute
   '/student/courses': typeof StudentCoursesRoute
@@ -293,6 +301,7 @@ export interface FileRoutesById {
   '/admin/sessions': typeof AdminSessionsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/teachers': typeof AdminTeachersRoute
+  '/admin/users': typeof AdminUsersRoute
   '/admin/workshops': typeof AdminWorkshopsRoute
   '/student/boost': typeof StudentBoostRoute
   '/student/courses': typeof StudentCoursesRoute
@@ -330,6 +339,7 @@ export interface FileRouteTypes {
     | '/admin/sessions'
     | '/admin/students'
     | '/admin/teachers'
+    | '/admin/users'
     | '/admin/workshops'
     | '/student/boost'
     | '/student/courses'
@@ -362,6 +372,7 @@ export interface FileRouteTypes {
     | '/admin/sessions'
     | '/admin/students'
     | '/admin/teachers'
+    | '/admin/users'
     | '/admin/workshops'
     | '/student/boost'
     | '/student/courses'
@@ -397,6 +408,7 @@ export interface FileRouteTypes {
     | '/admin/sessions'
     | '/admin/students'
     | '/admin/teachers'
+    | '/admin/users'
     | '/admin/workshops'
     | '/student/boost'
     | '/student/courses'
@@ -589,6 +601,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminWorkshopsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/teachers': {
       id: '/admin/teachers'
       path: '/teachers'
@@ -672,6 +691,7 @@ interface AdminRouteChildren {
   AdminSessionsRoute: typeof AdminSessionsRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
   AdminTeachersRoute: typeof AdminTeachersRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminWorkshopsRoute: typeof AdminWorkshopsRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminFinancialMoneyLabRoute: typeof AdminFinancialMoneyLabRoute
@@ -687,6 +707,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSessionsRoute: AdminSessionsRoute,
   AdminStudentsRoute: AdminStudentsRoute,
   AdminTeachersRoute: AdminTeachersRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AdminWorkshopsRoute: AdminWorkshopsRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminFinancialMoneyLabRoute: AdminFinancialMoneyLabRoute,

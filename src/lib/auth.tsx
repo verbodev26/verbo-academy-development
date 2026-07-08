@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { USERS, type User, type Role } from "./mock-data";
 import { isMemberBlocked } from "./groups-store";
+import { hydrateAdminRoles, isUserDeactivated } from "./admin-roles";
 
 interface AuthCtx {
   user: User | null;
