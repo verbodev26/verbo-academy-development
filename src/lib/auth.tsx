@@ -13,17 +13,35 @@ interface AuthCtx {
 }
 
 const Ctx = createContext<AuthCtx | null>(null);
-const KEY = "verbo.auth.user";
+const KEY = "verbo.auth.user.v2";
+const LEGACY_KEYS = ["verbo.auth.user"];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     hydrateAdminRoles();
+    // Drop legacy-shaped sessions so stale role/admin_type fields don't leak in.
+    for (const k of LEGACY_KEYS) {
+      try { localStorage.removeItem(k); } catch {}
+    }
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) setUser(JSON.parse(raw));
-    } catch {}
+      if (!raw) return;
+      const stored = JSON.parse(raw) as User;
+      // Re-hydrate from the canonical USERS list so shape changes (new roles,
+      // admin_type, etc.) always take effect without forcing a re-login.
+      const canonical = USERS.find((u) => u.id === stored.id);
+      if (!canonical) {
+        localStorage.removeItem(KEY);
+        return;
+      }
+      const merged: User = { ...canonical, ...(stored.password ? { password: stored.password } : {}) };
+      setUser(merged);
+      localStorage.setItem(KEY, JSON.stringify(merged));
+    } catch {
+      try { localStorage.removeItem(KEY); } catch {}
+    }
   }, []);
 
   const login: AuthCtx["login"] = (email, password) => {
