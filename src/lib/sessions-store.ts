@@ -19,24 +19,47 @@ export type ExtSessionStatus =
   // not Cancelled, not Absent — its own status with its own indigo color.
   | "converted_to_spotlight";
 
+// Optional refinement of an Absent or Cancelled status. All six sub-statuses
+// count the session as accounted for but do NOT penalize attendance metrics
+// (that's the whole point of a justification). They live alongside `status`
+// so existing consumers keep working, and so a session can be Absent while
+// still carrying "Absent Illness" context.
+export type AttendanceSubStatus =
+  | "absent_work"
+  | "absent_illness"
+  | "absent_vacation"
+  | "cancelled_illness"
+  | "cancelled_holiday"
+  | "cancelled_work";
+
+export interface ReportAdminEdit {
+  at: string;
+  actorId: string;
+  actorName?: string;
+  studentId?: string;
+  field: "status" | "sub_status" | "member_status" | "member_sub_status";
+  from: string;
+  to: string;
+  note?: string;
+}
+
 export interface ExtSession extends Omit<Session, "status"> {
   status: ExtSessionStatus;
-  // ---- Group session support ----
-  // When set, this session represents ONE shared live class attended by
-  // multiple students belonging to the same Group (see groups-store). The
-  // top-level `student_id` still points at the primary/first member (for
-  // legacy consumers), but `member_statuses` is the source of truth for
-  // per-member attendance / report submission.
   group_id?: string;
   member_statuses?: Record<string, ExtSessionStatus>;
   member_absent_cause?: Record<string, "student" | "teacher">;
-  // ---- Teacher "Can't Attend" cancellation ----
+  /** Sub-status for the top-level Absent/Cancelled status (1:1 sessions). */
+  attendance_sub_status?: AttendanceSubStatus;
+  /** Per-member sub-status (group sessions). */
+  member_sub_statuses?: Record<string, AttendanceSubStatus>;
+  /** True once submitSessionReport / submitGroupSessionReport has run.
+   *  Locks the teacher out of editing statuses; Admin can still amend. */
+  report_locked?: boolean;
+  /** Ordered audit trail of Admin edits after `report_locked` was set. */
+  report_admin_edits?: ReportAdminEdit[];
   cancellation_reason?: "illness" | "personal" | "major_issue" | "other";
   cancellation_note?: string;
-  /** True when a teacher cancelled with <24h notice — Admin needs to find
-   *  a substitute manually (the matching engine is a future phase). */
   needs_substitute?: boolean;
-  /** Free-text comments left by the teacher in the Session Report. */
   report_comments?: string;
 }
 
