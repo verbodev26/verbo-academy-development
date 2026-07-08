@@ -47,7 +47,7 @@ import {
   reschedulesUsedThisMonth,
   rescheduleQuota,
 } from "@/lib/student-requests-store";
-import { isTeacherAvailableAt } from "@/lib/availability-store";
+import { isTeacherAvailableAt, findAvailableStartSlots } from "@/lib/availability-store";
 
 export const Route = createFileRoute("/student/sessions")({ component: Page });
 
