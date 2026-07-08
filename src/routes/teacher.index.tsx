@@ -424,7 +424,7 @@ function TeacherDashboard() {
           className="block cursor-pointer rounded-2xl border border-border bg-card p-6 shadow-soft transition-shadow hover:shadow-floating"
         >
           <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Upcoming Sessions</div>
-          <div className="mt-3 text-3xl font-semibold tracking-tight text-black">{upcoming7d.length}</div>
+          <div className="mt-3 text-3xl font-semibold tracking-tight text-black">{upcoming7dCount}</div>
           <div className="mt-1 text-xs text-muted-foreground">next 7 days</div>
         </Link>
         <button
