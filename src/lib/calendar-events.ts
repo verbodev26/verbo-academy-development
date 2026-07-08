@@ -13,8 +13,8 @@
 // that surface belongs to. When Spotlight Sessions get their own store,
 // wire it here — no CalendarView changes required.
 
-import type { ExtSession, ExtSessionStatus } from "./sessions-store";
-import { loadSessions } from "./sessions-store";
+import type { ExtSession, ExtSessionStatus, AttendanceSubStatus } from "./sessions-store";
+import { loadSessions, SUB_STATUS_META } from "./sessions-store";
 import { loadClubs, type Club, type ClubType, type TimeStatus } from "./clubs-store";
 import { groupsByStudentId } from "./groups-store";
 
