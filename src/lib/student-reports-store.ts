@@ -45,6 +45,10 @@ export function reportsFor(teacherId: string, studentId: string): StudentReport[
   return readAll().filter((r) => r.teacher_id === teacherId && r.student_id === studentId);
 }
 
+export function loadStudentReports(): StudentReport[] {
+  return readAll();
+}
+
 export function subscribeStudentReports(cb: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const onStorage = (e: StorageEvent) => { if (e.key === REPORTS_KEY) cb(); };
