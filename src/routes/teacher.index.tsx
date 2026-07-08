@@ -496,26 +496,75 @@ function TeacherDashboard() {
       </section>
 
       <section>
-        <SectionTitle>Recent activity</SectionTitle>
+        <SectionTitle>Quick Actions</SectionTitle>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <QuickAction to="/teacher/availability" icon={CalendarDays} label="My Availability" />
+          <QuickAction to="/teacher/clubs" icon={SparklesIcon} label="Available Clubs" />
+          <QuickAction to="/teacher/financial" icon={Wallet} label="My Balance" />
+          {hasVipStudent && (
+            <QuickAction to="/teacher/vip" icon={GraduationCap} label="Course Builder VIP" />
+          )}
+        </div>
+      </section>
+
+      <section>
+        <SectionTitle>Recent Activity</SectionTitle>
         <Card className="!p-0">
           <table className="w-full text-sm">
             <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr className="border-b border-border">
-                <th className="px-6 py-3 font-medium">Student</th>
+                <th className="px-6 py-3 font-medium">Student / Group</th>
                 <th className="px-6 py-3 font-medium">Date</th>
+                <th className="px-6 py-3 font-medium">Origin</th>
                 <th className="px-6 py-3 font-medium">Status</th>
                 <th className="px-6 py-3 font-medium">Rating</th>
               </tr>
             </thead>
             <tbody>
-              {recent.map((s) => {
+              {recentLive.length === 0 && (
+                <tr><td colSpan={5} className="px-6 py-6 text-center text-sm text-muted-foreground">No recent sessions.</td></tr>
+              )}
+              {recentLive.map((s) => {
+                const group = s.group_id ? groupById(s.group_id) : null;
                 const student = userById(s.student_id);
-                const tone = s._noReport ? "warning" : s.status === "completed" ? "success" : s.status === "absent" ? "danger" : s.status === "delayed" ? "warning" : "default";
-                const label = s._noReport ? "Completed without report" : s.status;
+                const label =
+                  s.status === "completed" ? (s.report_submitted_at ? "Completed" : "Completed without report")
+                  : s.status === "absent" ? "Absent"
+                  : s.status === "cancelled" ? "Cancelled"
+                  : s.status === "no_show" ? "No-show"
+                  : s.status === "delayed" ? "Delayed"
+                  : s.status.charAt(0).toUpperCase() + s.status.slice(1);
+                const tone =
+                  s.status === "completed" && s.report_submitted_at ? "success"
+                  : s.status === "completed" ? "warning"
+                  : s.status === "absent" || s.status === "no_show" ? "danger"
+                  : s.status === "delayed" ? "warning"
+                  : "default";
+                const origin = s.origin === "workshop" ? "Workshop" : s.origin === "course" ? "Course" : null;
                 return (
-                  <tr key={s.id} className="border-b border-border last:border-0">
-                    <td className="px-6 py-4 text-foreground">{student?.name}</td>
+                  <tr
+                    key={s.id}
+                    onClick={() => setViewing(s)}
+                    className="cursor-pointer border-b border-border transition-colors hover:bg-secondary/40 last:border-0"
+                  >
+                    <td className="px-6 py-4 text-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        {group && (
+                          <span className="inline-flex h-5 items-center rounded-md bg-accent/15 px-1.5 text-[10px] font-bold text-accent">
+                            G · {group.name}
+                          </span>
+                        )}
+                        {group ? group.name : student?.name ?? "—"}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-muted-foreground">{fmt(s.date_time)}</td>
+                    <td className="px-6 py-4">
+                      {origin ? (
+                        <span className="inline-flex rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{origin}</span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4"><Pill tone={tone as any}>{label}</Pill></td>
                     <td className="px-6 py-4 text-muted-foreground">{s.student_rating ? `${s.student_rating}★` : "—"}</td>
                   </tr>
@@ -554,7 +603,34 @@ function TeacherDashboard() {
           onSave={handleSavePlan}
         />
       )}
+      {viewing && (
+        <SessionDetailsModal
+          session={viewing}
+          plan={plans[viewing.id]}
+          title={
+            viewing.group_id ? (groupById(viewing.group_id)?.name ?? "Group Session")
+            : userById(viewing.student_id)?.name ?? "Session"
+          }
+          mode={viewing.status === "completed" || viewing.status === "absent" ? "completed" : "ready"}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function QuickAction({ to, icon: Icon, label }: { to: string; icon: LucideIcon; label: string }) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 shadow-soft transition-shadow hover:shadow-floating"
+    >
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/15 text-accent">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0 text-sm font-semibold text-foreground">{label}</div>
+      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+    </Link>
   );
 }
 
