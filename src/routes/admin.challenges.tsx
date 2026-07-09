@@ -346,6 +346,7 @@ function ChallengeModal({
   const [diff, setDiff] = useState<DifficultyId>(editing?.difficulty ?? difficulty);
   const [videoSource, setVideoSource] = useState<"url" | "upload">("url");
   const [videoUrl, setVideoUrl] = useState(editing?.video_url ?? "");
+  const [premium, setPremium] = useState<boolean>(editing?.premium ?? false);
 
   const onPickCategory = (v: string) => {
     if (v === "__new__") { setCreatingCat(true); return; }
@@ -371,6 +372,8 @@ function ChallengeModal({
       title: title.trim(),
       description: description.trim(),
       video_url: videoUrl.trim(),
+      premium,
+      skill_tags: editing?.skill_tags ?? [],
     });
   };
 
