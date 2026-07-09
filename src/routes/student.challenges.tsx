@@ -1021,15 +1021,8 @@ function ChallengeDetail({
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 ring-2 ring-amber-400/40">
                 <Lock className="h-6 w-6" />
               </span>
-              <p className="max-w-sm text-sm font-medium text-foreground">
-                This challenge is for Advance tier+. Upgrade your access level to access them.
-              </p>
-              <Link
-                to="/student/access-levels"
-                className="text-xs font-semibold text-[#f38934] underline underline-offset-4 hover:opacity-80"
-              >
-                Learn more
-              </Link>
+              <AccessGateNotice accent="#f38934" />
+
             </div>
           )}
         </div>
