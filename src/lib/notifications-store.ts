@@ -49,6 +49,7 @@ export type NotificationKind =
   | "bonus_eligible"
   | "announcement"
   | "student_challenge_selected"
+  | "student_shared_challenge_result"
   // admin-facing
   | "needs_substitute"
   | "release_request"
@@ -68,6 +69,9 @@ export interface Notification {
    *  existing panels — the bell never creates new pages. */
   to: string;
   read: boolean;
+  /** Optional payload used by handlers that open a modal instead of routing
+   *  (e.g. student_shared_challenge_result). */
+  data?: { studentId?: string; challengeId?: string };
 }
 
 // ---------------------------------------------------------------------------
@@ -299,6 +303,22 @@ function teacherNotifications(teacherId: string): Notification[] {
           createdAt: pick.chosen_at,
           to: "/teacher/students",
           read: false,
+        });
+      }
+      // ---- Shared results (fires once per completed challenge, on first share) ----
+      for (const done of st.completed_challenges ?? []) {
+        if (!done.shared_at || !done.shared_link) continue;
+        const ch = challengeById.get(done.challenge_id);
+        if (!ch) continue;
+        out.push({
+          id: `student-shared:${sid}:${done.challenge_id}`,
+          kind: "student_shared_challenge_result",
+          title: `${st.name} shared a result`,
+          body: ch.title,
+          createdAt: done.shared_at,
+          to: "/teacher/students",
+          read: false,
+          data: { studentId: sid, challengeId: done.challenge_id },
         });
       }
     }
