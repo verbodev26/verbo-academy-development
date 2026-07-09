@@ -922,8 +922,8 @@ function MysteryRevealModal({
                   <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 ring-2 ring-amber-400/40">
                     <Lock className="h-6 w-6" />
                   </span>
-                  <p className="max-w-sm text-sm font-medium text-foreground sr-only">gate</p>
                   <AccessGateNotice accent="#7e22ce" />
+
 
                 </div>
               )}
