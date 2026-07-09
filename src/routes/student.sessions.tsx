@@ -71,8 +71,10 @@ function Page() {
   const [cantAttendFor, setCantAttendFor] = useState<ExtSession | null>(null);
   const [rescheduleFor, setRescheduleFor] = useState<ExtSession | null>(null);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [clubModal, setClubModal] = useState<Club | null>(null);
 
   useEffect(() => subscribeSessions(() => tick((n) => n + 1)), []);
+
 
   const events = useMemo<CalendarEvent[]>(() => {
     if (!user) return [];
