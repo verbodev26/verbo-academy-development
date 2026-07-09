@@ -97,7 +97,9 @@ function computeLevelStates(
   contracted: string[],
   reopened: string[],
   studentId: string,
+  isGroupMember: boolean = false,
 ): LevelState[] {
+
   const contractedSet = new Set(contracted);
   const reopenedSet = new Set(reopened);
   const completion: boolean[] = levels.map((l) => levelIsComplete(l, studentId));
