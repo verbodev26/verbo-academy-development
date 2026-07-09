@@ -1,115 +1,124 @@
 ## Scope
 
-Refines (does not replace) the 7-status canon and the group unanimity system already in place. All UI text stays in English, verbatim status strings.
+Refactor of the Student "Courses" tab into a real "Learning Path" wired to `product-courses-store` (the Admin > Content source of truth). Extends the existing quiz engine (`activities-store`) instead of rewriting it. Enterprise level 4 renamed **Global Leadership** in the seed to match spec. Everything else in Admin/Teacher/Live Sessions untouched except: (a) Category field in the activity form, (b) Reopen-for-review action on the student profile.
 
 ---
 
-## 1. Data model changes (`src/lib/sessions-store.ts`)
+## 1. Data model changes
 
-Add optional sub-status metadata on `ExtSession`:
+### `src/lib/activities-store.ts`
+- Add optional `category?: ActivityCategory` on `Activity`.
+- `ActivityCategory = "vocabulary" | "grammar" | "practice" | "reading" | "writing" | "pronunciation" | (string & {})` (extensible).
+- `MANDATORY_CATEGORIES = ["vocabulary","grammar","practice"] as const`.
+- `CATEGORY_LABELS` map for display.
+- New per-activity scores store: `verbo:activity-scores` — `Record<activityId, { best: number; attempts: number; lastAt: string }>`. `recordActivityScore(activityId, unitId, score)` keeps only the best.
+- Replace old `isUnitUnlocked(unitId)` semantics for the new rule while keeping the name/signature:
+  - Unit passes iff for each mandatory category present in that unit, at least one activity has `best >= 60`.
+  - `unitPassed(unitId)` helper drives both completion and the sequential unlock chain.
+  - `setUnitCompleted` remains but is auto-driven by score updates (removed as a manual API from the runner; still callable for admin override).
+- Drop the `Attempts: X/3` / 3-strike lock for mandatory activities. Optional-category activities never gate anything.
+- Milestone units (unit numbers 10, 20, 30) → treated as **teacher-locked**: `isMilestoneUnit(id)`, `verbo:milestone-unlocks` store `Record<studentId+unitId, true>` with `unlockMilestone(...)` (admin-only manual override entry point) and `isMilestoneUnlocked(...)`. Sequential unlock chain treats a locked milestone as a hard stop.
 
-```ts
-attendance_sub_status?:
-  | "absent_work" | "absent_illness" | "absent_vacation"
-  | "cancelled_illness" | "cancelled_holiday" | "cancelled_work";
-member_sub_statuses?: Record<string, ExtSession["attendance_sub_status"]>;
-report_locked?: boolean;         // true once submitSessionReport runs
-report_admin_edits?: Array<{     // for post-submit Admin corrections
-  at: string; actorId: string;
-  studentId?: string;
-  from: ExtSessionStatus | string; to: ExtSessionStatus | string;
-  note?: string;
-}>;
-```
+### `src/lib/product-courses-store.ts`
+- Rename Enterprise level 4 seed: `"Global Mastery"` → `"Global Leadership"` (per spec). Existing localStorage cache overrides seed, so also add a one-time migration in `loadCourses()` that patches the name in place when it reads the old value.
+- No structural changes.
 
-Helpers:
+### `src/lib/students-store.ts` / admin.students profile edit
+- Add `reopened_levels?: string[]` (commercial level names). Persist through the existing profile-overrides mechanism (mock-data `User` interface gets the optional field).
+- Add helper `setLevelReopened(studentId, levelName, on)`.
 
-- `SUB_STATUS_META` — label + parent (`absent` / `cancelled`) + affects-metrics flag (false for all six).
-- `isJustificationWindowOpen(sessionDate)` — true iff `now <= lastDayOfMonth(sessionDate)`.
-- `applySubStatus(sessionId, studentId | null, sub, actor)` — writes sub-status, appends to `report_admin_edits` if `report_locked` and actor is admin, blocks otherwise.
-- `adminOverrideStatus(...)` — same shape for top-level status corrections after lock.
+### New: `src/lib/learning-path-events.ts`
+- Lightweight timeline log: `Record<studentId, Array<{ ts, kind: "unit_unlocked"|"unit_completed"|"level_completed", ref: string }>>` in localStorage. Emitted from the runner + unlock helpers.
 
-Refactor `submitSessionReport` / `submitGroupSessionReport` to set `report_locked: true` and accept an optional per-student `sub_status` map for the Absent rows.
+---
 
-## 2. Unanimity refinement (`src/lib/sessions-store.ts` + `student-requests-store.ts`)
+## 2. Admin: Category field in the activity form
 
-Current `applyGroupMemberCancellation` treats `cancelled` OR `pending_reschedule` as "member left" — that made a mixed roster count as unanimous. Fix: unanimity is **literal**, only when every active roster member picks the **same** action.
+`src/components/verbo/course-modals.tsx` (ActivityModal):
+- Add a **Category** `<select>` next to Exercise Type. Options: Vocabulary, Grammar, Practice, Reading, Writing, Pronunciation, plus an "Add custom…" option that flips into a text input; custom values are stored on the activity as free strings.
+- Category is required; default = Vocabulary.
+- Save path writes `category` onto the persisted activity. No other Admin change.
 
-New helper `evaluateGroupUnanimity(session)`:
+Aside pane groups by category (small tweak) so admin can see "Vocabulary · 2, Grammar · 1, …" per unit — makes it obvious when a mandatory one is missing. Warning row appears if any of the 3 mandatory categories is missing.
 
-- Counts per action across `member_statuses`.
-- All-cancelled → top-level `status = "cancelled"`, log `group_session_auto_cancelled` (unanimous cancel).
-- All-pending-reschedule → keep top-level status but flag `unanimous_reschedule: true` so `student-requests-store` can wire a single group Reschedule Request instead of N individuals (existing code path; we just gate on this flag).
-- Mixed / partial → top-level stays `scheduled`; any member marked `cancelled` gets sub-status `null` and — when the session date passes without them attending — the Session Report's default row for that student is `Absent` (the spec's "auto-Absent if unanimity fails"). Teacher can then reclassify.
+---
 
-Wire both `applyGroupMemberCancellation` and the reschedule-request path (`addStudentRequest` for `kind: "reschedule"` on a group session) to call `evaluateGroupUnanimity` after mutation.
+## 3. Admin: "Reopen level for review" action
 
-## 3. Session Report modal (Teacher Panel)
+In `src/routes/admin.students.tsx` student detail view (the same panel that shows Info label="Current roadmap level"): add a small section listing the student's completed levels with a `Reopen for review` toggle per level → calls `setLevelReopened`. That's the only new admin touch.
 
-File search-scope: `src/components/verbo/` (SessionReport modal — need to open it), plus teacher.calendar.tsx / teacher.students.tsx entry points.
+---
 
-Changes:
+## 4. Student navigation rename
 
-- For each row where attendance is `absent`, show a sub-status `<select>` with: **Absent**, **Absent Work**, **Absent Illness**, **Absent Vacation**.
-- For rows where the row is `cancelled` (only reachable when the top-level session is Cancelled and the teacher is retro-annotating): sub-status `<select>` with **Cancelled**, **Cancelled Illness**, **Cancelled Holiday**, **Cancelled Work**.
-- Sub-status selects are disabled if `!isJustificationWindowOpen(session.date_time)` and current sub-status is not already set (block *changes* to justifications past month end).
-- On Submit → sets `report_locked = true`; the entire form re-renders read-only for teacher role.
-- If already locked and viewer role is teacher: read-only banner "Session Report submitted. Only Admin can amend."
-- If viewer is Admin: full edit stays enabled, and each change appends an entry to `report_admin_edits` (logged in Activity Logs).
+`src/routes/student.tsx`: change the Performance-product nav entry label from `"Courses"` to `"Learning Path"`. Route path (`/student/courses`) stays the same to avoid regressions elsewhere.
 
-Frequent-Illness flag: after submit, if the same student has ≥3 sessions with `attendance_sub_status === "absent_illness"` in the current calendar period (rolling 30 days), append synthetic Activity Log entry `student_flagged_illness` via a derivation in `activity-logs-store.ts` (no new persistence — computed in `buildActivityLog`).
+---
 
-## 4. Admin Panel — Holidays + Corrections
+## 5. Student page rewrite: `src/routes/student.courses.tsx`
 
-**Holidays store** (`src/lib/holidays-store.ts`, new):
-- `Holiday = { id, date: "YYYY-MM-DD", label, created_at }`.
-- Persist to `localStorage: "verbo:holidays"`, broadcast `HOLIDAYS_EVENT`.
-- `loadHolidays()`, `addHoliday()`, `removeHoliday()`, `useHolidays()`.
+Full rewrite of the page while reusing `ActivityRunner`, `ExerciseBody`, `MatchExercise`, `RecordExercise`, `evaluate` (extracted from the current file into a small local module or kept in-file). Everything below reads from `product-courses-store` (not `courses-store` / mock levels).
 
-**Route** `src/routes/admin.holidays.tsx`: table with add (date + label) / delete. Reference-only, no automatic blocking. Link from admin nav.
+### 5.1 Level cards (top of page)
+- Renders 4 cards for the student's product (skips entirely for VIP → route already unreachable via nav; add a guard that shows a "Not available for your product" placeholder if visited).
+- Each card: image slot (`level.cover_image` if present in future; fallback = product-specific gradient + subtle pattern), commercial name, unit count, per-level progress bar, state pill.
+- Five states, computed as:
 
-**Corrections logging** (`src/lib/activity-logs-store.ts`):
-- New `ActivityKind` values: `session_report_amended`, `student_flagged_illness`.
-- Emit one entry per `report_admin_edits[]` element with detail "Status X → Y by {admin}".
+  | State | When | Interaction |
+  |---|---|---|
+  | Completed | all non-milestone units + all milestone units passed | disabled unless `reopened_levels` includes it → then read-only mode with "Reopened for Review" pill |
+  | Current | first non-completed level within contracted list | clickable, full color |
+  | Locked — by progress | in contracted list, but prior level not completed | disabled, greyed, tooltip `"Complete {previous level name} to unlock"` |
+  | Locked — not contracted | not in `contracted_levels` | disabled, greyed, tooltip `"Not included in your current plan — contact your advisor to upgrade"` |
+  | Reopened | Completed + `reopened_levels` includes it | clickable, "Reopened for Review" badge, opens read-only view |
 
-## 5. Calendar coloring (`src/lib/calendar-events.ts` + `CalendarView.tsx`)
+### 5.2 Global progress bar
+- Above the cards: `"{X} of {Y} units completed — {Z}%"` where `Y = sum of units across contracted levels only`, `X = passed units within those levels`. Skips non-contracted levels entirely.
 
-Add to `CalendarEvent`:
-- `sub_status?: SubStatus`  (piped from the session or, for group events, from `member_sub_statuses[studentId]` in `studentCalendarEvents`).
+### 5.3 Milestone reminder banner
+- If the current level has an upcoming milestone unit (10/20/30) whose predecessor unlocks are open and the student is within 3 units of it, render a single blue banner: `"Your Milestone Check is coming up in {N} units!"`.
 
-Extend `CALENDAR_STATUS_META` with palette variants (used only by pill renderer, not the 7-status legend):
+### 5.4 Units view (after clicking a level)
+- New visual layout: horizontal path of unit "stones" grouped into three 10-unit blocks, each block ending in a distinctly styled Milestone stone (trophy icon, gold border). Not a flat list.
+- Unit states: `passed` (green check) / `current` (accent) / `locked` (grey lock) / `milestone_locked` (gold ring + `"Your teacher will unlock this Milestone Check"` tooltip).
+- Read-only mode (Reopened level): all units clickable but the runner enters view-only — activities show best score, can be reviewed, Check Answer disabled.
 
-| Sub | Color | Cell label |
-|-----|-------|------------|
-| Absent (plain) | `#dc2626` | "Absent" |
-| Absent Work / Illness / Vacation | `#ea580c` (orange-red, same for the three) | "AW" / "AI" / "AV" |
-| Cancelled (plain) | `#64748B` (slate blue-gray) | "Cancelled" |
-| Cancelled Illness / Holiday / Work | `#94a3b8` (lighter slate, same for the three) | "CI" / "CH" / "CW" |
+### 5.5 Runner changes
+- Same modal shell + carousel + evaluators; two new behaviors:
+  - Categories are surfaced as chip tabs at the top of the runner (Vocabulary / Grammar / Practice / plus any optional groups). Optional groups are visible but tagged "Optional — does not affect progress".
+  - Per-activity result recorded via `recordActivityScore`. Unit auto-completes when all mandatory categories have ≥60. Attempts unlimited; the "attempts X/3" and locked screen removed for mandatory. Milestone units cannot be entered here — blocked at the units grid.
 
-Note: current Cancelled color is pink `#be185d`. Reassigning it to `#64748B` and simultaneously verifying `scheduled` (`#94a3b8`) stays visually distinct — since the lighter Cancelled variant collides with Scheduled's exact hex, use `#cbd5e1` (slate-300) for the justified-cancelled tint instead. Legend keeps the 7 canonical entries; sub-status is a pill-only refinement.
+### 5.6 Achievement timeline
+- Below the level cards: "Achievement Timeline" section reading `learning-path-events` filtered to current student, newest first, capped at ~15 entries. Rows: icon + `"Completed {Level Name} — {date}"` / `"Unlocked Unit {N} — {date}"`.
 
-Update `EventPill` and `DayList` badge renderer:
-- If `sub_status` set, replace the short kind label with the 2-letter code and use the sub-status color instead of the base status color.
-- Modal (`EventDetailsModal`) already shows full status text — extend `Row label="Status"` to show `"{statusLabel} · {subStatusLabel}"` when sub is set.
+### 5.7 Level completion modal
+- Fires when the last unit of a level passes (including its unlocked+passed Milestone). Modal contents:
+  - Confetti (small dependency-free CSS burst using absolute-positioned spans, no library) with `prefers-reduced-motion` fallback.
+  - `"Congratulations! You completed {Level Name}"` + subtext.
+  - `Download Certificate` button → generates a placeholder PDF via a lightweight canvas-to-PDF fallback: for now, generate an SVG blob with the level + student name and trigger download as `.svg` (real PDF template later).
+  - `Continue` button closes the modal.
+
+---
 
 ## 6. Files touched
 
-New:
-- `src/lib/holidays-store.ts`
-- `src/routes/admin.holidays.tsx`
+**New**
+- `src/lib/learning-path-events.ts`
 
-Edited:
-- `src/lib/sessions-store.ts` — sub-statuses, unanimity fix, report_lock, admin overrides
-- `src/lib/student-requests-store.ts` — call `evaluateGroupUnanimity` on reschedule-of-group-member
-- `src/lib/calendar-events.ts` — sub_status projection + palette
-- `src/components/verbo/CalendarView.tsx` — pill rendering with initials
-- `src/components/verbo/SessionReportModal` (whichever file owns it — will identify) — sub-status selects, lock behavior, admin-only edits
-- `src/lib/activity-logs-store.ts` — new kinds (amended, flagged_illness)
-- `src/routes/admin.tsx` (nav) — add Holidays link
-- `src/routes/student.sessions.tsx` — pass sub-status into event details modal (no logic change)
+**Edited**
+- `src/lib/activities-store.ts` — categories, per-activity best scores, unit-pass rule, milestone-lock store
+- `src/lib/product-courses-store.ts` — Enterprise L4 rename + migration
+- `src/lib/mock-data.ts` — add optional `reopened_levels` on `User`
+- `src/lib/students-store.ts` — `setLevelReopened` helper via profile overrides
+- `src/components/verbo/course-modals.tsx` — Category select + grouped aside + missing-mandatory warning
+- `src/routes/admin.students.tsx` — "Reopen for review" toggles in the student detail panel
+- `src/routes/student.tsx` — nav label "Courses" → "Learning Path"
+- `src/routes/student.courses.tsx` — full page rewrite as described above (runner internals preserved)
 
-## Out of scope
+## Out of scope (explicitly not touched)
 
-- Substitute engine.
-- Per-role permission wiring beyond Admin vs Teacher (uses existing `useAuth().user.role`).
-- Automatic reversal of `Absent Vacation` — Admin edits manually via override.
+- Teacher-side Milestone unlock UI, notifications, or reminders.
+- Audio-duration checker for `record`.
+- Real certificate PDF design.
+- Teacher Panel read-only Content view.
+- Any Live Sessions / calendar / attendance code.
