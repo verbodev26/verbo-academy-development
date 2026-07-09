@@ -204,7 +204,8 @@ function Page() {
   }
 
   /* ---------------- Screen 3: Challenge list ---------------- */
-  const missing = CHALLENGES_PER_DIFFICULTY - list.length;
+  const target = CHALLENGES_PER_DIFFICULTY[difficulty];
+  const missing = target - list.length;
   return (
     <div className="space-y-6">
       <div className="space-y-3">
@@ -222,7 +223,7 @@ function Page() {
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">{DIFFICULTY_META[difficulty].label}</h1>
             <DifficultyDots difficulty={difficulty} />
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{list.length}/{CHALLENGES_PER_DIFFICULTY} challenges created · complementary, not counted in metrics.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{list.length}/{target} challenges created · complementary, not counted in metrics.</p>
         </div>
         <div className="flex items-center gap-2">
           {missing > 0 && (
@@ -239,7 +240,7 @@ function Page() {
       {missing > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-3 text-xs text-muted-foreground">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          This difficulty has {missing} of {CHALLENGES_PER_DIFFICULTY} challenges missing. Use “Generate Difficulty Skeleton” to create 10 empty challenges at once — they’re filled in and released gradually, week by week.
+          This difficulty has {missing} of {target} challenges missing. Use “Generate Difficulty Skeleton” to create the remaining empty challenges at once — they’re filled in and released gradually, week by week.
         </div>
       )}
 
