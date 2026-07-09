@@ -90,7 +90,14 @@ function Page() {
   const used = reschedulesUsedThisMonth(user.id);
   const spotlightCap = user.addon_spotlight_per_month ?? 0;
 
-  const handleEventClick = (ev: CalendarEvent) => setSelected(ev);
+  const handleEventClick = (ev: CalendarEvent) => {
+    if (ev.club && (ev.kind === "insight" || ev.kind === "book_club")) {
+      setClubModal(ev.club);
+      return;
+    }
+    setSelected(ev);
+  };
+
 
   const onCantAttend = (session: ExtSession) => {
     setSelected(null);
