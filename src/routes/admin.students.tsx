@@ -26,6 +26,8 @@ import {
 } from "@/lib/workshops-store";
 import { groupsByStudentId, groupOfStudent, removeMember, subscribeGroups, effectiveSessionCounts } from "@/lib/groups-store";
 import { logPayment, expectedAmountForStudent } from "@/lib/payments-log";
+import { setLevelReopened } from "@/lib/students-store";
+import { RotateCcw } from "lucide-react";
 
 export const Route = createFileRoute("/admin/students")({
   component: Page,
