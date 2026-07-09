@@ -2,13 +2,16 @@
 // derived from existing stores. Click an item to navigate to its route and
 // mark it read. See src/lib/notifications-store.ts for source of truth.
 import { useEffect, useRef, useState } from "react";
-import { Bell } from "lucide-react";
+import { Bell, X, ExternalLink } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import {
   useNotifications, markNotificationRead, markAllNotificationsRead,
   type Notification,
 } from "@/lib/notifications-store";
+import { USERS } from "@/lib/mock-data";
+import { loadChallenges } from "@/lib/challenges-store";
+import { Pill } from "@/components/verbo/ui";
 
 const MAX_VISIBLE = 15;
 
@@ -24,11 +27,85 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/* -------------------------------------------------------------------------- */
+/* Shared-result preview modal — reuses MaterialLibrary's read-only preview   */
+/* look so it feels consistent with the rest of the platform.                 */
+/* -------------------------------------------------------------------------- */
+function SharedResultModal({
+  studentId,
+  challengeId,
+  onClose,
+}: {
+  studentId: string;
+  challengeId: string;
+  onClose: () => void;
+}) {
+  const student = USERS.find((u) => u.id === studentId);
+  const challenge = loadChallenges().find((c) => c.id === challengeId);
+  const entry = student?.completed_challenges?.find((c) => c.challenge_id === challengeId);
+  const link = entry?.shared_link ?? "";
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Pill tone="success">Shared result</Pill>
+              {challenge?.category && <Pill tone="muted">{challenge.category}</Pill>}
+            </div>
+            <h3 className="mt-2 text-sm font-semibold text-foreground">
+              {student?.name ?? "Student"}
+            </h3>
+            <p className="text-xs text-muted-foreground">{challenge?.title ?? "Challenge"}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-auto bg-secondary/30 p-5">
+          {link ? (
+            <div className="space-y-3">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Shared link (read only)
+              </div>
+              <div className="break-all rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs text-foreground">
+                {link}
+              </div>
+              <a
+                href={link}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline"
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> Open in a new tab
+              </a>
+            </div>
+          ) : (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              This shared result is no longer available.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function NotificationsBell({ variant = "light" }: { variant?: "light" | "dark" }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { notifications, unreadCount } = useNotifications(user ?? null);
   const [open, setOpen] = useState(false);
+  const [sharedModal, setSharedModal] = useState<{ studentId: string; challengeId: string } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -54,6 +131,10 @@ export function NotificationsBell({ variant = "light" }: { variant?: "light" | "
   const onClickItem = (n: Notification) => {
     if (!n.read) markNotificationRead(user.id, n.id);
     setOpen(false);
+    if (n.kind === "student_shared_challenge_result" && n.data?.studentId && n.data?.challengeId) {
+      setSharedModal({ studentId: n.data.studentId, challengeId: n.data.challengeId });
+      return;
+    }
     navigate({ to: n.to });
   };
 
@@ -151,6 +232,14 @@ export function NotificationsBell({ variant = "light" }: { variant?: "light" | "
             </div>
           )}
         </div>
+      )}
+
+      {sharedModal && (
+        <SharedResultModal
+          studentId={sharedModal.studentId}
+          challengeId={sharedModal.challengeId}
+          onClose={() => setSharedModal(null)}
+        />
       )}
     </div>
   );
