@@ -35,6 +35,7 @@ import { Route as StudentInsightsRouteImport } from './routes/student.insights'
 import { Route as StudentCoursesRouteImport } from './routes/student.courses'
 import { Route as StudentChallengesRouteImport } from './routes/student.challenges'
 import { Route as StudentBoostRouteImport } from './routes/student.boost'
+import { Route as StudentAccessLevelsRouteImport } from './routes/student.access-levels'
 import { Route as AdminWorkshopsRouteImport } from './routes/admin.workshops'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminTeachersRouteImport } from './routes/admin.teachers'
@@ -180,6 +181,11 @@ const StudentBoostRoute = StudentBoostRouteImport.update({
   path: '/boost',
   getParentRoute: () => StudentRoute,
 } as any)
+const StudentAccessLevelsRoute = StudentAccessLevelsRouteImport.update({
+  id: '/access-levels',
+  path: '/access-levels',
+  getParentRoute: () => StudentRoute,
+} as any)
 const AdminWorkshopsRoute = AdminWorkshopsRouteImport.update({
   id: '/workshops',
   path: '/workshops',
@@ -271,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/admin/teachers': typeof AdminTeachersRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/workshops': typeof AdminWorkshopsRoute
+  '/student/access-levels': typeof StudentAccessLevelsRoute
   '/student/boost': typeof StudentBoostRoute
   '/student/challenges': typeof StudentChallengesRoute
   '/student/courses': typeof StudentCoursesRoute
@@ -310,6 +317,7 @@ export interface FileRoutesByTo {
   '/admin/teachers': typeof AdminTeachersRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/workshops': typeof AdminWorkshopsRoute
+  '/student/access-levels': typeof StudentAccessLevelsRoute
   '/student/boost': typeof StudentBoostRoute
   '/student/challenges': typeof StudentChallengesRoute
   '/student/courses': typeof StudentCoursesRoute
@@ -353,6 +361,7 @@ export interface FileRoutesById {
   '/admin/teachers': typeof AdminTeachersRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/workshops': typeof AdminWorkshopsRoute
+  '/student/access-levels': typeof StudentAccessLevelsRoute
   '/student/boost': typeof StudentBoostRoute
   '/student/challenges': typeof StudentChallengesRoute
   '/student/courses': typeof StudentCoursesRoute
@@ -397,6 +406,7 @@ export interface FileRouteTypes {
     | '/admin/teachers'
     | '/admin/users'
     | '/admin/workshops'
+    | '/student/access-levels'
     | '/student/boost'
     | '/student/challenges'
     | '/student/courses'
@@ -436,6 +446,7 @@ export interface FileRouteTypes {
     | '/admin/teachers'
     | '/admin/users'
     | '/admin/workshops'
+    | '/student/access-levels'
     | '/student/boost'
     | '/student/challenges'
     | '/student/courses'
@@ -478,6 +489,7 @@ export interface FileRouteTypes {
     | '/admin/teachers'
     | '/admin/users'
     | '/admin/workshops'
+    | '/student/access-levels'
     | '/student/boost'
     | '/student/challenges'
     | '/student/courses'
@@ -694,6 +706,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentBoostRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/student/access-levels': {
+      id: '/student/access-levels'
+      path: '/access-levels'
+      fullPath: '/student/access-levels'
+      preLoaderRoute: typeof StudentAccessLevelsRouteImport
+      parentRoute: typeof StudentRoute
+    }
     '/admin/workshops': {
       id: '/admin/workshops'
       path: '/workshops'
@@ -834,6 +853,7 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface StudentRouteChildren {
+  StudentAccessLevelsRoute: typeof StudentAccessLevelsRoute
   StudentBoostRoute: typeof StudentBoostRoute
   StudentChallengesRoute: typeof StudentChallengesRoute
   StudentCoursesRoute: typeof StudentCoursesRoute
@@ -847,6 +867,7 @@ interface StudentRouteChildren {
 }
 
 const StudentRouteChildren: StudentRouteChildren = {
+  StudentAccessLevelsRoute: StudentAccessLevelsRoute,
   StudentBoostRoute: StudentBoostRoute,
   StudentChallengesRoute: StudentChallengesRoute,
   StudentCoursesRoute: StudentCoursesRoute,
