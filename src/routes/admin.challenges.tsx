@@ -56,7 +56,7 @@ function DifficultyDots({ difficulty, className = "" }: { difficulty: Difficulty
   const { dots } = DIFFICULTY_META[difficulty];
   return (
     <span className={`inline-flex items-center gap-1 ${className}`} aria-hidden>
-      {[0, 1, 2].map((i) => (
+      {[0, 1, 2, 3].map((i) => (
         <span
           key={i}
           className={`h-2 w-2 rounded-full ${i < dots ? "bg-[#f38934]" : "border border-muted-foreground/40 bg-transparent"}`}
@@ -177,9 +177,10 @@ function Page() {
           <GhostButton onClick={() => setProductId(null)}><ArrowLeft className="h-3.5 w-3.5" /> All products</GhostButton>
           <Header title={`${PRODUCT_META[productId].label} — Difficulties`} subtitle="Choose a difficulty to manage its challenges." />
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {DIFFICULTY_ORDER.map((d) => {
             const count = countFor(productId, d);
+            const target = CHALLENGES_PER_DIFFICULTY[d];
             return (
               <button
                 key={d}
@@ -189,8 +190,8 @@ function Page() {
                 <DifficultyDots difficulty={d} className="text-base" />
                 <div className="text-lg font-semibold tracking-tight text-foreground">{DIFFICULTY_META[d].label}</div>
                 <div className="mt-2 flex items-center justify-between">
-                  <Pill tone={count >= CHALLENGES_PER_DIFFICULTY ? "success" : "muted"}>
-                    {count}/{CHALLENGES_PER_DIFFICULTY} challenges
+                  <Pill tone={count >= target ? "success" : "muted"}>
+                    {count}/{target} challenges
                   </Pill>
                   <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </div>
@@ -203,7 +204,8 @@ function Page() {
   }
 
   /* ---------------- Screen 3: Challenge list ---------------- */
-  const missing = CHALLENGES_PER_DIFFICULTY - list.length;
+  const target = CHALLENGES_PER_DIFFICULTY[difficulty];
+  const missing = target - list.length;
   return (
     <div className="space-y-6">
       <div className="space-y-3">
@@ -221,7 +223,7 @@ function Page() {
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">{DIFFICULTY_META[difficulty].label}</h1>
             <DifficultyDots difficulty={difficulty} />
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">{list.length}/{CHALLENGES_PER_DIFFICULTY} challenges created · complementary, not counted in metrics.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{list.length}/{target} challenges created · complementary, not counted in metrics.</p>
         </div>
         <div className="flex items-center gap-2">
           {missing > 0 && (
@@ -238,7 +240,7 @@ function Page() {
       {missing > 0 && (
         <div className="flex items-start gap-2 rounded-lg border border-dashed border-border bg-secondary/30 px-4 py-3 text-xs text-muted-foreground">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
-          This difficulty has {missing} of {CHALLENGES_PER_DIFFICULTY} challenges missing. Use “Generate Difficulty Skeleton” to create 10 empty challenges at once — they’re filled in and released gradually, week by week.
+          This difficulty has {missing} of {target} challenges missing. Use “Generate Difficulty Skeleton” to create the remaining empty challenges at once — they’re filled in and released gradually, week by week.
         </div>
       )}
 
@@ -251,7 +253,14 @@ function Page() {
           {list.map((c) => (
             <div key={c.id} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-start justify-between gap-2">
-                <CategoryBadge name={c.category} />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <CategoryBadge name={c.category} />
+                  {c.premium && (
+                    <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+                      Premium
+                    </span>
+                  )}
+                </div>
                 <DifficultyDots difficulty={c.difficulty} />
               </div>
               <div>
@@ -337,6 +346,7 @@ function ChallengeModal({
   const [diff, setDiff] = useState<DifficultyId>(editing?.difficulty ?? difficulty);
   const [videoSource, setVideoSource] = useState<"url" | "upload">("url");
   const [videoUrl, setVideoUrl] = useState(editing?.video_url ?? "");
+  const [premium, setPremium] = useState<boolean>(editing?.premium ?? false);
 
   const onPickCategory = (v: string) => {
     if (v === "__new__") { setCreatingCat(true); return; }
@@ -362,6 +372,8 @@ function ChallengeModal({
       title: title.trim(),
       description: description.trim(),
       video_url: videoUrl.trim(),
+      premium,
+      skill_tags: editing?.skill_tags ?? [],
     });
   };
 
@@ -410,6 +422,20 @@ function ChallengeModal({
             ))}
           </select>
         </Field>
+
+        <label className="flex items-start gap-3 rounded-lg border border-border bg-secondary/30 px-3 py-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={premium}
+            onChange={(e) => setPremium(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-border text-[#f38934] focus:ring-[#f38934]"
+          />
+          <span className="flex-1">
+            <span className="block text-xs font-semibold text-foreground">Premium (Advance / Elite only)</span>
+            <span className="mt-0.5 block text-[11px] text-muted-foreground">Restricts this challenge to students on Advance or Elite access plans.</span>
+          </span>
+        </label>
+
 
         <Field label="Attachment (optional)" hint="If left empty, no video is shown on the student's challenge card.">
           <div className="grid grid-cols-2 gap-2">

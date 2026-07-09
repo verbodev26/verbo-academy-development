@@ -4,9 +4,13 @@
 // affect student performance/metrics. Persisted to localStorage and broadcast
 // via a custom event so any open tab/route updates in real-time.
 
+import { CHALLENGES_SEED } from "./challenges-seed";
+
 export type ChallengeProductId = "go" | "enterprise" | "international" | "vip";
 
-export type DifficultyId = "esencial" | "intermedio" | "avanzado";
+export type DifficultyId = "esencial" | "intermedio" | "avanzado" | "experto";
+
+export type ChallengeSkillTag = "Speaking" | "Writing" | "Reading" | "Listening";
 
 export interface Challenge {
   id: string; // e.g. GO-ESENCIAL-C1
@@ -16,6 +20,8 @@ export interface Challenge {
   title: string;
   description: string;
   video_url: string; // optional; empty = no attachment shown to students
+  premium?: boolean; // exclusive for Advance/Elite plans
+  skill_tags?: string[]; // informative tags: Speaking / Writing / Reading / Listening
 }
 
 export const PRODUCT_META: Record<ChallengeProductId, { label: string; description: string }> = {
@@ -28,29 +34,91 @@ export const PRODUCT_META: Record<ChallengeProductId, { label: string; descripti
 export const PRODUCT_ORDER: ChallengeProductId[] = ["go", "enterprise", "international", "vip"];
 
 export const DIFFICULTY_META: Record<DifficultyId, { label: string; dots: number }> = {
-  esencial: { label: "Esencial", dots: 1 },
-  intermedio: { label: "Intermedio", dots: 2 },
-  avanzado: { label: "Avanzado", dots: 3 },
+  esencial: { label: "Essential", dots: 1 },
+  intermedio: { label: "Intermediate", dots: 2 },
+  avanzado: { label: "Advanced", dots: 3 },
+  experto: { label: "Expert", dots: 4 },
 };
 
-export const DIFFICULTY_ORDER: DifficultyId[] = ["esencial", "intermedio", "avanzado"];
+export const DIFFICULTY_ORDER: DifficultyId[] = ["esencial", "intermedio", "avanzado", "experto"];
 
-export const CHALLENGES_PER_DIFFICULTY = 10;
+// Target challenges per difficulty. Enterprise/GO/International seeded data
+// distributes 50 real challenges as 12/13/13/12; VIP follows the same targets
+// when generating skeletons.
+export const CHALLENGES_PER_DIFFICULTY: Record<DifficultyId, number> = {
+  esencial: 12,
+  intermedio: 13,
+  avanzado: 13,
+  experto: 12,
+};
 
 export const CHALLENGES_KEY = "verbo:challenges";
 export const CHALLENGES_EVENT = "verbo:challenges-updated";
 export const CHALLENGE_CATEGORIES_KEY = "verbo:challenge-categories";
 export const CHALLENGE_CATEGORIES_EVENT = "verbo:challenge-categories-updated";
+// Tracks which products have already had their real seed applied so we never
+// overwrite admin edits on a second load.
+const CHALLENGES_SEEDED_KEY = "verbo:challenges-seeded-products";
+const SEEDED_PRODUCTS: ChallengeProductId[] = ["enterprise", "go", "international"];
 
 /* ---------------- Challenges ---------------- */
 
-export function loadChallenges(): Challenge[] {
+function readSeededProducts(): ChallengeProductId[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(CHALLENGES_KEY);
-    if (raw) return JSON.parse(raw) as Challenge[];
+    const raw = localStorage.getItem(CHALLENGES_SEEDED_KEY);
+    if (raw) return JSON.parse(raw) as ChallengeProductId[];
   } catch { /* noop */ }
   return [];
+}
+
+function writeSeededProducts(list: ChallengeProductId[]) {
+  try { localStorage.setItem(CHALLENGES_SEEDED_KEY, JSON.stringify(list)); } catch { /* noop */ }
+}
+
+/** Seed real challenge data once per product. Never overwrites admin edits:
+ *  only injects seed items for a product if that product has zero challenges
+ *  in storage AND hasn't been seeded before. */
+function ensureSeed(list: Challenge[]): Challenge[] {
+  if (typeof window === "undefined") return list;
+  const seeded = readSeededProducts();
+  const toSeed = SEEDED_PRODUCTS.filter((p) => !seeded.includes(p));
+  if (toSeed.length === 0) return list;
+
+  let next = list;
+  let mutated = false;
+  const newlySeeded: ChallengeProductId[] = [];
+  for (const product of toSeed) {
+    const hasAny = list.some((c) => c.product === product);
+    if (hasAny) {
+      // Admin already has data for this product — mark seeded and move on.
+      newlySeeded.push(product);
+      continue;
+    }
+    const additions = CHALLENGES_SEED.filter((c) => c.product === product);
+    if (additions.length > 0) {
+      next = [...next, ...additions];
+      mutated = true;
+    }
+    newlySeeded.push(product);
+  }
+  writeSeededProducts([...seeded, ...newlySeeded]);
+  if (mutated) {
+    try {
+      localStorage.setItem(CHALLENGES_KEY, JSON.stringify(next));
+    } catch { /* noop */ }
+  }
+  return next;
+}
+
+export function loadChallenges(): Challenge[] {
+  if (typeof window === "undefined") return [];
+  let list: Challenge[] = [];
+  try {
+    const raw = localStorage.getItem(CHALLENGES_KEY);
+    if (raw) list = JSON.parse(raw) as Challenge[];
+  } catch { /* noop */ }
+  return ensureSeed(list);
 }
 
 export function persistChallenges(list: Challenge[]) {
@@ -83,7 +151,7 @@ export function challengeNum(id: string): number {
   return m ? parseInt(m[1], 10) : 0;
 }
 
-/** Build up to 10 empty challenge placeholders for a product/difficulty. */
+/** Build empty challenge placeholders up to the difficulty's target count. */
 export function buildSkeletonChallenges(
   product: ChallengeProductId,
   difficulty: DifficultyId,
@@ -91,8 +159,9 @@ export function buildSkeletonChallenges(
 ): Challenge[] {
   const prefix = `${PRODUCT_META[product].label.toUpperCase()}-${difficulty.toUpperCase()}`;
   const existingNums = new Set(existing.map((c) => challengeNum(c.id)));
+  const target = CHALLENGES_PER_DIFFICULTY[difficulty];
   const generated: Challenge[] = [];
-  for (let i = 1; i <= CHALLENGES_PER_DIFFICULTY; i++) {
+  for (let i = 1; i <= target; i++) {
     if (existingNums.has(i)) continue;
     generated.push({
       id: `${prefix}-C${i}`,
@@ -102,6 +171,8 @@ export function buildSkeletonChallenges(
       title: `Challenge ${i}`,
       description: "",
       video_url: "",
+      premium: false,
+      skill_tags: [],
     });
   }
   return generated;
