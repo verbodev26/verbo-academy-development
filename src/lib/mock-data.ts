@@ -49,6 +49,9 @@ export interface User {
     shared_link?: string;
     /** Timestamp of the FIRST time this result was shared. Persists on edits. */
     shared_at?: string;
+    /** Distinguishes source: traditional bank (undefined/"traditional"),
+     *  Mystery Box, or Lightning. */
+    format?: "traditional" | "mystery_box" | "lightning";
   }[];
   last_completed_at?: string | null;
   current_streak?: number;
@@ -56,6 +59,11 @@ export interface User {
   /** Timestamp of the last Mystery Box opening (Verbo Flash). Independent
    *  from the challenge-completion cooldown. */
   last_mystery_box_opened_at?: string | null;
+  /** Lightning-specific counters — independent from the traditional-bank
+   *  24h cooldown so a student can complete both a Lightning and a normal
+   *  challenge in the same day. */
+  last_lightning_completed_at?: string | null;
+  lightning_completions?: number;
   // ----- Product-type branch (Register Student flow) -----
   // "performance" is the classic Performance Sessions student. "workshops"
   // and "insights" are standalone customers who only bought that add-on and
