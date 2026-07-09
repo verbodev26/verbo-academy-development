@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Logo } from "./Logo";
 import { useAuth } from "@/lib/auth";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { ProfileModal } from "./ProfileModal";
 import { AdminProfileModal } from "./AdminProfileModal";
