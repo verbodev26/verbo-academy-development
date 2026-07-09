@@ -964,3 +964,217 @@ function ShareResultModal({
     </div>
   );
 }
+
+/* -------------------------------------------------------------------------- */
+/* Verbo Flash — Lightning card + reveal modal                                */
+/* -------------------------------------------------------------------------- */
+function formatHMS(ms: number): string {
+  if (ms <= 0) return "00:00:00";
+  const total = Math.floor(ms / 1000);
+  const h = String(Math.floor(total / 3600)).padStart(2, "0");
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const s = String(total % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
+
+function LightningCard({
+  challenge,
+  isLive,
+  remainingMs,
+  acceptedCount,
+  accepted,
+  completed,
+  onOpen,
+}: {
+  challenge: FlashChallenge;
+  isLive: boolean;
+  remainingMs: number;
+  acceptedCount: number;
+  accepted: boolean;
+  completed: boolean;
+  onOpen: () => void;
+}) {
+  const urgent = isLive && remainingMs > 0 && remainingMs < 60 * 60 * 1000;
+  return (
+    <section>
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            <Zap className="h-3.5 w-3.5 text-[#facc15]" /> Verbo Flash · Lightning
+          </div>
+          <h2 className="mt-1 text-base font-semibold tracking-tight text-foreground">Reto Relámpago</h2>
+        </div>
+      </div>
+      <style>{`
+        @keyframes verbo-lightning-glow {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.55), 0 0 30px 4px rgba(14, 165, 233, 0.35); }
+          50% { box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.0), 0 0 40px 10px rgba(14, 165, 233, 0.6); }
+        }
+        @keyframes verbo-lightning-urgent {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.65), 0 0 30px 4px rgba(239, 68, 68, 0.5); }
+          50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.0), 0 0 40px 12px rgba(239, 68, 68, 0.8); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .verbo-lightning-live { animation: none !important; }
+        }
+      `}</style>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {isLive ? (
+          <button
+            type="button"
+            onClick={onOpen}
+            className="verbo-lightning-live group relative overflow-hidden rounded-2xl border border-[#facc15]/50 bg-gradient-to-br from-[#1e3a8a] via-[#0284c7] to-[#facc15] p-6 text-left text-white transition-transform hover:-translate-y-0.5"
+            style={{ animation: urgent ? "verbo-lightning-urgent 0.9s ease-in-out infinite" : "verbo-lightning-glow 1.8s ease-in-out infinite" }}
+          >
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1 rounded-full bg-black/25 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide">
+                🔥 Live now
+              </span>
+              <span className={`rounded-full px-2.5 py-1 font-mono text-sm font-bold tabular-nums ${urgent ? "bg-red-500 text-white" : "bg-white/20"}`}>
+                {formatHMS(remainingMs)}
+              </span>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <Zap className="h-10 w-10 shrink-0 text-yellow-300 drop-shadow" />
+              <div className="min-w-0">
+                <div className="truncate text-base font-semibold">{challenge.title || "Lightning Challenge"}</div>
+                <div className="mt-0.5 text-xs opacity-90">⚡ {acceptedCount} student{acceptedCount === 1 ? "" : "s"} accepted this</div>
+              </div>
+            </div>
+            <div className="mt-5">
+              {completed ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Completed
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-[#0f172a]">
+                  {accepted ? "Continue the challenge →" : "Accept the Challenge ⚡"}
+                </span>
+              )}
+            </div>
+          </button>
+        ) : (
+          // Expired — dramatic transition for students who didn't complete on time.
+          <div className={`relative overflow-hidden rounded-2xl border border-border bg-secondary/60 p-6 text-left ${completed ? "opacity-90" : "opacity-80"}`}>
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                ⚡ {completed ? "Completed" : "Expired — you missed this one"}
+              </span>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <Zap className="h-10 w-10 shrink-0 text-muted-foreground/60" />
+              <div className="min-w-0">
+                <div className="truncate text-base font-semibold text-foreground">{challenge.title || "Lightning Challenge"}</div>
+                {!completed && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">This Lightning has passed. The next one could strike anytime — stay ready.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function LightningRevealModal({
+  challenge,
+  expiresAt,
+  nowTick,
+  isLive,
+  acceptedCount,
+  hasPremiumAccess,
+  completed,
+  onComplete,
+  onClose,
+}: {
+  challenge: FlashChallenge;
+  expiresAt: string | null;
+  nowTick: number;
+  isLive: boolean;
+  acceptedCount: number;
+  hasPremiumAccess: boolean;
+  completed: boolean;
+  onComplete: () => void;
+  onClose: () => void;
+}) {
+  const remaining = expiresAt ? +new Date(expiresAt) - nowTick : 0;
+  const locked = !!challenge.premium && !hasPremiumAccess;
+  const canComplete = isLive && remaining > 0 && !completed && !locked;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      {completed && <Confetti theme="lightning" />}
+      <div className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-elevated">
+        <div className="flex items-start justify-between gap-4 bg-gradient-to-br from-[#1e3a8a] via-[#0284c7] to-[#facc15] p-6 text-white">
+          <div>
+            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/80">
+              <Zap className="h-3.5 w-3.5" /> Verbo Flash · Lightning
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <CategoryBadge name={challenge.category} />
+              {challenge.premium && <PremiumBadge />}
+              {isLive && (
+                <span className="rounded-full bg-white/20 px-2.5 py-0.5 font-mono text-xs font-bold tabular-nums">
+                  {formatHMS(remaining)}
+                </span>
+              )}
+            </div>
+            <div className="mt-2 text-base font-semibold tracking-tight">{challenge.title}</div>
+            <div className="mt-1 text-xs text-white/80">⚡ {acceptedCount} student{acceptedCount === 1 ? "" : "s"} accepted this</div>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 text-white/80 hover:bg-white/10 hover:text-white" aria-label="Close">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="relative p-6">
+          <div className={locked ? "pointer-events-none select-none blur-sm" : ""}>
+            <p className="text-sm leading-relaxed text-foreground">
+              {challenge.description || "No description available."}
+            </p>
+            {challenge.video_url && (
+              <a
+                href={challenge.video_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary"
+              >
+                <Play className="h-3.5 w-3.5" /> Watch reference video
+              </a>
+            )}
+            {!isLive && !completed && (
+              <div className="mt-4 rounded-lg border border-border bg-secondary/60 px-3 py-2 text-xs font-medium text-muted-foreground">
+                This Lightning has passed. The next one could strike anytime — stay ready.
+              </div>
+            )}
+          </div>
+          {locked && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-b-2xl bg-white/70 p-6 text-center backdrop-blur-md">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 ring-2 ring-amber-400/40">
+                <Lock className="h-6 w-6" />
+              </span>
+              <p className="max-w-sm text-sm font-medium text-foreground">
+                This challenge is for Advance tier+. Upgrade your access level to access them.
+              </p>
+              <Link to="/student/access-levels" className="text-xs font-semibold text-[#0284c7] underline underline-offset-4 hover:opacity-80">
+                Learn more
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-3 border-t border-border bg-secondary/30 p-4">
+          <GhostButton onClick={onClose}>Close</GhostButton>
+          {completed ? (
+            <Pill tone="success"><CheckCircle2 className="mr-1 h-3 w-3" /> Completed</Pill>
+          ) : canComplete ? (
+            <SuccessButton onClick={onComplete}>
+              <CheckCircle2 className="h-3.5 w-3.5" /> Mark as Completed
+            </SuccessButton>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
