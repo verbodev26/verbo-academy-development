@@ -20,6 +20,7 @@ import {
   PartyPopper,
 } from "lucide-react";
 import { Card, Pill } from "@/components/verbo/ui";
+import { Confetti } from "@/components/verbo/Confetti";
 import { useAuth } from "@/lib/auth";
 import {
   type ProductId,
