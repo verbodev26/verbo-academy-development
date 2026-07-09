@@ -439,6 +439,12 @@
 }
 
 /* Animated sign-out button */
+.Btn,
+.Btn .sign,
+.Btn .text {
+  box-sizing: border-box;
+}
+
 .Btn {
   display: flex;
   align-items: center;
@@ -477,28 +483,29 @@
   width: 0%;
   opacity: 0;
   color: white;
-  font-size: 1.2em;
+  font-size: 1em;
   font-weight: 600;
+  white-space: nowrap;
   transition-duration: 0.3s;
 }
 
 .Btn:hover {
-  width: 125px;
+  width: 160px;
   border-radius: 40px;
   transition-duration: 0.3s;
 }
 
 .Btn:hover .sign {
-  width: 30%;
+  width: 20%;
   transition-duration: 0.3s;
-  padding-left: 20px;
+  padding-left: 14px;
 }
 
 .Btn:hover .text {
   opacity: 1;
-  width: 70%;
+  width: 80%;
   transition-duration: 0.3s;
-  padding-right: 10px;
+  padding-right: 14px;
 }
 
 .Btn:active {
