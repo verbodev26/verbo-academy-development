@@ -28,6 +28,7 @@ const NAV_GROUPS: NavGroup[] = [
     { to: "/admin/courses",    label: "Performance Sessions" },
     { to: "/admin/workshops",  label: "Focus Workshops" },
     { to: "/admin/challenges", label: "Challenges" },
+    { to: "/admin/flash",      label: "Verbo Flash" },
     { to: "/admin/materials",  label: "Material Complementario" },
   ]},
   { label: "Clubs", items: [{ to: "/admin/clubs", label: "Clubs" }] },

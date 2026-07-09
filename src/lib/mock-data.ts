@@ -53,6 +53,9 @@ export interface User {
   last_completed_at?: string | null;
   current_streak?: number;
   longest_streak?: number;
+  /** Timestamp of the last Mystery Box opening (Verbo Flash). Independent
+   *  from the challenge-completion cooldown. */
+  last_mystery_box_opened_at?: string | null;
   // ----- Product-type branch (Register Student flow) -----
   // "performance" is the classic Performance Sessions student. "workshops"
   // and "insights" are standalone customers who only bought that add-on and
