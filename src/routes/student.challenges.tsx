@@ -12,8 +12,11 @@ import {
   Share2,
   Link2,
   Upload,
+  Gift,
+  Zap,
 } from "lucide-react";
 import { Card, Pill, PrimaryButton, GhostButton, SuccessButton } from "@/components/verbo/ui";
+import { Confetti } from "@/components/verbo/Confetti";
 import { useAuth } from "@/lib/auth";
 import {
   type Challenge,
@@ -36,13 +39,27 @@ import {
   getSharedResult,
   shareChallengeResult,
   subscribeStudents,
+  openMysteryBox,
+  mysteryBoxCooldownRemaining,
 } from "@/lib/students-store";
+import {
+  type FlashChallenge,
+  type FlashProductId,
+  loadFlashChallenges,
+  loadFlashConfig,
+  subscribeFlashChallenges,
+  subscribeFlashConfig,
+  flashChallengesFor,
+} from "@/lib/flash-challenges-store";
 import { USERS } from "@/lib/mock-data";
 
 export const Route = createFileRoute("/student/challenges")({ component: Page });
 
 const COOLDOWN_MSG =
   "You've already completed a Challenge in the last 24 hours — come back soon for your next one!";
+const MYSTERY_COOLDOWN_MSG =
+  "You've already opened today's Mystery Box — come back tomorrow!";
+
 
 /* -------------------------------------------------------------------------- */
 /* Style tokens — reused from Learning Path so the visual language matches.   */
