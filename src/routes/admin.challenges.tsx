@@ -56,7 +56,7 @@ function DifficultyDots({ difficulty, className = "" }: { difficulty: Difficulty
   const { dots } = DIFFICULTY_META[difficulty];
   return (
     <span className={`inline-flex items-center gap-1 ${className}`} aria-hidden>
-      {[0, 1, 2].map((i) => (
+      {[0, 1, 2, 3].map((i) => (
         <span
           key={i}
           className={`h-2 w-2 rounded-full ${i < dots ? "bg-[#f38934]" : "border border-muted-foreground/40 bg-transparent"}`}
