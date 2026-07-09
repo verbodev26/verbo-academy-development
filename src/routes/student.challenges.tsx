@@ -445,6 +445,7 @@ function Page() {
         <VerboFlashSection
           boxArtUrl={flashConfig.box_art_url}
           available={flashChallengesFor(flashList, "mystery_box", productId as FlashProductId).length > 0}
+          activeSeasons={seasons.filter((s) => s.active)}
           onOpen={() => {
             const pool = flashChallengesFor(flashList, "mystery_box", productId as FlashProductId);
             if (pool.length === 0) return;
@@ -457,6 +458,19 @@ function Page() {
             setTimeout(() => {
               const pick = pool[Math.floor(Math.random() * pool.length)];
               setMystery({ opening: false, reveal: pick, blocked: false });
+            }, 900);
+          }}
+          onOpenSeason={(season) => {
+            const pool = flashChallengesFor(flashList, "mystery_box", productId as FlashProductId);
+            if (pool.length === 0) return;
+            if (!openSeason(student.id, season.id)) {
+              setSeasonState({ season, opening: false, reveal: null, blocked: true });
+              return;
+            }
+            setSeasonState({ season, opening: true, reveal: null, blocked: false });
+            setTimeout(() => {
+              const pick = pool[Math.floor(Math.random() * pool.length)];
+              setSeasonState({ season, opening: false, reveal: pick, blocked: false });
             }, 900);
           }}
         />
