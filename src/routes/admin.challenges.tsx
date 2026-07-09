@@ -253,7 +253,14 @@ function Page() {
           {list.map((c) => (
             <div key={c.id} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-start justify-between gap-2">
-                <CategoryBadge name={c.category} />
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <CategoryBadge name={c.category} />
+                  {c.premium && (
+                    <span className="inline-flex items-center rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+                      Premium
+                    </span>
+                  )}
+                </div>
                 <DifficultyDots difficulty={c.difficulty} />
               </div>
               <div>
