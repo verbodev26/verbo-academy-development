@@ -41,6 +41,12 @@ export interface User {
   admin_notes?: string;
   freeze_start?: string;
   freeze_end?: string;
+  // ----- Challenges (student) -----
+  chosen_challenges?: { challenge_id: string; chosen_at: string }[];
+  completed_challenges?: { challenge_id: string; completed_at: string }[];
+  last_completed_at?: string | null;
+  current_streak?: number;
+  longest_streak?: number;
   // ----- Product-type branch (Register Student flow) -----
   // "performance" is the classic Performance Sessions student. "workshops"
   // and "insights" are standalone customers who only bought that add-on and
