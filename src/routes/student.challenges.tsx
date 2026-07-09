@@ -491,8 +491,46 @@ function Page() {
               </div>
             );
           })}
+          {/* Lightning Bolt — exclusive Verbo Flash badge, separate from the 8 core badges. */}
+          {(() => {
+            const earned = (student.lightning_completions ?? 0) >= 1;
+            return (
+              <div
+                className={`flex flex-col items-center gap-2 rounded-2xl border p-5 text-center shadow-soft transition-opacity ${earned ? "border-yellow-400/70 bg-yellow-400/5" : "border-border bg-card opacity-60"}`}
+              >
+                <span className={`flex h-12 w-12 items-center justify-center rounded-full ${earned ? "bg-yellow-400/20 text-yellow-500 ring-2 ring-yellow-400/50" : "bg-secondary text-muted-foreground"}`}>
+                  {earned ? <Zap className="h-6 w-6" /> : <Lock className="h-5 w-5" />}
+                </span>
+                <div className="text-sm font-semibold text-foreground">⚡ Lightning Bolt</div>
+                <p className="text-[11px] text-muted-foreground">Completed a Lightning within its live window.</p>
+              </div>
+            );
+          })()}
         </div>
       </section>
+
+      {lightningOpen && (
+        <LightningRevealModal
+          challenge={lightningOpen}
+          expiresAt={lightning.expires_at}
+          nowTick={nowTick}
+          isLive={lightning.status === "live"}
+          acceptedCount={lightning.accepted_student_ids.length}
+          hasPremiumAccess={hasPremiumAccess}
+          completed={hasCompletedChallenge(student.id, lightningOpen.id)}
+          onComplete={() => {
+            const target = lightningOpen;
+            if (!target) return;
+            const ok = completeLightningChallenge(student.id, target.id);
+            if (ok) {
+              setLightningOpen(null);
+              setShareFor(target as unknown as Challenge);
+            }
+          }}
+          onClose={() => setLightningOpen(null)}
+        />
+      )}
+
 
       {mystery.blocked && (
         <MysteryCooldownModal onClose={() => setMystery({ opening: false, reveal: null, blocked: false })} />
