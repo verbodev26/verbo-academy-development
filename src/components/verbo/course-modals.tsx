@@ -155,7 +155,55 @@ export function ActivityModal({ unitId, unitTitle, onClose }: { unitId: string; 
             </Field>
           </div>
 
-          {(type === "fill_gaps" || type === "read_complete") && (
+          <Field
+            label="Category"
+            hint="Vocabulary, Grammar, and Practice are the three mandatory categories that gate unit progression."
+          >
+            {!useCustomCategory ? (
+              <div className="flex gap-2">
+                <select
+                  value={category}
+                  onChange={(e) => {
+                    if (e.target.value === "__custom__") { setUseCustomCategory(true); return; }
+                    setCategory(e.target.value);
+                  }}
+                  className={inputCls}
+                >
+                  {DEFAULT_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {categoryLabel(c)}{isMandatoryCategory(c) ? " (mandatory)" : ""}
+                    </option>
+                  ))}
+                  <option value="__custom__">Add custom category…</option>
+                </select>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  placeholder="e.g. Idioms"
+                  className={inputCls}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => { setUseCustomCategory(false); setCustomCategory(""); }}
+                  className="rounded-lg border border-border bg-background px-3 text-xs font-medium text-muted-foreground hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </Field>
+
+          {missingMandatory.length > 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-dashed border-amber-400/60 bg-amber-50/60 px-3 py-2.5 text-[11px] leading-relaxed text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              This unit is missing mandatory {missingMandatory.map(categoryLabel).join(" · ")} activities. Students cannot pass the unit until each mandatory category has at least one activity with a score ≥ 60.
+            </div>
+          )}
+
             <div className="space-y-4">
               <Field label="Sentence / paragraph" hint="Use [blank] to mark each empty space.">
                 <textarea value={paragraph} onChange={(e) => setParagraph(e.target.value)} className={textareaCls} placeholder="She [blank] to the office every morning." />
