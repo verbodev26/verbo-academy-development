@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { Logo } from "./Logo";
 import { useAuth } from "@/lib/auth";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { ProfileModal } from "./ProfileModal";
 import { AdminProfileModal } from "./AdminProfileModal";
@@ -225,15 +225,17 @@ export function TopNav({ items, variant = "light" }: { items: NavEntry[]; varian
             )}
           </button>
           <button
+            type="button"
             onClick={() => { logout(); navigate({ to: "/" }); }}
-            className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-full transition-colors ${
-              isDark
-                ? "text-[#94a3b8] hover:text-[#f38934]"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
+            className="Btn"
             aria-label="Sign out"
           >
-            <LogOut className="h-4 w-4" />
+            <div className="sign">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 5h9v2H7v10h7v2H5V5zm13.83 6-2.58-2.59L15 10l5 5-5 5-1.41-1.41L18.83 16H10v-2h8.83z" />
+              </svg>
+            </div>
+            <div className="text">Sign out</div>
           </button>
         </div>
       </div>
