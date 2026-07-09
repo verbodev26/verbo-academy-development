@@ -428,3 +428,265 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+
+/* -------------------- Lightning tab -------------------- */
+
+function formatHMS(ms: number): string {
+  if (ms <= 0) return "00:00:00";
+  const total = Math.floor(ms / 1000);
+  const h = String(Math.floor(total / 3600)).padStart(2, "0");
+  const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+  const s = String(total % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
+
+function LightningTab() {
+  const [list, setList] = useState<FlashChallenge[]>(loadFlashChallenges);
+  const [categories, setCategories] = useState<string[]>(loadCategories);
+  const [product, setProduct] = useState<FlashProductId>("enterprise");
+  const [lightning, setLightning] = useState<LightningState>(loadLightning);
+  const [modal, setModal] = useState<{ mode: "create" | "edit"; challenge?: FlashChallenge } | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string>("");
+  const [durationHours, setDurationHours] = useState<number>(LIGHTNING_DEFAULT_HOURS);
+  const [confirmEnd, setConfirmEnd] = useState(false);
+
+  useEffect(() => {
+    setList(loadFlashChallenges());
+    setCategories(loadCategories());
+    setLightning(loadLightning());
+    const un1 = subscribeFlashChallenges(() => setList(loadFlashChallenges()));
+    const un2 = subscribeCategories(() => setCategories(loadCategories()));
+    const un3 = subscribeLightning(() => setLightning(loadLightning()));
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => { un1(); un2(); un3(); clearInterval(t); };
+  }, []);
+
+  // Auto-flip status when expires_at passes.
+  useEffect(() => {
+    if (lightning.status === "live" && lightning.expires_at && now >= +new Date(lightning.expires_at)) {
+      setLightning(loadLightning());
+    }
+  }, [now, lightning.status, lightning.expires_at]);
+
+  const filtered = useMemo(
+    () => flashChallengesFor(list, "lightning", product),
+    [list, product],
+  );
+
+  const save = (c: FlashChallenge) => {
+    setList((prev) => {
+      const next = [...prev.filter((x) => x.id !== c.id), c];
+      persistFlashChallenges(next);
+      return next;
+    });
+  };
+  const del = (id: string) => {
+    if (!confirm("Delete this challenge?")) return;
+    setList((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      persistFlashChallenges(next);
+      return next;
+    });
+  };
+  const addCategory = (name: string) => {
+    setCategories((prev) => {
+      if (prev.includes(name)) return prev;
+      const next = [...prev, name];
+      persistCategories(next);
+      return next;
+    });
+  };
+
+  const isLive = lightning.status === "live";
+  const activeChallenge = isLive ? list.find((c) => c.id === lightning.challenge_id) : null;
+  const remainingMs = isLive && lightning.expires_at ? +new Date(lightning.expires_at) - now : 0;
+
+  const handleActivate = () => {
+    if (!selectedChallengeId) return;
+    const target = list.find((c) => c.id === selectedChallengeId);
+    if (!target) return;
+    activateLightning(target.id, target.product, durationHours);
+    setLightning(loadLightning());
+    setSelectedChallengeId("");
+  };
+
+  return (
+    <div className="space-y-6">
+      {isLive && activeChallenge ? (
+        <Card>
+          <div className="flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-[#1e3a8a] via-[#0284c7] to-[#facc15] p-6 text-white">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/80">
+                <Zap className="h-3.5 w-3.5" /> Lightning · Live
+              </div>
+              <div className="rounded-full bg-white/15 px-3 py-1 font-mono text-lg font-bold tabular-nums">
+                {formatHMS(remainingMs)}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wide text-white/70">{FLASH_PRODUCT_LABEL[activeChallenge.product]}</div>
+              <div className="mt-1 text-lg font-semibold tracking-tight">{activeChallenge.title || "Untitled"}</div>
+              <p className="mt-1 text-sm text-white/90">{activeChallenge.description || "No description."}</p>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="rounded-full bg-white/15 px-3 py-1 text-sm font-medium">
+                ⚡ {lightning.accepted_student_ids.length} student{lightning.accepted_student_ids.length === 1 ? "" : "s"} accepted
+              </span>
+              {confirmEnd ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-white/90">End now?</span>
+                  <PrimaryButton onClick={() => { endLightningEarly(); setConfirmEnd(false); }}>Yes, end</PrimaryButton>
+                  <GhostButton onClick={() => setConfirmEnd(false)}>Cancel</GhostButton>
+                </div>
+              ) : (
+                <GhostButton onClick={() => setConfirmEnd(true)}>End early</GhostButton>
+              )}
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <Card>
+          <div className="flex flex-col gap-4 p-1">
+            <div>
+              <div className="flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                <Zap className="h-3.5 w-3.5 text-[#facc15]" /> Reto Relámpago
+              </div>
+              <h2 className="mt-1 text-lg font-semibold tracking-tight text-foreground">Activate a Lightning</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Activate whenever you want. Eligible students see it live until it expires.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Product">
+                <select
+                  value={product}
+                  onChange={(e) => { setProduct(e.target.value as FlashProductId); setSelectedChallengeId(""); }}
+                  className={inputCls}
+                >
+                  {FLASH_PRODUCT_ORDER.map((p) => (
+                    <option key={p} value={p}>{FLASH_PRODUCT_LABEL[p]}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Challenge">
+                <select
+                  value={selectedChallengeId}
+                  onChange={(e) => setSelectedChallengeId(e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="">— Pick one —</option>
+                  {filtered.map((c) => (
+                    <option key={c.id} value={c.id}>{c.title || c.id}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Duration (hours)">
+                <input
+                  type="number"
+                  min={1}
+                  value={durationHours}
+                  onChange={(e) => setDurationHours(Math.max(1, parseInt(e.target.value || "1", 10)))}
+                  className={inputCls}
+                />
+              </Field>
+            </div>
+            <div className="flex justify-end">
+              <PrimaryButton disabled={!selectedChallengeId} onClick={handleActivate}>
+                <Zap className="h-3.5 w-3.5" /> Activate Lightning now
+              </PrimaryButton>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Product selector for library */}
+      <div className="flex flex-wrap gap-2">
+        {FLASH_PRODUCT_ORDER.map((p) => (
+          <button
+            key={p}
+            onClick={() => setProduct(p)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              product === p
+                ? "border-[#0284c7] bg-[#0284c7]/10 text-[#0284c7]"
+                : "border-border bg-background text-muted-foreground hover:bg-secondary"
+            }`}
+          >
+            {FLASH_PRODUCT_LABEL[p]}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          {filtered.length} Lightning challenge{filtered.length === 1 ? "" : "s"} for {FLASH_PRODUCT_LABEL[product]}
+        </div>
+        <GhostButton onClick={() => setModal({ mode: "create" })}>
+          <Plus className="h-3.5 w-3.5" /> Add Challenge
+        </GhostButton>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card>
+          <div className="flex flex-col items-center gap-2 py-10 text-center text-sm text-muted-foreground">
+            <Package className="h-8 w-8 text-muted-foreground/60" />
+            No Lightning challenges yet for this product.
+          </div>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((c) => (
+            <div key={c.id} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {c.category ? (
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${categoryColor(c.category)}`}>
+                    {c.category}
+                  </span>
+                ) : (
+                  <Pill tone="muted">No category</Pill>
+                )}
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-foreground">{c.title || "Untitled"}</div>
+                <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{c.description || "No description yet."}</p>
+              </div>
+              <div className="mt-auto flex items-center justify-between pt-1">
+                <span className="text-[11px] text-muted-foreground">{c.video_url ? "🎬 Video attached" : "No attachment"}</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setModal({ mode: "edit", challenge: c })}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-[#0284c7]"
+                    aria-label="Edit"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => del(c.id)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive"
+                    aria-label="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {modal && (
+        <FlashModal
+          format="lightning"
+          product={product}
+          categories={categories}
+          existing={list}
+          editing={modal.mode === "edit" ? modal.challenge : undefined}
+          onAddCategory={addCategory}
+          onClose={() => setModal(null)}
+          onSave={(c) => { save(c); setModal(null); }}
+        />
+      )}
+    </div>
+  );
+}
+
