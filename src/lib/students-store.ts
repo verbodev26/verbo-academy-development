@@ -180,6 +180,29 @@ export function getSharedResult(studentId: string, challengeId: string): string 
 
 
 
+/* -------------------------------------------------------------------------- */
+/* Mystery Box (Verbo Flash) — 24h cooldown independent from challenge          */
+/* completion. Tracks last_mystery_box_opened_at per student.                   */
+/* -------------------------------------------------------------------------- */
+
+export const MYSTERY_BOX_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+export function mysteryBoxCooldownRemaining(studentId: string): number | null {
+  const u = USERS.find((x) => x.id === studentId);
+  if (!u?.last_mystery_box_opened_at) return null;
+  const elapsed = Date.now() - +new Date(u.last_mystery_box_opened_at);
+  const remaining = MYSTERY_BOX_COOLDOWN_MS - elapsed;
+  return remaining > 0 ? remaining : null;
+}
+
+/** Attempt to open today's Mystery Box. Returns true if the cooldown allowed
+ *  it (and stamps the open time), false if still on cooldown. */
+export function openMysteryBox(studentId: string): boolean {
+  if (mysteryBoxCooldownRemaining(studentId) !== null) return false;
+  persistStudentPatch(studentId, { last_mystery_box_opened_at: new Date().toISOString() });
+  return true;
+}
+
 
 export function subscribeStudents(cb: () => void): () => void {
   if (typeof window === "undefined") return () => {};
