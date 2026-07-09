@@ -34,7 +34,7 @@ export const PRODUCT_ORDER: ProductId[] = ["go", "enterprise", "international"];
 // Placeholder commercial level names — editable later.
 const LEVEL_NAMES: Record<ProductId, string[]> = {
   go: ["Kickstart", "Everyday Flow", "Confident Voice", "Culture Master"],
-  enterprise: ["Core Foundations", "Strategic Fluency", "Executive Presence", "Global Mastery"],
+  enterprise: ["Core Foundations", "Strategic Fluency", "Executive Presence", "Global Leadership"],
   international: ["Survival Basics", "Travel Ready", "Global Connector", "World Fluency"],
 };
 
