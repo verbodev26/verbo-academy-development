@@ -177,9 +177,10 @@ function Page() {
           <GhostButton onClick={() => setProductId(null)}><ArrowLeft className="h-3.5 w-3.5" /> All products</GhostButton>
           <Header title={`${PRODUCT_META[productId].label} — Difficulties`} subtitle="Choose a difficulty to manage its challenges." />
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {DIFFICULTY_ORDER.map((d) => {
             const count = countFor(productId, d);
+            const target = CHALLENGES_PER_DIFFICULTY[d];
             return (
               <button
                 key={d}
@@ -189,8 +190,8 @@ function Page() {
                 <DifficultyDots difficulty={d} className="text-base" />
                 <div className="text-lg font-semibold tracking-tight text-foreground">{DIFFICULTY_META[d].label}</div>
                 <div className="mt-2 flex items-center justify-between">
-                  <Pill tone={count >= CHALLENGES_PER_DIFFICULTY ? "success" : "muted"}>
-                    {count}/{CHALLENGES_PER_DIFFICULTY} challenges
+                  <Pill tone={count >= target ? "success" : "muted"}>
+                    {count}/{target} challenges
                   </Pill>
                   <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </div>
