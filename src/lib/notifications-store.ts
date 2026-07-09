@@ -279,6 +279,31 @@ function teacherNotifications(teacherId: string): Notification[] {
     });
   }
 
+  // ---- Students on this teacher's roster picked a Challenge --------------
+  // Reuses the ASSIGNMENTS table (same source used by session_assigned) —
+  // no new "assigned teacher" field needed.
+  const roster = ASSIGNMENTS.filter((a) => a.teacher_id === teacherId).map((a) => a.student_id);
+  if (roster.length > 0) {
+    const challengeById = new Map(loadChallenges().map((c) => [c.id, c]));
+    for (const sid of roster) {
+      const st = USERS.find((x) => x.id === sid);
+      if (!st) continue;
+      for (const pick of st.chosen_challenges ?? []) {
+        const ch = challengeById.get(pick.challenge_id);
+        if (!ch) continue;
+        out.push({
+          id: `student-challenge:${sid}:${pick.challenge_id}`,
+          kind: "student_challenge_selected",
+          title: `${st.name} picked a Challenge`,
+          body: `${ch.title}${ch.category ? ` (${ch.category})` : ""}`,
+          createdAt: pick.chosen_at,
+          to: "/teacher/students",
+          read: false,
+        });
+      }
+    }
+  }
+
   return out;
 }
 
