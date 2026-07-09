@@ -58,7 +58,22 @@ export function loadCourses(): ProductCourse[] {
   if (typeof window === "undefined") return seed();
   try {
     const raw = localStorage.getItem(COURSES_KEY);
-    if (raw) return JSON.parse(raw) as ProductCourse[];
+    if (raw) {
+      const parsed = JSON.parse(raw) as ProductCourse[];
+      // One-time migration: rename Enterprise L4 to "Global Leadership".
+      let migrated = false;
+      for (const p of parsed) {
+        if (p.product === "enterprise") {
+          for (const l of p.levels) {
+            if (l.name === "Global Mastery") { l.name = "Global Leadership"; migrated = true; }
+          }
+        }
+      }
+      if (migrated) {
+        try { localStorage.setItem(COURSES_KEY, JSON.stringify(parsed)); } catch { /* noop */ }
+      }
+      return parsed;
+    }
   } catch { /* noop */ }
   const initial = seed();
   try { localStorage.setItem(COURSES_KEY, JSON.stringify(initial)); } catch { /* noop */ }
