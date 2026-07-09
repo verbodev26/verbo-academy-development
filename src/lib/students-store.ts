@@ -230,6 +230,56 @@ export function openMysteryBox(studentId: string): boolean {
   return true;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Season (Verbo Flash) — per-season 24h cooldown, independent from Mystery    */
+/* Box, Lightning and other Seasons. Also tracks completion counter per        */
+/* season for the dynamic {Season} Challenger badge.                           */
+/* -------------------------------------------------------------------------- */
+
+export const SEASON_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+export function seasonCooldownRemaining(studentId: string, seasonId: string): number | null {
+  const u = USERS.find((x) => x.id === studentId);
+  const last = u?.last_season_opened_at?.[seasonId];
+  if (!last) return null;
+  const remaining = SEASON_COOLDOWN_MS - (Date.now() - +new Date(last));
+  return remaining > 0 ? remaining : null;
+}
+
+export function openSeason(studentId: string, seasonId: string): boolean {
+  if (seasonCooldownRemaining(studentId, seasonId) !== null) return false;
+  const u = USERS.find((x) => x.id === studentId);
+  const map = { ...(u?.last_season_opened_at ?? {}), [seasonId]: new Date().toISOString() };
+  persistStudentPatch(studentId, { last_season_opened_at: map });
+  return true;
+}
+
+/** Complete a Season-revealed challenge. Independent from Mystery Box /
+ *  Lightning cooldowns. Increments per-season counter used to award the
+ *  {display_name} Challenger badge. Idempotent per challenge id. */
+export function completeSeasonChallenge(
+  studentId: string,
+  challengeId: string,
+  seasonId: string,
+): boolean {
+  const u = USERS.find((x) => x.id === studentId);
+  if (!u) return false;
+  const done = u.completed_challenges ?? [];
+  if (done.some((c) => c.challenge_id === challengeId)) return false;
+  const nowIso = new Date().toISOString();
+  const counts = { ...(u.season_completions ?? {}) };
+  counts[seasonId] = (counts[seasonId] ?? 0) + 1;
+  persistStudentPatch(studentId, {
+    completed_challenges: [
+      ...done,
+      { challenge_id: challengeId, completed_at: nowIso },
+    ],
+    season_completions: counts,
+  });
+  return true;
+}
+
+
 
 export function subscribeStudents(cb: () => void): () => void {
   if (typeof window === "undefined") return () => {};
