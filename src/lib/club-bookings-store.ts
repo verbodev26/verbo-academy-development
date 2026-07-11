@@ -10,6 +10,8 @@ import { loadClubs, persistClubs, type Club, type ClubType } from "./clubs-store
 import { groupsByStudentId } from "./groups-store";
 import { userById } from "./mock-data";
 import type { AccessPlanId } from "./student-model";
+import { hasCreditUsed as freemiumUsed, markCreditUsed as markFreemiumUsed } from "./core-freemium-store";
+
 
 /** Per-plan monthly seat defaults across the three consumable event types.
  *  Manual overrides on the student record (addon_*_per_month) always win,
