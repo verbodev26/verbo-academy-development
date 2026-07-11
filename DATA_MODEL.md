@@ -303,12 +303,14 @@ Persistencia: `Record<studentId, LearningPathEvent[]>`, dedupe 60s, máx. 100 ev
 |---|---|---|---|
 | id | string | requerido | patrón `PRODUCTO-DIFICULTAD-C<n>` |
 | product | `"go"\|"enterprise"\|"international"\|"vip"` | requerido | |
-| difficulty | `"esencial"\|"intermedio"\|"avanzado"` (tipo declarado) | requerido | ⚠️ ver contradicción abajo |
+| difficulty | `DifficultyId = "esencial"\|"intermedio"\|"avanzado"\|"experto"` | requerido | |
+| premium | boolean | opcional | exclusivo de planes Advance/Elite |
+| skill_tags | string[] | opcional | tags informativos: Speaking/Writing/Reading/Listening |
 | category | string | requerido | libre |
 | title / description | string | requerido | |
 | video_url | string | requerido | vacío = sin adjunto |
 
-⚠️ **`challenges-seed.ts` usa masivamente un 4º valor `"experto"`** no declarado en el tipo `DifficultyId`, y también usa `premium: boolean` y `skill_tags: string[]` en el 100% de sus ~150 entradas — **campos que no existen en la interface `Challenge`**. La interface parece desactualizada respecto al dato real.
+✅ Verificado 2026-07-11 contra el código real: `DifficultyId` sí incluye `'experto'` y `Challenge` sí declara `premium`/`skill_tags`. No había ninguna inconsistencia real.
 
 ### `FlashChallenge`, `LightningState`, `FlashSeason`, `FlashConfig` (`src/lib/flash-challenges-store.ts`)
 
