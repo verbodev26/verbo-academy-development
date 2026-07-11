@@ -600,9 +600,38 @@ function StudentFormModal({
     });
   };
 
-  const pickAccessPlan = (id: AccessPlanId) => {
-    setF((prev) => ({ ...prev, access_plan: id, reschedule_policy: getAccessPlan(id)?.reschedulePolicy ?? prev.reschedule_policy }));
+  // Track which add-on inputs the admin has typed into during this session,
+  // so pickAccessPlan never overwrites a value the admin has already tuned.
+  const [addonTouched, setAddonTouched] = useState({ insights: false, bookclubs: false, spotlight: false });
+  const setAddon = (kind: "insights" | "bookclubs" | "spotlight", v: number) => {
+    setAddonTouched((t) => ({ ...t, [kind]: true }));
+    if (kind === "insights") set("addon_insights_per_month", v);
+    else if (kind === "bookclubs") set("addon_bookclubs_per_month", v);
+    else set("addon_spotlight_per_month", v);
   };
+
+  const applyPlanAddonDefaults = (id: AccessPlanId | ""): Partial<FormState> => {
+    if (!id) return {};
+    const d = PLAN_DEFAULTS[id];
+    // Signature is unlimited (Infinity) — not representable in a number input.
+    // Store 999 as a "practically unlimited" sentinel the admin can override.
+    const toInput = (n: number) => (isFinite(n) ? n : 999);
+    return {
+      ...(addonTouched.insights ? {} : { addon_insights_per_month: toInput(d.insight) }),
+      ...(addonTouched.bookclubs ? {} : { addon_bookclubs_per_month: toInput(d.book) }),
+      ...(addonTouched.spotlight ? {} : { addon_spotlight_per_month: toInput(d.spotlight) }),
+    };
+  };
+
+  const pickAccessPlan = (id: AccessPlanId) => {
+    setF((prev) => ({
+      ...prev,
+      access_plan: id,
+      reschedule_policy: getAccessPlan(id)?.reschedulePolicy ?? prev.reschedule_policy,
+      ...applyPlanAddonDefaults(id),
+    }));
+  };
+
 
   const changePerWeek = (val: number) => {
     const suggested = suggestDuration(prevPerWeek.current, f.session_duration, val);
