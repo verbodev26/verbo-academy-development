@@ -229,8 +229,14 @@ export function reserveSeat(studentId: string, clubId: string): { ok: true; book
   // Bump spots_taken.
   clubs[idx] = { ...club, spots_taken: (club.spots_taken ?? 0) + 1 };
   persistClubs(clubs);
+  // Core freemium: consume the one-shot courtesy credit at confirmation.
+  if (userById(studentId)?.access_plan === "Core") {
+    const fkind = club.type === "book" ? "book" : "insight";
+    if (!freemiumUsed(studentId, fkind)) markFreemiumUsed(studentId, fkind);
+  }
   return { ok: true, booking };
 }
+
 
 export function cancelSeat(studentId: string, clubId: string): { ok: true } | { ok: false; reason: string } {
   const clubs = loadClubs();
