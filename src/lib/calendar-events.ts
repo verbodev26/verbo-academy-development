@@ -17,6 +17,8 @@ import type { ExtSession, ExtSessionStatus, AttendanceSubStatus } from "./sessio
 import { loadSessions, SUB_STATUS_META } from "./sessions-store";
 import { loadClubs, type Club, type ClubType, type TimeStatus } from "./clubs-store";
 import { groupsByStudentId } from "./groups-store";
+import { isBooked } from "./club-bookings-store";
+
 
 export type CalendarEventKind =
   | "class"        // 1:1 Performance Session (course)
