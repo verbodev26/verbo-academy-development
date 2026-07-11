@@ -11,6 +11,9 @@ import { Card } from "@/components/verbo/ui";
 import { ClubReservationModal } from "@/components/verbo/ClubReservationModal";
 import type { CalendarEvent, CalendarEventKind } from "@/lib/calendar-events";
 import { isBooked, monthlyCap, bookingsThisMonth, useBookings } from "@/lib/club-bookings-store";
+import { useCoreFreemiumGate } from "@/components/verbo/CoreFreemiumFlow";
+
+
 
 export const Route = createFileRoute("/student/insights")({ component: Page });
 
@@ -38,6 +41,7 @@ function Page() {
   useBookings(); // re-render on booking changes
 
   const [selected, setSelected] = useState<Club | null>(null);
+  const freemium = useCoreFreemiumGate(user);
 
   const events = useMemo<CalendarEvent[]>(() => {
     return loadClubs()
@@ -48,6 +52,8 @@ function Page() {
   if (!user) return null;
 
   const isSignature = user.access_plan === "Signature";
+
+
   const used = bookingsThisMonth(user.id, "insight");
   const capNum = monthlyCap(user.id, "insight");
   const capDisplay = isSignature ? "∞" : String(capNum);
@@ -69,7 +75,7 @@ function Page() {
         <CalendarView
           events={events}
           availableKinds={KINDS}
-          onEventClick={(ev) => ev.club && setSelected(ev.club)}
+          onEventClick={(ev) => ev.club && freemium.tryOpen("insight", () => setSelected(ev.club!))}
         />
       </Card>
 
@@ -92,6 +98,9 @@ function Page() {
           onClose={() => setSelected(null)}
         />
       )}
+
+      {freemium.node}
     </div>
+
   );
 }

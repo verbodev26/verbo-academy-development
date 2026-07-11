@@ -52,6 +52,9 @@ import { isTeacherAvailableAt, findAvailableStartSlots } from "@/lib/availabilit
 import { ClubReservationModal } from "@/components/verbo/ClubReservationModal";
 import type { Club } from "@/lib/clubs-store";
 import { resolvedRemainingSeats, resolvedMonthlyCap } from "@/lib/club-bookings-store";
+import { useCoreFreemiumGate } from "@/components/verbo/CoreFreemiumFlow";
+import { isSilenced } from "@/lib/core-freemium-store";
+
 
 
 export const Route = createFileRoute("/student/sessions")({ component: Page });
@@ -98,23 +101,31 @@ function Page() {
 
   // Dynamic kinds — for Advance/Elite/Signature, only include a consumable
   // kind when the student has effective access to it. Core keeps all three
-  // visible for now (freemium gating lands in a separate change). "class" is
-  // always included.
+  // visible while their freemium credit is live, and each type gets removed
+  // once the student silences it (Modal 3). "class" is always included.
+  const insightSilenced = isCore && isSilenced(user.id, "insight");
+  const bookSilenced = isCore && isSilenced(user.id, "book");
+  const spotSilenced = isCore && isSilenced(user.id, "spotlight");
   const studentKinds: CalendarEventKind[] = ["class"];
-  const hasInsight = isCore ? true : (isSignature || resolvedRemainingSeats(user.id, "insight") > 0 || resolvedMonthlyCap(user.id, "insight") > 0);
-  const hasBook = isCore ? true : (isSignature || resolvedRemainingSeats(user.id, "book") > 0 || resolvedMonthlyCap(user.id, "book") > 0);
-  const hasSpot = isCore ? true : (isSignature || spotlightCapNum > 0);
+  const hasInsight = isCore ? !insightSilenced : (isSignature || resolvedRemainingSeats(user.id, "insight") > 0 || resolvedMonthlyCap(user.id, "insight") > 0);
+  const hasBook = isCore ? !bookSilenced : (isSignature || resolvedRemainingSeats(user.id, "book") > 0 || resolvedMonthlyCap(user.id, "book") > 0);
+  const hasSpot = isCore ? !spotSilenced : (isSignature || spotlightCapNum > 0);
   if (hasInsight) studentKinds.push("insight");
   if (hasBook) studentKinds.push("book_club");
   if (hasSpot) studentKinds.push("spotlight");
 
+  const freemium = useCoreFreemiumGate(user);
+
   const handleEventClick = (ev: CalendarEvent) => {
     if (ev.club && (ev.kind === "insight" || ev.kind === "book_club")) {
-      setClubModal(ev.club);
+      const club = ev.club;
+      const kind = ev.kind === "book_club" ? "book" : "insight";
+      freemium.tryOpen(kind, () => setClubModal(club));
       return;
     }
     setSelected(ev);
   };
+
 
 
   const onCantAttend = (session: ExtSession) => {
@@ -131,13 +142,16 @@ function Page() {
             Your calendar of 1:1 Classes, Verbo Insights, Book Clubs and Spotlight Sessions.
           </p>
         </div>
-        <button
-          onClick={() => setSpotlightOpen(true)}
-          className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#0d9488] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
-        >
-          <Sparkles className="h-4 w-4" /> Request a Spotlight Session
-        </button>
+        {hasSpot && (
+          <button
+            onClick={() => freemium.tryOpen("spotlight", () => setSpotlightOpen(true))}
+            className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#0d9488] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+          >
+            <Sparkles className="h-4 w-4" /> Request a Spotlight Session
+          </button>
+        )}
       </div>
+
 
       <Card>
         <CalendarView
@@ -202,6 +216,9 @@ function Page() {
           onClose={() => setClubModal(null)}
         />
       )}
+
+      {freemium.node}
+
     </div>
 
   );
