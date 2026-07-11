@@ -43,7 +43,10 @@ export function ClubReservationModal({
   const booked = isBooked(studentId, club.id);
   const used = bookingsThisMonth(studentId, club.type);
   const cap = monthlyCap(studentId, club.type);
+  const isSignature = userById(studentId)?.access_plan === "Signature";
+  const capDisplay = isSignature || !isFinite(cap) ? "∞" : String(cap);
   const teacher = club.teacher_id ? userById(club.teacher_id) : null;
+
 
   const reserveBlocked = useMemo(
     () => (booked ? null : reserveBlockedReason(studentId, club)),
