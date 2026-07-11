@@ -448,8 +448,21 @@ El propio comentario del archivo aclara: **no es una tabla de pagos paralela**, 
 `saveSubskillEvaluation()` recalcula las 4 claves legacy como promedio de los subskills, escalado 0-100→1-5, para mantener compatibilidad retro.
 
 ### `TeacherKpis` / `RatingBand` / `RatingPoint` (`src/lib/teacher-kpis.ts`)
-`TeacherKpis`: `rating, ratingNormalized, connectionPunctuality, planningPunctuality, reportPunctuality, completionRate, teacherAbsenceRate, cancellationScore, activeStrikes, composite, bonusEligible`.
-Fórmula del composite: promedio de 6 métricas. `BONUS_THRESHOLD_DEFAULT = 85`.
+`TeacherKpis`: `rating, ratingNormalized, connectionPunctuality, planningPunctuality, reportPunctuality, completionRate, teacherAbsenceRate, cancellationScore, activeStrikes, composite, bonusEligible, bonusStatus`.
+Fórmula del composite: promedio de 6 métricas. `BONUS_THRESHOLD_DEFAULT = 85` (extraído a `teacher-kpis-threshold.ts` para romper ciclos de import).
+
+### `BonusStatus` (`src/lib/teacher-kpi-history-store.ts`)
+`bonusEligible` ya no es "composite actual ≥ umbral"; ahora requiere una **racha de 6 meses calendario consecutivos** con composite ≥ umbral (incluyendo el mes en curso). Estados posibles:
+- `{ kind: "eligible", streak: 6, threshold }`
+- `{ kind: "streak", streak, needed: 6, threshold }` — acumulando racha.
+- `{ kind: "not-tracking", trackingStartLabel, trackingStartKey }` — profesor aún no llegó al primer mes calendario completo tras su mes de ingreso.
+
+**Ventana de tracking**: se activa en la 2ª semana del mes de ingreso; la racha empieza a contar desde el **primer mes calendario completo posterior** al mes de ingreso (`hire_date + 1 month`). El mes de ingreso NO cuenta.
+
+**Historial mensual**: el mes en curso usa el composite real de `computeTeacherKpis`. Los meses pasados usan un mock determinista sembrado por `teacher.id + monthKey` vía `mockCompositeFor()` (rango 65–99). No hay persistencia real de historia mensual todavía.
+
+### `User.hire_date` (`src/lib/mock-data.ts`)
+Fecha ISO (YYYY-MM-DD) de ingreso del profesor. Editable desde Admin > Teachers (form de alta/edición). Es el input único de la ventana de tracking del bono.
 
 ---
 
