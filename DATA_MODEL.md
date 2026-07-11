@@ -303,12 +303,14 @@ Persistencia: `Record<studentId, LearningPathEvent[]>`, dedupe 60s, máx. 100 ev
 |---|---|---|---|
 | id | string | requerido | patrón `PRODUCTO-DIFICULTAD-C<n>` |
 | product | `"go"\|"enterprise"\|"international"\|"vip"` | requerido | |
-| difficulty | `"esencial"\|"intermedio"\|"avanzado"` (tipo declarado) | requerido | ⚠️ ver contradicción abajo |
+| difficulty | `DifficultyId = "esencial"\|"intermedio"\|"avanzado"\|"experto"` | requerido | |
+| premium | boolean | opcional | exclusivo de planes Advance/Elite |
+| skill_tags | string[] | opcional | tags informativos: Speaking/Writing/Reading/Listening |
 | category | string | requerido | libre |
 | title / description | string | requerido | |
 | video_url | string | requerido | vacío = sin adjunto |
 
-⚠️ **`challenges-seed.ts` usa masivamente un 4º valor `"experto"`** no declarado en el tipo `DifficultyId`, y también usa `premium: boolean` y `skill_tags: string[]` en el 100% de sus ~150 entradas — **campos que no existen en la interface `Challenge`**. La interface parece desactualizada respecto al dato real.
+✅ Verificado 2026-07-11 contra el código real: `DifficultyId` sí incluye `'experto'` y `Challenge` sí declara `premium`/`skill_tags`. No había ninguna inconsistencia real.
 
 ### `FlashChallenge`, `LightningState`, `FlashSeason`, `FlashConfig` (`src/lib/flash-challenges-store.ts`)
 
@@ -521,7 +523,7 @@ Sin sub-tipos. Nav varía por `product_type` y por `product === "vip"`. No requi
 | `ClubReportEventType` | `insight \| book \| spotlight` | club-reports-store.ts |
 | `TimeStatus` (Club) | `upcoming \| live \| completed \| cancelled` | clubs-store.ts |
 | `ChallengeProductId` | `go \| enterprise \| international \| vip` | challenges-store.ts |
-| `DifficultyId` (declarado) | `esencial \| intermedio \| avanzado` — ⚠️ el seed usa 4° valor `experto` | challenges-store.ts |
+| `DifficultyId` (declarado) | `esencial \| intermedio \| avanzado \| experto` | challenges-store.ts |
 | `FlashFormat` | `mystery_box \| lightning \| season` | flash-challenges-store.ts |
 | `FlashProductId` | `enterprise \| go \| international` (⚠️ sin "vip") | flash-challenges-store.ts |
 | `MaterialType` | `book \| pdf \| verb-list \| video \| image` | mock-data.ts |
@@ -597,7 +599,7 @@ Sin sub-tipos. Nav varía por `product_type` y por `product === "vip"`. No requi
 ## Preguntas abiertas — estado al 2026-07-11 (discutidas con Jaret)
 
 - **`courses-store.ts` (`Level`/`Unit`, catálogo CEFR genérico) — ¿sigue en uso?** → Probable remanente del modelo anterior al catálogo por producto (los placeholders A1/A2/B1/B2 ya se reemplazaron según el historial del proyecto). **No se toca todavía** — candidato a borrar en la limpieza futura. Falta verificación 100% de que ningún archivo lo importe.
-- **`Challenge.difficulty` le falta `"experto"`, y `Challenge` no declara `premium`/`skill_tags` pese a que el seed los usa al 100%.** → **Aprobado por Jaret.** Es una corrección de tipo (hacer que la interface diga la verdad sobre el dato real), no un cambio de lógica ni de datos — riesgo bajo, distinto del refactor pausado. **Pendiente:** Claude arma el prompt exacto para pegar en Lovable.
+- **`Challenge.difficulty` le falta `"experto"`, y `Challenge` no declara `premium`/`skill_tags` pese a que el seed los usa al 100%.** → **Resuelta — falsa alarma.** Verificado 2026-07-11 contra el código real: `DifficultyId` ya incluye `experto` y `Challenge` ya declara `premium`/`skill_tags`. No se necesitó ningún cambio.
 - **`ClubReport` con `event_type: "spotlight"` — ¿tabla propia o sigue compartiendo `event_id` con `Club`?** → **Pospuesto** al diseño de tablas de Supabase. Hipótesis a verificar en ese momento: las sesiones Spotlight probablemente nacen como `Session` (vía `student-requests-store.ts`, `kind: "spotlight"`), no como `Club` — lo cual explicaría la ambigüedad. No es un problema de la app actual, es una decisión de esquema futuro.
 - **¿Unificar `Challenge`/`FlashChallenge` en una tabla con columna `kind`?** → **Pospuesto** al diseño de tablas de Supabase, misma razón que arriba. Recomendación cuando llegue el momento: sí conviene unificar. No tocar el código actual (entraría en el refactor pausado).
 - **Hallazgo #23 — progreso de actividades sin `studentId`, ¿bug real hoy?** → **Acción inmediata pendiente de confirmar por Jaret**: probar con dos alumnos desde el mismo navegador (completar una actividad como alumno A, revisar si ya aparece completada para alumno B) para confirmar si esto explica parte de la confusión vista en preview. Si se confirma, es una excepción — arreglo quirúrgico y acotado (agregar `studentId` al mapa), no el barrido completo — que se autorizaría aparte, no como parte del refactor grande pausado.
