@@ -150,8 +150,17 @@ export function studentCalendarEvents(studentId: string, opts?: {
     const ev = sessionEvent(s, `Session with ${teacherName}`, memberSub);
     events.push(ev);
   }
+  // Verbo Insights + Book Clubs — every upcoming/live club is visible on the
+  // student calendar so they can browse and open the reservation modal from
+  // there. Cancelled clubs are hidden. Cap/plan gating happens at reserve time.
+  for (const c of loadClubs()) {
+    if (c.type !== "insight" && c.type !== "book") continue;
+    if (c.status === "cancelled") continue;
+    events.push(clubEvent(c));
+  }
   return events;
 }
+
 
 
 /** Meta a chip/legend can render for each supported event kind. */

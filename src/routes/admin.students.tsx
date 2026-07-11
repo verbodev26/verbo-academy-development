@@ -11,6 +11,8 @@ import {
   type ProductId, type AccessPlanId,
 } from "@/lib/student-model";
 import { teachersForProduct } from "@/lib/teacher-model";
+import { PLAN_DEFAULTS } from "@/lib/club-bookings-store";
+
 import { Card, GhostButton, PrimaryButton } from "@/components/verbo/ui";
 import { useAvatar } from "@/lib/avatar-store";
 import {
@@ -571,8 +573,10 @@ function StudentFormModal({
       hired_sessions: 0,
       remaining_sessions: 0,
       sessions_auto: true,
+      ...applyPlanAddonDefaults(p.defaultAccessPlan ?? ""),
     }));
   };
+
 
   // --- Focus change: pre-mark suggested levels ---
   const pickFocus = (name: string) => {
@@ -600,9 +604,38 @@ function StudentFormModal({
     });
   };
 
-  const pickAccessPlan = (id: AccessPlanId) => {
-    setF((prev) => ({ ...prev, access_plan: id, reschedule_policy: getAccessPlan(id)?.reschedulePolicy ?? prev.reschedule_policy }));
+  // Track which add-on inputs the admin has typed into during this session,
+  // so pickAccessPlan never overwrites a value the admin has already tuned.
+  const [addonTouched, setAddonTouched] = useState({ insights: false, bookclubs: false, spotlight: false });
+  const setAddon = (kind: "insights" | "bookclubs" | "spotlight", v: number) => {
+    setAddonTouched((t) => ({ ...t, [kind]: true }));
+    if (kind === "insights") set("addon_insights_per_month", v);
+    else if (kind === "bookclubs") set("addon_bookclubs_per_month", v);
+    else set("addon_spotlight_per_month", v);
   };
+
+  const applyPlanAddonDefaults = (id: AccessPlanId | ""): Partial<FormState> => {
+    if (!id) return {};
+    const d = PLAN_DEFAULTS[id];
+    // Signature is unlimited (Infinity) — not representable in a number input.
+    // Store 999 as a "practically unlimited" sentinel the admin can override.
+    const toInput = (n: number) => (isFinite(n) ? n : 999);
+    return {
+      ...(addonTouched.insights ? {} : { addon_insights_per_month: toInput(d.insight) }),
+      ...(addonTouched.bookclubs ? {} : { addon_bookclubs_per_month: toInput(d.book) }),
+      ...(addonTouched.spotlight ? {} : { addon_spotlight_per_month: toInput(d.spotlight) }),
+    };
+  };
+
+  const pickAccessPlan = (id: AccessPlanId) => {
+    setF((prev) => ({
+      ...prev,
+      access_plan: id,
+      reschedule_policy: getAccessPlan(id)?.reschedulePolicy ?? prev.reschedule_policy,
+      ...applyPlanAddonDefaults(id),
+    }));
+  };
+
 
   const changePerWeek = (val: number) => {
     const suggested = suggestDuration(prevPerWeek.current, f.session_duration, val);
@@ -948,14 +981,15 @@ function StudentFormModal({
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="Insights (per month)" icon={<Lightbulb className="h-3.5 w-3.5" />}>
-                <input type="number" min={0} value={f.addon_insights_per_month} onChange={(e) => set("addon_insights_per_month", Number(e.target.value))} className={inputCls} />
+                <input type="number" min={0} value={f.addon_insights_per_month} onChange={(e) => setAddon("insights", Number(e.target.value))} className={inputCls} />
               </Field>
               <Field label="Book Clubs (per month)" icon={<Users className="h-3.5 w-3.5" />}>
-                <input type="number" min={0} value={f.addon_bookclubs_per_month} onChange={(e) => set("addon_bookclubs_per_month", Number(e.target.value))} className={inputCls} />
+                <input type="number" min={0} value={f.addon_bookclubs_per_month} onChange={(e) => setAddon("bookclubs", Number(e.target.value))} className={inputCls} />
               </Field>
               <Field label="Spotlight Sessions (per month)" icon={<Sparkles className="h-3.5 w-3.5" />}>
-                <input type="number" min={0} value={f.addon_spotlight_per_month} onChange={(e) => set("addon_spotlight_per_month", Number(e.target.value))} className={inputCls} />
+                <input type="number" min={0} value={f.addon_spotlight_per_month} onChange={(e) => setAddon("spotlight", Number(e.target.value))} className={inputCls} />
               </Field>
+
             </div>
             <div className="mt-4">
               <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -1001,8 +1035,9 @@ function StudentFormModal({
             <Step n={2} title="Insights Access">
               <p className="mb-3 text-[11px] text-muted-foreground">Standalone Insights customer. Set the monthly cap for this person.</p>
               <Field label="Insights (per month)" icon={<Lightbulb className="h-3.5 w-3.5" />}>
-                <input type="number" min={0} value={f.addon_insights_per_month} onChange={(e) => set("addon_insights_per_month", Number(e.target.value))} className={inputCls} />
+                <input type="number" min={0} value={f.addon_insights_per_month} onChange={(e) => setAddon("insights", Number(e.target.value))} className={inputCls} />
               </Field>
+
             </Step>
           )}
         </div>

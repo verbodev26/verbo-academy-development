@@ -43,7 +43,10 @@ export function ClubReservationModal({
   const booked = isBooked(studentId, club.id);
   const used = bookingsThisMonth(studentId, club.type);
   const cap = monthlyCap(studentId, club.type);
+  const isSignature = userById(studentId)?.access_plan === "Signature";
+  const capDisplay = isSignature || !isFinite(cap) ? "∞" : String(cap);
   const teacher = club.teacher_id ? userById(club.teacher_id) : null;
+
 
   const reserveBlocked = useMemo(
     () => (booked ? null : reserveBlockedReason(studentId, club)),
@@ -143,9 +146,10 @@ export function ClubReservationModal({
         <div className="mt-4 rounded-lg bg-amber-50 px-3 py-2.5 text-[11.5px] leading-relaxed text-amber-900 ring-1 ring-amber-200">
           <div>Reservations close 24h before start.</div>
           <div className="mt-0.5">
-            You can book up to <strong>{cap}</strong> {isBook ? "Book Clubs" : "Insights"} per month —
-            used <strong>{used}/{cap}</strong> this cycle.
+            You can book up to <strong>{capDisplay}</strong> {isBook ? "Book Clubs" : "Insights"} per month —
+            used <strong>{used}/{capDisplay}</strong> this cycle.
           </div>
+
         </div>
 
         {error && (

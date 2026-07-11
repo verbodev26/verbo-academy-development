@@ -47,8 +47,10 @@ function Page() {
 
   if (!user) return null;
 
+  const isSignature = user.access_plan === "Signature";
   const used = bookingsThisMonth(user.id, "insight");
-  const cap = monthlyCap(user.id, "insight");
+  const capNum = monthlyCap(user.id, "insight");
+  const capDisplay = isSignature ? "∞" : String(capNum);
   const bookedCount = loadClubs().filter((c) => c.type === "insight" && isBooked(user.id, c.id)).length;
 
   return (
@@ -58,7 +60,7 @@ function Page() {
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Insights</h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
             Live micro-workshops on grammar, vocabulary, pronunciation and culture. Reserve your seat
-            up to 24h before start — you can book up to {cap} per month.
+            up to 24h before start — you can book up to {capDisplay} per month.
           </p>
         </div>
       </div>
@@ -74,9 +76,10 @@ function Page() {
       <Card className="!p-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
           <div className="text-muted-foreground">
-            Seats used this cycle: <span className="font-semibold text-foreground">{used}/{cap}</span>
+            Seats used this cycle: <span className="font-semibold text-foreground">{used}/{capDisplay}</span>
           </div>
           <div className="text-muted-foreground">
+
             Currently reserved: <span className="font-semibold text-foreground">{bookedCount}</span>
           </div>
         </div>
