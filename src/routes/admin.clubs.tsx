@@ -548,9 +548,37 @@ function ClubFormPanel({
           <Field label="Pre-club material">
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-secondary/30 p-8 text-center">
               <UploadCloud className="h-7 w-7 text-muted-foreground" />
-              <div className="mt-2 text-sm font-medium text-foreground">{material || "Drop a PDF or image"}</div>
+              <div className="mt-2 text-sm font-medium text-foreground">{materialName || "Drop a PDF or image"}</div>
               <div className="mt-1 text-xs text-muted-foreground">Shared with students before the event</div>
-              <GhostButton type="button" className="mt-3" onClick={() => setMaterial(material ? "" : "preview-material.pdf")}>
+              <input
+                ref={materialInputRef}
+                type="file"
+                accept="application/pdf,image/png,image/jpeg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setMaterial(String(reader.result));
+                    setMaterialName(file.name);
+                  };
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+              <GhostButton
+                type="button"
+                className="mt-3"
+                onClick={() => {
+                  if (material) {
+                    setMaterial("");
+                    setMaterialName("");
+                  } else {
+                    materialInputRef.current?.click();
+                  }
+                }}
+              >
                 {material ? "Remove file" : "Choose file"}
               </GhostButton>
             </div>
