@@ -238,11 +238,17 @@ function DayList({
           >
             {EVENT_KIND_META[e.kind].label}
           </span>
+          {e.booked && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700" title="You're in">
+              <Check className="h-3 w-3" strokeWidth={3} /> You're in
+            </span>
+          )}
           {e.is_group && (
             <span className="inline-flex items-center rounded-full bg-[#01304a] px-2 py-0.5 text-[10px] font-bold text-white" title="Group session">
               G
             </span>
           )}
+
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium text-foreground">{e.title}</div>
             {e.subtitle && <div className="truncate text-xs text-muted-foreground">{e.subtitle}</div>}
