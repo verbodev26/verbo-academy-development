@@ -53,7 +53,7 @@ import { ClubReservationModal } from "@/components/verbo/ClubReservationModal";
 import type { Club } from "@/lib/clubs-store";
 import { resolvedRemainingSeats, resolvedMonthlyCap } from "@/lib/club-bookings-store";
 import { useCoreFreemiumGate } from "@/components/verbo/CoreFreemiumFlow";
-import { isSilenced } from "@/lib/core-freemium-store";
+import { isSilenced, hasCreditUsed as freemiumUsed, markCreditUsed as markFreemiumUsed } from "@/lib/core-freemium-store";
 
 
 
@@ -724,9 +724,14 @@ function SpotlightFormModal({ studentId, onClose }: { studentId: string; onClose
       spotlight_context: ctx.trim(),
       last_report_summary: studentUser ? `Level ${studentUser.current_level ?? "—"}` : undefined,
     });
+    // Core freemium: consume the one-shot courtesy credit on real submit.
+    if (studentUser?.access_plan === "Core" && !freemiumUsed(studentId, "spotlight")) {
+      markFreemiumUsed(studentId, "spotlight");
+    }
     toast.success("Spotlight Request published. Teachers have been notified.");
     onClose();
   };
+
 
 
   if (confirmOverlap) {
@@ -752,10 +757,15 @@ function SpotlightFormModal({ studentId, onClose }: { studentId: string; onClose
               // Refund remaining_sessions (as if never scheduled).
               const u = USERS.find((x) => x.id === studentId);
               if (u && typeof u.remaining_sessions === "number") u.remaining_sessions += 1;
+              // Core freemium: consume the one-shot courtesy credit.
+              if (studentUser?.access_plan === "Core" && !freemiumUsed(studentId, "spotlight")) {
+                markFreemiumUsed(studentId, "spotlight");
+              }
               toast.success("Session replaced with a Spotlight in the same slot.");
               onClose();
               void overlapIso;
             }}>
+
               Replace with Spotlight
             </PrimaryButton>
           </div>

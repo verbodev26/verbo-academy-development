@@ -21,12 +21,12 @@ import { Confetti } from "./Confetti";
 import {
   hasCreditUsed,
   isSilenced,
-  markCreditUsed,
   markSilenced,
   useFreemium,
   type FreemiumKind,
 } from "@/lib/core-freemium-store";
 import { PLAN_DEFAULTS } from "@/lib/club-bookings-store";
+
 
 const LABELS: Record<FreemiumKind, string> = {
   insight: "Insight session",
@@ -60,11 +60,16 @@ export function useCoreFreemiumGate(user: { id: string; access_plan?: string } |
 
   const claim = () => {
     if (!state || state.step !== "welcome" || !user) return;
-    markCreditUsed(user.id, state.kind);
+    // NOTE: credit is NOT consumed here — only when the underlying
+    // reservation/request is actually confirmed (reserveSeat in
+    // club-bookings-store, or the Spotlight submit in student.sessions).
+    // If the student closes the next modal without confirming, the
+    // courtesy credit stays intact for a future attempt.
     const proceed = state.onProceed;
     setState(null);
     proceed();
   };
+
 
   const dismissUsed = (silence: boolean) => {
     if (!state || state.step !== "used" || !user) return;
