@@ -122,50 +122,57 @@ export function removeActivity(id: string) {
   saveActivities(loadActivities().filter((a) => a.id !== id));
 }
 
-/* ---- Completion + attempts ---- */
-export function loadCompletion(): Record<string, boolean> {
+/* ---- Completion + attempts (scoped per student) ---- */
+function scopedKey(studentId: string, id: string) { return `${studentId}::${id}`; }
+
+export function loadCompletion(_studentId: string): Record<string, boolean> {
+  // Returns the raw Record keyed by `${studentId}::${unitId}`; kept for
+  // callers that want to enumerate. Prefer setUnitCompleted / unitPassed.
   return safeRead<Record<string, boolean>>(COMPLETION_KEY, {});
 }
-export function setUnitCompleted(unitId: string, value: boolean) {
-  const c = loadCompletion();
-  c[unitId] = value;
+export function setUnitCompleted(studentId: string, unitId: string, value: boolean) {
+  const c = safeRead<Record<string, boolean>>(COMPLETION_KEY, {});
+  c[scopedKey(studentId, unitId)] = value;
   safeWrite(COMPLETION_KEY, c);
 }
 
-export function loadAttempts(): Record<string, number> {
+export function loadAttempts(_studentId: string): Record<string, number> {
   return safeRead<Record<string, number>>(ATTEMPTS_KEY, {});
 }
-export function incrementAttempts(unitId: string): number {
-  const a = loadAttempts();
-  a[unitId] = (a[unitId] ?? 0) + 1;
+export function incrementAttempts(studentId: string, unitId: string): number {
+  const a = safeRead<Record<string, number>>(ATTEMPTS_KEY, {});
+  const k = scopedKey(studentId, unitId);
+  a[k] = (a[k] ?? 0) + 1;
   safeWrite(ATTEMPTS_KEY, a);
-  return a[unitId];
+  return a[k];
 }
-export function resetAttempts(unitId: string) {
-  const a = loadAttempts();
-  delete a[unitId];
+export function resetAttempts(studentId: string, unitId: string) {
+  const a = safeRead<Record<string, number>>(ATTEMPTS_KEY, {});
+  delete a[scopedKey(studentId, unitId)];
   safeWrite(ATTEMPTS_KEY, a);
 }
 
-/* ---- Per-activity best scores ---- */
+/* ---- Per-activity best scores (scoped per student) ---- */
 export interface ActivityScore { best: number; attempts: number; lastAt: string }
-export function loadActivityScores(): Record<string, ActivityScore> {
+export function loadActivityScores(_studentId: string): Record<string, ActivityScore> {
   return safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
 }
-export function recordActivityScore(activityId: string, score: number): ActivityScore {
-  const all = loadActivityScores();
-  const cur = all[activityId] ?? { best: 0, attempts: 0, lastAt: "" };
+export function recordActivityScore(studentId: string, activityId: string, score: number): ActivityScore {
+  const all = safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
+  const k = scopedKey(studentId, activityId);
+  const cur = all[k] ?? { best: 0, attempts: 0, lastAt: "" };
   const next: ActivityScore = {
     best: Math.max(cur.best, Math.round(score)),
     attempts: cur.attempts + 1,
     lastAt: new Date().toISOString(),
   };
-  all[activityId] = next;
+  all[k] = next;
   safeWrite(SCORES_KEY, all);
   return next;
 }
-export function bestScoreFor(activityId: string): number {
-  return loadActivityScores()[activityId]?.best ?? 0;
+export function bestScoreFor(studentId: string, activityId: string): number {
+  const all = safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
+  return all[scopedKey(studentId, activityId)]?.best ?? 0;
 }
 
 /* ---- Milestone units (10 / 20 / 30) ---- */
