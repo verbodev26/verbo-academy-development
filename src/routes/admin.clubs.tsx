@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, GhostButton, Pill, PrimaryButton, SectionTitle } from "@/components/verbo/ui";
 import { USERS, type User } from "@/lib/mock-data";
 import {
