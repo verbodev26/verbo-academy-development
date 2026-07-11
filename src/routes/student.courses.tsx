@@ -246,6 +246,7 @@ function Page() {
       <UnitDetail
         level={level}
         unit={unit}
+        studentId={user?.id ?? ""}
         readOnly={view.readOnly}
         onBack={() => setView({ kind: "units", levelId: level.id, readOnly: view.readOnly })}
         onChange={() => onUnitCompleted(level.id, unit.id)}
