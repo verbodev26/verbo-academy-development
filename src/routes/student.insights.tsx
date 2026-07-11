@@ -70,8 +70,9 @@ function Page() {
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Insights</h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
             Live micro-workshops on grammar, vocabulary, pronunciation and culture. Reserve your seat
-            up to 24h before start — you can book up to {capDisplay} per month.
+            up to 24h before start — {isSignature ? "you have unlimited Insights every month." : `you can book up to ${capDisplay} per month.`}
           </p>
+
         </div>
       </div>
 
