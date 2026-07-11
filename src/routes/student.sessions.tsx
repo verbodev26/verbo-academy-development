@@ -216,6 +216,9 @@ function Page() {
           onClose={() => setClubModal(null)}
         />
       )}
+
+      {freemium.node}
+
     </div>
 
   );
