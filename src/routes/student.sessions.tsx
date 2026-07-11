@@ -51,11 +51,13 @@ import {
 import { isTeacherAvailableAt, findAvailableStartSlots } from "@/lib/availability-store";
 import { ClubReservationModal } from "@/components/verbo/ClubReservationModal";
 import type { Club } from "@/lib/clubs-store";
+import { resolvedRemainingSeats, resolvedMonthlyCap } from "@/lib/club-bookings-store";
 
 
 export const Route = createFileRoute("/student/sessions")({ component: Page });
 
-const STUDENT_KINDS: CalendarEventKind[] = ["class", "insight", "book_club", "spotlight"];
+const ALL_STUDENT_KINDS: CalendarEventKind[] = ["class", "insight", "book_club", "spotlight"];
+
 
 function fmtDT(iso: string) {
   return new Date(iso).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
