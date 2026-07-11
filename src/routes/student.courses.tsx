@@ -273,6 +273,7 @@ function Page() {
     <>
       <LevelsView
         key={rev}
+        studentId={user?.id ?? ""}
         productLabel={user?.product ?? ""}
         levels={levels}
         states={states}
