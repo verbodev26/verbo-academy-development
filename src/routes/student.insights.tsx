@@ -72,7 +72,7 @@ function Page() {
         <CalendarView
           events={events}
           availableKinds={KINDS}
-          onEventClick={(ev) => ev.club && setSelected(ev.club)}
+          onEventClick={(ev) => ev.club && freemium.tryOpen("insight", () => setSelected(ev.club!))}
         />
       </Card>
 
@@ -95,6 +95,9 @@ function Page() {
           onClose={() => setSelected(null)}
         />
       )}
+
+      {freemium.node}
     </div>
+
   );
 }
