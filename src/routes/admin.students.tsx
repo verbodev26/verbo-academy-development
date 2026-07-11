@@ -981,14 +981,15 @@ function StudentFormModal({
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="Insights (per month)" icon={<Lightbulb className="h-3.5 w-3.5" />}>
-                <input type="number" min={0} value={f.addon_insights_per_month} onChange={(e) => set("addon_insights_per_month", Number(e.target.value))} className={inputCls} />
+                <input type="number" min={0} value={f.addon_insights_per_month} onChange={(e) => setAddon("insights", Number(e.target.value))} className={inputCls} />
               </Field>
               <Field label="Book Clubs (per month)" icon={<Users className="h-3.5 w-3.5" />}>
-                <input type="number" min={0} value={f.addon_bookclubs_per_month} onChange={(e) => set("addon_bookclubs_per_month", Number(e.target.value))} className={inputCls} />
+                <input type="number" min={0} value={f.addon_bookclubs_per_month} onChange={(e) => setAddon("bookclubs", Number(e.target.value))} className={inputCls} />
               </Field>
               <Field label="Spotlight Sessions (per month)" icon={<Sparkles className="h-3.5 w-3.5" />}>
-                <input type="number" min={0} value={f.addon_spotlight_per_month} onChange={(e) => set("addon_spotlight_per_month", Number(e.target.value))} className={inputCls} />
+                <input type="number" min={0} value={f.addon_spotlight_per_month} onChange={(e) => setAddon("spotlight", Number(e.target.value))} className={inputCls} />
               </Field>
+
             </div>
             <div className="mt-4">
               <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
