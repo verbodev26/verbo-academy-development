@@ -200,12 +200,13 @@ export function setMilestoneUnlocked(studentId: string, unitId: string, on: bool
 
 /* ---- Unit pass rule ----
  * A unit is "passed" when every mandatory category present in that unit
- * has at least one activity with best score ≥ 60. Units without any mandatory
- * activity fall back to the legacy completion flag (admin override / seed).
+ * has at least one activity with best score ≥ 60 for THAT student. Units
+ * without any mandatory activity fall back to the legacy completion flag
+ * (admin override / seed), also scoped per student.
  */
-export function unitPassed(unitId: string): boolean {
+export function unitPassed(studentId: string, unitId: string): boolean {
   const list = activitiesForUnit(unitId);
-  const scores = loadActivityScores();
+  const scores = safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
   const byCat = new Map<string, Activity[]>();
   for (const a of list) {
     if (!isMandatoryCategory(a.category)) continue;
@@ -213,19 +214,22 @@ export function unitPassed(unitId: string): boolean {
     arr.push(a);
     byCat.set(a.category!, arr);
   }
-  if (byCat.size === 0) return !!loadCompletion()[unitId];
+  if (byCat.size === 0) {
+    const completion = safeRead<Record<string, boolean>>(COMPLETION_KEY, {});
+    return !!completion[scopedKey(studentId, unitId)];
+  }
   for (const [, arr] of byCat) {
-    const ok = arr.some((a) => (scores[a.id]?.best ?? 0) >= 60);
+    const ok = arr.some((a) => (scores[scopedKey(studentId, a.id)]?.best ?? 0) >= 60);
     if (!ok) return false;
   }
   return true;
 }
 
-export function unitCategoryProgress(unitId: string): {
+export function unitCategoryProgress(studentId: string, unitId: string): {
   category: string; passed: boolean; best: number; mandatory: boolean;
 }[] {
   const list = activitiesForUnit(unitId);
-  const scores = loadActivityScores();
+  const scores = safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
   const byCat = new Map<string, Activity[]>();
   for (const a of list) {
     const cat = a.category ?? "uncategorized";
@@ -234,7 +238,7 @@ export function unitCategoryProgress(unitId: string): {
     byCat.set(cat, arr);
   }
   return Array.from(byCat.entries()).map(([category, arr]) => {
-    const best = arr.reduce((m, a) => Math.max(m, scores[a.id]?.best ?? 0), 0);
+    const best = arr.reduce((m, a) => Math.max(m, scores[scopedKey(studentId, a.id)]?.best ?? 0), 0);
     const mandatory = isMandatoryCategory(category);
     return { category, best, mandatory, passed: mandatory ? best >= 60 : true };
   });
@@ -251,19 +255,31 @@ export function renameUnitReferences(oldUnitId: string, newUnitId: string) {
   }
   if (changed) saveActivities(activities);
 
-  const completion = loadCompletion();
-  if (oldUnitId in completion) {
-    completion[newUnitId] = completion[oldUnitId];
-    delete completion[oldUnitId];
-    safeWrite(COMPLETION_KEY, completion);
+  // Completion + attempts keys are now `${studentId}::${unitId}`. Rewrite any
+  // key ending in `::${oldUnitId}`, preserving the studentId prefix.
+  const completion = safeRead<Record<string, boolean>>(COMPLETION_KEY, {});
+  let compChanged = false;
+  for (const k of Object.keys(completion)) {
+    if (k.endsWith(`::${oldUnitId}`)) {
+      const prefix = k.slice(0, k.length - oldUnitId.length);
+      completion[`${prefix}${newUnitId}`] = completion[k];
+      delete completion[k];
+      compChanged = true;
+    }
   }
+  if (compChanged) safeWrite(COMPLETION_KEY, completion);
 
-  const attempts = loadAttempts();
-  if (oldUnitId in attempts) {
-    attempts[newUnitId] = attempts[oldUnitId];
-    delete attempts[oldUnitId];
-    safeWrite(ATTEMPTS_KEY, attempts);
+  const attempts = safeRead<Record<string, number>>(ATTEMPTS_KEY, {});
+  let attChanged = false;
+  for (const k of Object.keys(attempts)) {
+    if (k.endsWith(`::${oldUnitId}`)) {
+      const prefix = k.slice(0, k.length - oldUnitId.length);
+      attempts[`${prefix}${newUnitId}`] = attempts[k];
+      delete attempts[k];
+      attChanged = true;
+    }
   }
+  if (attChanged) safeWrite(ATTEMPTS_KEY, attempts);
 }
 
 /**
@@ -271,13 +287,14 @@ export function renameUnitReferences(oldUnitId: string, newUnitId: string) {
  * Path uses `computeUnitLocks` in student.courses.tsx which is aware of
  * milestone teacher-locks and per-student state.
  */
-export function isUnitUnlocked(unitId: string): boolean {
-  if (unitPassed(unitId)) return true;
+export function isUnitUnlocked(studentId: string, unitId: string): boolean {
+  if (unitPassed(studentId, unitId)) return true;
   for (const lvl of loadLevels()) {
     const idx = lvl.units.findIndex((u) => u.id === unitId);
     if (idx === -1) continue;
     if (idx === 0) return true;
-    return unitPassed(lvl.units[idx - 1].id);
+    return unitPassed(studentId, lvl.units[idx - 1].id);
   }
   return true;
 }
+
