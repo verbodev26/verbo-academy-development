@@ -12,20 +12,18 @@ import { type User } from "./mock-data";
 import { loadSessions } from "./sessions-store";
 import { avgRating } from "./teacher-model";
 import { activeStrikeCount } from "./strikes-store";
+import { bonusStatus, type BonusStatus } from "./teacher-kpi-history-store";
 
-// ----- Bonus threshold (shared, admin-configurable) -------------------------
-export const BONUS_THRESHOLD_KEY = "verbo:bonus-threshold";
-export const BONUS_THRESHOLD_DEFAULT = 85;
-
-export function getBonusThreshold(): number {
-  if (typeof window === "undefined") return BONUS_THRESHOLD_DEFAULT;
-  const raw = localStorage.getItem(BONUS_THRESHOLD_KEY);
-  const n = raw != null ? Number(raw) : NaN;
-  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : BONUS_THRESHOLD_DEFAULT;
-}
-export function setBonusThreshold(v: number) {
-  if (typeof window !== "undefined") localStorage.setItem(BONUS_THRESHOLD_KEY, String(Math.round(v)));
-}
+// Re-export the threshold helpers so existing imports from teacher-kpis keep
+// working after the extraction. New code should import them directly from
+// ./teacher-kpis-threshold.
+export {
+  BONUS_THRESHOLD_KEY,
+  BONUS_THRESHOLD_DEFAULT,
+  getBonusThreshold,
+  setBonusThreshold,
+} from "./teacher-kpis-threshold";
+import { getBonusThreshold } from "./teacher-kpis-threshold";
 
 // ----- Deterministic pseudo-random helpers ----------------------------------
 function hashSeed(str: string): number {
@@ -111,6 +109,7 @@ export interface TeacherKpis {
   activeStrikes: number;       // raw count, last 6 months, unjustified
   composite: number;
   bonusEligible: boolean;
+  bonusStatus: BonusStatus;
 }
 
 export function computeTeacherKpis(t: User, threshold = getBonusThreshold()): TeacherKpis {
@@ -138,6 +137,10 @@ export function computeTeacherKpis(t: User, threshold = getBonusThreshold()): Te
     (connectionPunctuality + planningPunctuality + reportPunctuality + completionRate + ratingNormalized + cancellationScore) / 6,
   );
 
+  // Bonus eligibility is now a 6-month streak — the current month's composite
+  // is fed in, past months come from the (mock) history store.
+  const status = bonusStatus(t, composite, threshold);
+
   return {
     rating,
     ratingNormalized,
@@ -149,7 +152,8 @@ export function computeTeacherKpis(t: User, threshold = getBonusThreshold()): Te
     cancellationScore,
     activeStrikes: strikes,
     composite,
-    bonusEligible: composite >= threshold,
+    bonusEligible: status.kind === "eligible",
+    bonusStatus: status,
   };
 }
 
