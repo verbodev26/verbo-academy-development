@@ -1035,6 +1035,9 @@ function TeacherFormModal({
   const [showPw, setShowPw] = useState(false);
   const [rate, setRate] = useState(String(initial?.hourly_rate ?? DEFAULT_HOURLY_RATE));
   const [products, setProducts] = useState<QualifiedProduct[]>(qualifiedProducts(initial ?? ({} as User)));
+  const [hireDate, setHireDate] = useState(
+    initial?.hire_date ?? new Date().toISOString().slice(0, 10),
+  );
   const [studentIds, setStudentIds] = useState<string[]>([]);
 
   // Students with no teacher assigned (available for initial assignment)
@@ -1043,7 +1046,7 @@ function TeacherFormModal({
     [],
   );
 
-  const valid = name.trim() && email.trim() && password.trim() && products.length > 0;
+  const valid = name.trim() && email.trim() && password.trim() && products.length > 0 && !!hireDate;
 
   const handleSave = () => {
     if (!valid) return;
@@ -1056,6 +1059,7 @@ function TeacherFormModal({
       role: "teacher",
       hourly_rate: Number(rate) || DEFAULT_HOURLY_RATE,
       qualified_products: products,
+      hire_date: hireDate,
       teacher_status: initial?.teacher_status ?? "active",
       plan_punctuality: initial?.plan_punctuality ?? 100,
       report_punctuality: initial?.report_punctuality ?? 100,
