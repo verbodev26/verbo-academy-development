@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, GhostButton, Pill, PrimaryButton, SectionTitle } from "@/components/verbo/ui";
 import { USERS, type User } from "@/lib/mock-data";
 import {
@@ -405,11 +405,14 @@ function ClubFormPanel({
   const [description, setDescription] = useState(initial?.description ?? "");
   const [link, setLink] = useState(initial?.link ?? "");
   const [material, setMaterial] = useState(initial?.material ?? "");
+  const [materialName, setMaterialName] = useState(initial?.material ?? "");
   const [cover, setCover] = useState(initial?.cover_image ?? "");
   const [teacherId, setTeacherId] = useState(initial?.teacher_id ?? "");
   const [date, setDate] = useState(initial?.date?.slice(0, 16) ?? "");
   const [duration, setDuration] = useState(initial?.duration_minutes ?? 60);
   const [spotsTotal, setSpotsTotal] = useState(initial?.spots_total ?? (type === "book" ? 4 : 30));
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const materialInputRef = useRef<HTMLInputElement>(null);
   const [teacherPayment, setTeacherPayment] = useState<string>(
     initial?.teacher_payment != null ? String(initial.teacher_payment) : "",
   );
@@ -490,9 +493,34 @@ function ClubFormPanel({
           <Field label="Cover image" help="Cover image students will see on their calendar.">
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-secondary/30 p-8 text-center">
               <ImageIcon className="h-7 w-7 text-muted-foreground" />
-              <div className="mt-2 text-sm font-medium text-foreground">{cover || "Drag & drop or choose an image"}</div>
+              {cover ? (
+                <img src={cover} alt="Cover preview" className="mb-2 h-32 w-full max-w-xs rounded-lg object-cover" />
+              ) : (
+                <div className="mt-2 text-sm font-medium text-foreground">Drag & drop or choose an image</div>
+              )}
               <div className="mt-1 text-xs text-muted-foreground">JPG or PNG shown on the student calendar</div>
-              <GhostButton type="button" className="mt-3" onClick={() => setCover(cover ? "" : "club-cover.jpg")}>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => setCover(String(reader.result));
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+              <GhostButton
+                type="button"
+                className="mt-3"
+                onClick={() => {
+                  if (cover) setCover("");
+                  else coverInputRef.current?.click();
+                }}
+              >
                 {cover ? "Remove image" : "Choose file"}
               </GhostButton>
             </div>
@@ -520,9 +548,37 @@ function ClubFormPanel({
           <Field label="Pre-club material">
             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-secondary/30 p-8 text-center">
               <UploadCloud className="h-7 w-7 text-muted-foreground" />
-              <div className="mt-2 text-sm font-medium text-foreground">{material || "Drop a PDF or image"}</div>
+              <div className="mt-2 text-sm font-medium text-foreground">{materialName || "Drop a PDF or image"}</div>
               <div className="mt-1 text-xs text-muted-foreground">Shared with students before the event</div>
-              <GhostButton type="button" className="mt-3" onClick={() => setMaterial(material ? "" : "preview-material.pdf")}>
+              <input
+                ref={materialInputRef}
+                type="file"
+                accept="application/pdf,image/png,image/jpeg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setMaterial(String(reader.result));
+                    setMaterialName(file.name);
+                  };
+                  reader.readAsDataURL(file);
+                  e.target.value = "";
+                }}
+              />
+              <GhostButton
+                type="button"
+                className="mt-3"
+                onClick={() => {
+                  if (material) {
+                    setMaterial("");
+                    setMaterialName("");
+                  } else {
+                    materialInputRef.current?.click();
+                  }
+                }}
+              >
                 {material ? "Remove file" : "Choose file"}
               </GhostButton>
             </div>
