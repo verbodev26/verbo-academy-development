@@ -265,8 +265,8 @@ Nombres de nivel confirmados por producto:
 | paragraph / answer / items / prompt / audioName / question / options / correctIndex | — | opcional | según `type` |
 
 **`MatchItem`**: `{ text: string; key: string }`.
-**`ActivityScore`**: `{ best: number; attempts: number; lastAt: string }`, clave = `activityId` — ⚠️ **sin `studentId`**, ver §13.
-Mapas relacionados sin interfaz formal: `Completion` (`unitId → boolean`), `Attempts` (`unitId → number`), `MilestoneUnlocks` (clave `` `${studentId}::${unitId}` ``).
+**`ActivityScore`**: `{ best: number; attempts: number; lastAt: string }`, clave = `` `${studentId}::${activityId}` `` — ✅ scoped por alumno desde 2026-07-11 (fix bug de progreso compartido).
+Mapas relacionados sin interfaz formal, todos con clave compuesta `` `${studentId}::${unitId}` ``: `Completion` (→ `boolean`), `Attempts` (→ `number`), `MilestoneUnlocks` (→ `boolean`).
 
 ### `StoredMaterial` (`src/lib/materials-store.ts`)
 
@@ -575,7 +575,7 @@ Sin sub-tipos. Nav varía por `product_type` y por `product === "vip"`. No requi
 20. **`teacherIsTitularOf()` (coverage-notes-store.ts) es un stub** — no valida la titularidad real, que supuestamente vive en `ASSIGNMENTS` pero el código lo admite como pendiente ("keep this here as a hook for future refinement").
 21. **`Session.student_id` es polimórfico**: a veces `User.id` real, a veces un `cohort_id` cuando `origin === "workshop"` — sin discriminador tipado.
 22. **`PaymentLogEntry.entity_id` es una FK polimórfica** (`User.id` o `Group.id` según `entity_type`) — no se puede expresar como FK simple en Postgres.
-23. **`ActivityScore`, `Completion`, `Attempts` (activities-store.ts) no tienen `studentId`** — indexadas solo por `activityId`/`unitId`. En producción multi-alumno esto haría que **todos los alumnos compartan el mismo progreso** — es probablemente el hallazgo más urgente de todo este documento.
+23. ~~**`ActivityScore`, `Completion`, `Attempts` (activities-store.ts) no tienen `studentId`**~~ — ✅ **Resuelto 2026-07-11**: los tres mapas ahora se indexan por clave compuesta `` `${studentId}::${unitId}` `` (o `` `::${activityId}` `` para scores), replicando el patrón de `MilestoneUnlocks`. Todas las funciones (`loadCompletion`, `setUnitCompleted`, `loadAttempts`, `incrementAttempts`, `resetAttempts`, `loadActivityScores`, `recordActivityScore`, `bestScoreFor`, `unitPassed`, `unitCategoryProgress`, `isUnitUnlocked`) requieren `studentId` como primer parámetro. `renameUnitReferences` migra las claves preservando el prefijo `studentId`.
 24. **Ningún campo de precio/monto explícito por cliente** — `payments-log.ts` deriva `amount` de una tabla de tarifas hardcodeada (`PLAN_RATE`); un cliente con precio negociado no tiene dónde guardarse.
 25. **Dos sistemas de nombres de "nivel" sin relación explícita**: `Level.id` estilo CEFR (A1, B1…) vs. nombres comerciales de roadmap en `User.contracted_levels` (Core Foundations, Strategic Fluency…).
 26. **`Material`/`MATERIALS` no tiene FK a `Level`/`Unit`** pese a la relación conceptual esperada.

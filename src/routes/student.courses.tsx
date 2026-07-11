@@ -85,13 +85,13 @@ function levelIsComplete(level: CourseLevel, studentId: string): boolean {
   if (level.units.length === 0) return false;
   for (const u of level.units) {
     if (isMilestoneUnit(u.id) && !isMilestoneUnlocked(studentId, u.id)) return false;
-    if (!unitPassed(u.id)) return false;
+    if (!unitPassed(studentId, u.id)) return false;
   }
   return true;
 }
 
-function passedUnitCount(level: CourseLevel): number {
-  return level.units.filter((u) => unitPassed(u.id)).length;
+function passedUnitCount(level: CourseLevel, studentId: string): number {
+  return level.units.filter((u) => unitPassed(studentId, u.id)).length;
 }
 
 function computeLevelStates(
@@ -114,7 +114,7 @@ function computeLevelStates(
   }
 
   return levels.map((level, i) => {
-    const passed = passedUnitCount(level);
+    const passed = passedUnitCount(level, studentId);
     const base = { passedUnits: passed, totalUnits: level.units.length };
     if (!contractedSet.has(level.name)) {
       return {
@@ -153,7 +153,7 @@ function computeUnitStates(level: CourseLevel, studentId: string, readOnly: bool
   const states: UnitStateKind[] = [];
   let previousPassed = true; // first unit is always unlockable
   for (const u of level.units) {
-    const passed = unitPassed(u.id);
+    const passed = unitPassed(studentId, u.id);
     if (isMilestoneUnit(u.id)) {
       if (passed) { states.push("passed"); previousPassed = true; continue; }
       if (!previousPassed) { states.push("locked"); previousPassed = false; continue; }
@@ -227,7 +227,7 @@ function Page() {
   const onUnitCompleted = (levelId: string, unitId: string) => {
     // Record milestone events + potential level completion when unit passes.
     if (!user) return;
-    if (unitPassed(unitId)) {
+    if (unitPassed(user.id, unitId)) {
       pushEvent(user.id, { kind: "unit_completed", ref: unitId, label: `Completed Unit ${unitNumberOf(unitId)}` });
       const level = levels.find((l) => l.id === levelId);
       if (level && levelIsComplete(level, user.id)) {
@@ -246,6 +246,7 @@ function Page() {
       <UnitDetail
         level={level}
         unit={unit}
+        studentId={user?.id ?? ""}
         readOnly={view.readOnly}
         onBack={() => setView({ kind: "units", levelId: level.id, readOnly: view.readOnly })}
         onChange={() => onUnitCompleted(level.id, unit.id)}
@@ -273,6 +274,7 @@ function Page() {
     <>
       <LevelsView
         key={rev}
+        studentId={user?.id ?? ""}
         productLabel={user?.product ?? ""}
         levels={levels}
         states={states}
@@ -301,19 +303,20 @@ const PRODUCT_GRADIENTS: Record<string, string> = {
 };
 
 function LevelsView({
-  productLabel, levels, states, contracted, events, onOpen,
+  productLabel, levels, states, contracted, events, studentId, onOpen,
 }: {
   productLabel: string;
   levels: CourseLevel[];
   states: LevelState[];
   contracted: string[];
   events: LearningPathEvent[];
+  studentId: string;
   onOpen: (level: CourseLevel, state: LevelState) => void;
 }) {
   const contractedSet = new Set(contracted);
   const contractedLevels = levels.filter((l) => contractedSet.has(l.name));
   const totalUnits = contractedLevels.reduce((s, l) => s + l.units.length, 0);
-  const passedUnits = contractedLevels.reduce((s, l) => s + passedUnitCount(l), 0);
+  const passedUnits = contractedLevels.reduce((s, l) => s + passedUnitCount(l, studentId), 0);
   const pct = totalUnits === 0 ? 0 : Math.round((passedUnits / totalUnits) * 100);
 
   // Upcoming milestone banner: within 3 non-milestone units of the next locked milestone
@@ -324,12 +327,12 @@ function LevelsView({
   if (currentLevel) {
     for (let i = 0; i < currentLevel.units.length; i++) {
       const u = currentLevel.units[i];
-      if (isMilestoneUnit(u.id) && !unitPassed(u.id)) {
+      if (isMilestoneUnit(u.id) && !unitPassed(studentId, u.id)) {
         // Count non-passed non-milestone units before this milestone.
         let remaining = 0;
         for (let j = 0; j < i; j++) {
           const v = currentLevel.units[j];
-          if (!isMilestoneUnit(v.id) && !unitPassed(v.id)) remaining++;
+          if (!isMilestoneUnit(v.id) && !unitPassed(studentId, v.id)) remaining++;
         }
         if (remaining <= 3) milestoneRemaining = remaining;
         break;
@@ -636,18 +639,19 @@ function UnitVideoPlayer({ url }: { url: string }) {
 }
 
 function UnitDetail({
-  level, unit, readOnly, onBack, onChange,
+  level, unit, studentId, readOnly, onBack, onChange,
 }: {
   level: CourseLevel;
   unit: CourseUnit;
+  studentId: string;
   readOnly: boolean;
   onBack: () => void;
   onChange: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const activities = activitiesForUnit(unit.id);
-  const catProgress = unitCategoryProgress(unit.id);
-  const passed = unitPassed(unit.id);
+  const catProgress = unitCategoryProgress(studentId, unit.id);
+  const passed = unitPassed(studentId, unit.id);
   const milestone = isMilestoneUnit(unit.id);
 
   return (
@@ -748,6 +752,7 @@ function UnitDetail({
         <ActivityRunner
           unit={unit}
           activities={activities}
+          studentId={studentId}
           readOnly={readOnly}
           onClose={() => { setOpen(false); onChange(); }}
         />
@@ -760,10 +765,11 @@ function UnitDetail({
 /* Activity runner                                                             */
 /* -------------------------------------------------------------------------- */
 function ActivityRunner({
-  unit, activities, readOnly, onClose,
+  unit, activities, studentId, readOnly, onClose,
 }: {
   unit: CourseUnit;
   activities: Activity[];
+  studentId: string;
   readOnly: boolean;
   onClose: () => void;
 }) {
@@ -790,9 +796,9 @@ function ActivityRunner({
     if (!current) return;
     const ok = evaluate(current, draft[current.id] ?? "");
     const score = ok ? 100 : 0;
-    if (!readOnly) recordActivityScore(current.id, score);
+    if (!readOnly) recordActivityScore(studentId, current.id, score);
     // Auto-complete unit when the mandatory rule is satisfied.
-    if (!readOnly && unitPassed(unit.id)) setUnitCompleted(unit.id, true);
+    if (!readOnly && unitPassed(studentId, unit.id)) setUnitCompleted(studentId, unit.id, true);
     setFeedback({ ok, score });
   };
 
@@ -823,7 +829,7 @@ function ActivityRunner({
           {orderedCats.map((c) => {
             const active = c === activeCat;
             const mandatory = isMandatoryCategory(c);
-            const best = activities.filter((a) => (a.category ?? "uncategorized") === c).reduce((m, a) => Math.max(m, bestScoreFor(a.id)), 0);
+            const best = activities.filter((a) => (a.category ?? "uncategorized") === c).reduce((m, a) => Math.max(m, bestScoreFor(studentId, a.id)), 0);
             const ok = mandatory && best >= 60;
             return (
               <button
@@ -851,7 +857,7 @@ function ActivityRunner({
               <h3 className="mt-1 text-xl font-semibold tracking-tight text-foreground">{current.name}</h3>
               {readOnly && (
                 <div className="mt-2 rounded-lg bg-secondary/50 p-2 text-[11px] text-muted-foreground">
-                  Best score: <span className="font-semibold text-foreground">{bestScoreFor(current.id)}/100</span> — review only.
+                  Best score: <span className="font-semibold text-foreground">{bestScoreFor(studentId, current.id)}/100</span> — review only.
                 </div>
               )}
               <div className="mt-6">

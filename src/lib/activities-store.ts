@@ -122,50 +122,57 @@ export function removeActivity(id: string) {
   saveActivities(loadActivities().filter((a) => a.id !== id));
 }
 
-/* ---- Completion + attempts ---- */
-export function loadCompletion(): Record<string, boolean> {
+/* ---- Completion + attempts (scoped per student) ---- */
+function scopedKey(studentId: string, id: string) { return `${studentId}::${id}`; }
+
+export function loadCompletion(_studentId: string): Record<string, boolean> {
+  // Returns the raw Record keyed by `${studentId}::${unitId}`; kept for
+  // callers that want to enumerate. Prefer setUnitCompleted / unitPassed.
   return safeRead<Record<string, boolean>>(COMPLETION_KEY, {});
 }
-export function setUnitCompleted(unitId: string, value: boolean) {
-  const c = loadCompletion();
-  c[unitId] = value;
+export function setUnitCompleted(studentId: string, unitId: string, value: boolean) {
+  const c = safeRead<Record<string, boolean>>(COMPLETION_KEY, {});
+  c[scopedKey(studentId, unitId)] = value;
   safeWrite(COMPLETION_KEY, c);
 }
 
-export function loadAttempts(): Record<string, number> {
+export function loadAttempts(_studentId: string): Record<string, number> {
   return safeRead<Record<string, number>>(ATTEMPTS_KEY, {});
 }
-export function incrementAttempts(unitId: string): number {
-  const a = loadAttempts();
-  a[unitId] = (a[unitId] ?? 0) + 1;
+export function incrementAttempts(studentId: string, unitId: string): number {
+  const a = safeRead<Record<string, number>>(ATTEMPTS_KEY, {});
+  const k = scopedKey(studentId, unitId);
+  a[k] = (a[k] ?? 0) + 1;
   safeWrite(ATTEMPTS_KEY, a);
-  return a[unitId];
+  return a[k];
 }
-export function resetAttempts(unitId: string) {
-  const a = loadAttempts();
-  delete a[unitId];
+export function resetAttempts(studentId: string, unitId: string) {
+  const a = safeRead<Record<string, number>>(ATTEMPTS_KEY, {});
+  delete a[scopedKey(studentId, unitId)];
   safeWrite(ATTEMPTS_KEY, a);
 }
 
-/* ---- Per-activity best scores ---- */
+/* ---- Per-activity best scores (scoped per student) ---- */
 export interface ActivityScore { best: number; attempts: number; lastAt: string }
-export function loadActivityScores(): Record<string, ActivityScore> {
+export function loadActivityScores(_studentId: string): Record<string, ActivityScore> {
   return safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
 }
-export function recordActivityScore(activityId: string, score: number): ActivityScore {
-  const all = loadActivityScores();
-  const cur = all[activityId] ?? { best: 0, attempts: 0, lastAt: "" };
+export function recordActivityScore(studentId: string, activityId: string, score: number): ActivityScore {
+  const all = safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
+  const k = scopedKey(studentId, activityId);
+  const cur = all[k] ?? { best: 0, attempts: 0, lastAt: "" };
   const next: ActivityScore = {
     best: Math.max(cur.best, Math.round(score)),
     attempts: cur.attempts + 1,
     lastAt: new Date().toISOString(),
   };
-  all[activityId] = next;
+  all[k] = next;
   safeWrite(SCORES_KEY, all);
   return next;
 }
-export function bestScoreFor(activityId: string): number {
-  return loadActivityScores()[activityId]?.best ?? 0;
+export function bestScoreFor(studentId: string, activityId: string): number {
+  const all = safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
+  return all[scopedKey(studentId, activityId)]?.best ?? 0;
 }
 
 /* ---- Milestone units (10 / 20 / 30) ---- */
@@ -193,12 +200,13 @@ export function setMilestoneUnlocked(studentId: string, unitId: string, on: bool
 
 /* ---- Unit pass rule ----
  * A unit is "passed" when every mandatory category present in that unit
- * has at least one activity with best score ≥ 60. Units without any mandatory
- * activity fall back to the legacy completion flag (admin override / seed).
+ * has at least one activity with best score ≥ 60 for THAT student. Units
+ * without any mandatory activity fall back to the legacy completion flag
+ * (admin override / seed), also scoped per student.
  */
-export function unitPassed(unitId: string): boolean {
+export function unitPassed(studentId: string, unitId: string): boolean {
   const list = activitiesForUnit(unitId);
-  const scores = loadActivityScores();
+  const scores = safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
   const byCat = new Map<string, Activity[]>();
   for (const a of list) {
     if (!isMandatoryCategory(a.category)) continue;
@@ -206,19 +214,22 @@ export function unitPassed(unitId: string): boolean {
     arr.push(a);
     byCat.set(a.category!, arr);
   }
-  if (byCat.size === 0) return !!loadCompletion()[unitId];
+  if (byCat.size === 0) {
+    const completion = safeRead<Record<string, boolean>>(COMPLETION_KEY, {});
+    return !!completion[scopedKey(studentId, unitId)];
+  }
   for (const [, arr] of byCat) {
-    const ok = arr.some((a) => (scores[a.id]?.best ?? 0) >= 60);
+    const ok = arr.some((a) => (scores[scopedKey(studentId, a.id)]?.best ?? 0) >= 60);
     if (!ok) return false;
   }
   return true;
 }
 
-export function unitCategoryProgress(unitId: string): {
+export function unitCategoryProgress(studentId: string, unitId: string): {
   category: string; passed: boolean; best: number; mandatory: boolean;
 }[] {
   const list = activitiesForUnit(unitId);
-  const scores = loadActivityScores();
+  const scores = safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
   const byCat = new Map<string, Activity[]>();
   for (const a of list) {
     const cat = a.category ?? "uncategorized";
@@ -227,7 +238,7 @@ export function unitCategoryProgress(unitId: string): {
     byCat.set(cat, arr);
   }
   return Array.from(byCat.entries()).map(([category, arr]) => {
-    const best = arr.reduce((m, a) => Math.max(m, scores[a.id]?.best ?? 0), 0);
+    const best = arr.reduce((m, a) => Math.max(m, scores[scopedKey(studentId, a.id)]?.best ?? 0), 0);
     const mandatory = isMandatoryCategory(category);
     return { category, best, mandatory, passed: mandatory ? best >= 60 : true };
   });
@@ -244,19 +255,31 @@ export function renameUnitReferences(oldUnitId: string, newUnitId: string) {
   }
   if (changed) saveActivities(activities);
 
-  const completion = loadCompletion();
-  if (oldUnitId in completion) {
-    completion[newUnitId] = completion[oldUnitId];
-    delete completion[oldUnitId];
-    safeWrite(COMPLETION_KEY, completion);
+  // Completion + attempts keys are now `${studentId}::${unitId}`. Rewrite any
+  // key ending in `::${oldUnitId}`, preserving the studentId prefix.
+  const completion = safeRead<Record<string, boolean>>(COMPLETION_KEY, {});
+  let compChanged = false;
+  for (const k of Object.keys(completion)) {
+    if (k.endsWith(`::${oldUnitId}`)) {
+      const prefix = k.slice(0, k.length - oldUnitId.length);
+      completion[`${prefix}${newUnitId}`] = completion[k];
+      delete completion[k];
+      compChanged = true;
+    }
   }
+  if (compChanged) safeWrite(COMPLETION_KEY, completion);
 
-  const attempts = loadAttempts();
-  if (oldUnitId in attempts) {
-    attempts[newUnitId] = attempts[oldUnitId];
-    delete attempts[oldUnitId];
-    safeWrite(ATTEMPTS_KEY, attempts);
+  const attempts = safeRead<Record<string, number>>(ATTEMPTS_KEY, {});
+  let attChanged = false;
+  for (const k of Object.keys(attempts)) {
+    if (k.endsWith(`::${oldUnitId}`)) {
+      const prefix = k.slice(0, k.length - oldUnitId.length);
+      attempts[`${prefix}${newUnitId}`] = attempts[k];
+      delete attempts[k];
+      attChanged = true;
+    }
   }
+  if (attChanged) safeWrite(ATTEMPTS_KEY, attempts);
 }
 
 /**
@@ -264,13 +287,14 @@ export function renameUnitReferences(oldUnitId: string, newUnitId: string) {
  * Path uses `computeUnitLocks` in student.courses.tsx which is aware of
  * milestone teacher-locks and per-student state.
  */
-export function isUnitUnlocked(unitId: string): boolean {
-  if (unitPassed(unitId)) return true;
+export function isUnitUnlocked(studentId: string, unitId: string): boolean {
+  if (unitPassed(studentId, unitId)) return true;
   for (const lvl of loadLevels()) {
     const idx = lvl.units.findIndex((u) => u.id === unitId);
     if (idx === -1) continue;
     if (idx === 0) return true;
-    return unitPassed(lvl.units[idx - 1].id);
+    return unitPassed(studentId, lvl.units[idx - 1].id);
   }
   return true;
 }
+
