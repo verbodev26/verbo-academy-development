@@ -197,7 +197,8 @@ Extiende `Session` (con `Omit<Session,"status">`), agregando el ciclo de vida re
 **Relación confirmada:** este es el campo que resuelve el vínculo "sesión completada ↔ unidad VIP" mencionado (sin definirse) en `vip-courses-store.ts` — `LessonPlan.vip_unit_id` es la clave real.
 
 ### `CalendarEvent` (`src/lib/calendar-events.ts`) — **derivado, no persistido**
-Proyección unificada de `Session`/`Club` para pintar el calendario. No se guarda en ningún lado — se recalcula on-demand.
+Proyección unificada de `Session`/`Club` para pintar el calendario. No se guarda en ningún lado — se recalcula on-demand. `studentCalendarEvents(studentId)` incluye 1:1 sessions del alumno **y** todos los `Club` (`insight`+`book`) no cancelados, para que el alumno pueda navegar/reservar directamente desde el calendario (la gating de cupo por plan ocurre al reservar, no al listar). En `student.sessions.tsx`, `availableKinds` se calcula dinámicamente según `resolvedRemainingSeats`/`resolvedMonthlyCap` — Advance/Elite/Signature solo ven las kinds a las que su plan da acceso; Core mantiene visibilidad completa por ahora.
+
 
 | campo | tipo | notas |
 |---|---|---|
