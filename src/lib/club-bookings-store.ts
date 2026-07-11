@@ -89,20 +89,76 @@ export function bookingsThisMonth(studentId: string, type: ClubType): number {
   ).length;
 }
 
-/** Monthly cap for the student — for Group members, comes from the Group
- *  add-on (X/3 default). Individual cap stays per student. */
-export function monthlyCap(studentId: string, type: ClubType): number {
-  const groupMember = groupsByStudentId().get(studentId);
-  if (groupMember) {
-    // Group.addon_bookclubs_per_month covers both types (single knob at group level).
-    // Fallback to 3 if unset — matches product default.
-    return groupMember.addon_bookclubs_per_month ?? 3;
-  }
+/** Manual add-on cap from student/group record. `undefined` = no override,
+ *  which triggers the plan default. Any defined value (including 0) wins. */
+function manualCap(studentId: string, kind: AccessKind): number | undefined {
   const u = userById(studentId);
-  const raw = type === "book"
-    ? u?.addon_bookclubs_per_month
-    : u?.addon_insights_per_month;
-  return raw ?? 3;
+  const g = groupsByStudentId().get(studentId);
+  const pick = (
+    userVal: number | undefined,
+    groupVal: number | undefined,
+  ): number | undefined => (userVal !== undefined ? userVal : groupVal);
+  if (kind === "insight") return pick(u?.addon_insights_per_month, g?.addon_insights_per_month);
+  if (kind === "book") return pick(u?.addon_bookclubs_per_month, g?.addon_bookclubs_per_month);
+  return pick(u?.addon_spotlight_per_month, g?.addon_spotlight_per_month);
+}
+
+/** Resolved monthly cap for the student:
+ *  1. If admin set an explicit add-on value on the student/group, use it.
+ *  2. Otherwise fall back to PLAN_DEFAULTS[access_plan][kind].
+ *  Returns Infinity for Signature-with-no-override (unlimited). */
+export function resolvedMonthlyCap(studentId: string, kind: AccessKind): number {
+  const m = manualCap(studentId, kind);
+  if (m !== undefined) return m;
+  const plan = userById(studentId)?.access_plan as AccessPlanId | undefined;
+  if (!plan) return 0;
+  return PLAN_DEFAULTS[plan]?.[kind] ?? 0;
+}
+
+/** Elite is the only plan where unused seats roll over. */
+function isAccumulable(studentId: string): boolean {
+  return userById(studentId)?.access_plan === "Elite";
+}
+
+/** Complete calendar months elapsed since cycle_start, inclusive of the
+ *  current month (so a brand-new student on day 1 still has month 1 quota). */
+function monthsElapsedSinceCycle(studentId: string): number {
+  const iso = userById(studentId)?.cycle_start;
+  if (!iso) return 1;
+  const s = new Date(iso);
+  const n = new Date();
+  const diff = (n.getFullYear() - s.getFullYear()) * 12 + (n.getMonth() - s.getMonth());
+  return Math.max(1, diff + 1);
+}
+
+/** Total historical bookings for the student, by type — used for Elite's
+ *  cumulative balance (unused seats carry forward). */
+export function totalBookingsForStudent(studentId: string, type: ClubType): number {
+  return snapshot().filter((b) => b.student_id === studentId && b.club_type === type).length;
+}
+
+/** How many more seats the student can consume RIGHT NOW for this kind.
+ *  - Signature: Infinity (no cap check).
+ *  - Elite: cap × months_since_cycle_start − total_historical (accumulable).
+ *  - Others: cap − bookings_this_month (non-accumulable, monthly reset). */
+export function resolvedRemainingSeats(studentId: string, kind: AccessKind): number {
+  const cap = resolvedMonthlyCap(studentId, kind);
+  if (!isFinite(cap)) return Infinity;
+  if (cap === 0) return 0;
+  if (isAccumulable(studentId) && kind !== "spotlight") {
+    const type: ClubType = kind === "insight" ? "insight" : "book";
+    const total = totalBookingsForStudent(studentId, type);
+    return Math.max(0, cap * monthsElapsedSinceCycle(studentId) - total);
+  }
+  if (kind === "spotlight") return cap; // spotlight bookings tracked elsewhere
+  const type: ClubType = kind === "insight" ? "insight" : "book";
+  return Math.max(0, cap - bookingsThisMonth(studentId, type));
+}
+
+/** Backwards-compat wrapper for the old X/month cap API. Prefer
+ *  `resolvedMonthlyCap` / `resolvedRemainingSeats` for new call-sites. */
+export function monthlyCap(studentId: string, type: ClubType): number {
+  return resolvedMonthlyCap(studentId, type === "book" ? "book" : "insight");
 }
 
 export function hoursUntil(iso: string): number {
@@ -120,15 +176,22 @@ export function reserveBlockedReason(
   const hrs = hoursUntil(club.date);
   if (hrs < RESERVATION_CUTOFF_HOURS) return "Reservations close 24h before start.";
   if ((club.spots_taken ?? 0) >= club.spots_total) return "This session is full.";
-  const used = bookingsThisMonth(studentId, club.type);
-  const cap = monthlyCap(studentId, club.type);
-  if (used >= cap) {
+  const kind: AccessKind = club.type === "book" ? "book" : "insight";
+  const remaining = resolvedRemainingSeats(studentId, kind);
+  if (remaining <= 0) {
+    const cap = resolvedMonthlyCap(studentId, kind);
+    if (cap === 0) {
+      return club.type === "book"
+        ? "Your plan doesn't include Book Club access."
+        : "Your plan doesn't include Insight access.";
+    }
     return club.type === "book"
-      ? `You've used your ${cap} Book Club seats for this month.`
-      : `You've used your ${cap} Insight seats for this month.`;
+      ? "You've used your Book Club seats for this cycle."
+      : "You've used your Insight seats for this cycle.";
   }
   return null;
 }
+
 
 /** Cancellation is only allowed if the club is still upcoming and outside
  *  the 24h cutoff window. */
