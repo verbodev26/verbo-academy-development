@@ -724,9 +724,14 @@ function SpotlightFormModal({ studentId, onClose }: { studentId: string; onClose
       spotlight_context: ctx.trim(),
       last_report_summary: studentUser ? `Level ${studentUser.current_level ?? "—"}` : undefined,
     });
+    // Core freemium: consume the one-shot courtesy credit on real submit.
+    if (studentUser?.access_plan === "Core" && !freemiumUsed(studentId, "spotlight")) {
+      markFreemiumUsed(studentId, "spotlight");
+    }
     toast.success("Spotlight Request published. Teachers have been notified.");
     onClose();
   };
+
 
 
   if (confirmOverlap) {
