@@ -9,6 +9,24 @@ import { useSyncExternalStore } from "react";
 import { loadClubs, persistClubs, type Club, type ClubType } from "./clubs-store";
 import { groupsByStudentId } from "./groups-store";
 import { userById } from "./mock-data";
+import type { AccessPlanId } from "./student-model";
+
+/** Per-plan monthly seat defaults across the three consumable event types.
+ *  Manual overrides on the student record (addon_*_per_month) always win,
+ *  even when set to 0 — the admin has absolute control over individual cases.
+ *  Advance/Core reset each month (non-accumulable). Elite accumulates (see
+ *  `resolvedRemainingSeats`). Signature is unlimited. Core's real access
+ *  is freemium — implemented separately. */
+export const PLAN_DEFAULTS: Record<AccessPlanId, { insight: number; book: number; spotlight: number }> = {
+  Core:      { insight: 0, book: 0, spotlight: 0 },
+  Advance:   { insight: 2, book: 2, spotlight: 1 },
+  Elite:     { insight: 4, book: 4, spotlight: 4 },
+  Signature: { insight: Infinity, book: Infinity, spotlight: Infinity },
+};
+
+/** The three "consumable" event kinds gated by plan/add-on caps. */
+export type AccessKind = "insight" | "book" | "spotlight";
+
 
 export interface ClubBooking {
   id: string;
