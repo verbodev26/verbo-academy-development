@@ -10,6 +10,7 @@ import {
   getBonusThreshold, setBonusThreshold,
 } from "@/lib/teacher-kpis";
 import { MetricCard, SectionTitle } from "@/components/verbo/ui";
+import { BonusBadge } from "@/components/verbo/BonusBadge";
 import { Star, AlertTriangle, Trophy, X, TrendingUp, SlidersHorizontal } from "lucide-react";
 
 export const Route = createFileRoute("/admin/kpis")({
@@ -201,11 +202,7 @@ function TeacherKpiCard({
           {kpis.rating != null ? kpis.rating.toFixed(1) : "—"} · {band.label}
           <TrendingUp className="h-3.5 w-3.5" />
         </button>
-        {kpis.bonusEligible && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
-            <Trophy className="h-3.5 w-3.5" /> Bonus Eligible
-          </span>
-        )}
+        <BonusBadge status={kpis.bonusStatus} />
       </div>
 
       {/* Composite score — prominent */}

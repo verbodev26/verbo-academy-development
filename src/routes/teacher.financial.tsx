@@ -16,6 +16,7 @@ import {
 } from "@/lib/teacher-kpis";
 import { addFinancialIssue } from "@/lib/financial-issues-store";
 import { Card, SectionTitle, Pill } from "@/components/verbo/ui";
+import { BonusBadge } from "@/components/verbo/BonusBadge";
 
 export const Route = createFileRoute("/teacher/financial")({
   head: () => ({
@@ -222,14 +223,9 @@ function MyBalancePage() {
       </div>
 
       {/* Badges */}
-      {(kpis?.bonusEligible || warningLevel !== "none") && (
+      {(kpis || warningLevel !== "none") && (
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {kpis?.bonusEligible && (
-            <span className="verbo-bonus-glow inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1.5 text-xs font-semibold text-success">
-              <Trophy className="h-3.5 w-3.5" /> Bonus Eligible
-              <Sparkles className="h-3 w-3" />
-            </span>
-          )}
+          {kpis && <BonusBadge status={kpis.bonusStatus} glow={kpis.bonusEligible} />}
           {warningLevel === "yellow" && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/20 px-3 py-1.5 text-xs font-semibold text-amber-700">
               <AlertTriangle className="h-3.5 w-3.5" /> 1 KPI Below Target
@@ -371,9 +367,15 @@ function MyBalancePage() {
             {signals.map((s) => <KpiBar key={s.key} label={s.label} value={s.value} sub={s.sub} />)}
           </div>
           <div className="mt-4 rounded-lg border border-border bg-secondary/30 p-3 text-xs text-muted-foreground">
-            {kpis.bonusEligible
-              ? <>You are <span className="font-semibold text-success">Bonus Eligible</span> — Composite Score {kpis.composite}% ≥ threshold {threshold}%.</>
-              : <>Composite Score {kpis.composite}% is below the {threshold}% threshold required for a bonus this month.</>}
+            {kpis.bonusStatus.kind === "eligible" && (
+              <>You are <span className="font-semibold text-success">Bonus Eligible</span> — 6 consecutive months with Composite Score ≥ {threshold}%.</>
+            )}
+            {kpis.bonusStatus.kind === "streak" && (
+              <>Streak: <span className="font-semibold text-foreground">{kpis.bonusStatus.streak}/{kpis.bonusStatus.needed} months ≥{threshold}%</span>. This month's Composite Score is {kpis.composite}%.</>
+            )}
+            {kpis.bonusStatus.kind === "not-tracking" && (
+              <>KPI tracking starts <span className="font-semibold text-foreground">{kpis.bonusStatus.trackingStartLabel}</span> — the first full calendar month after your hire month.</>
+            )}
           </div>
         </Card>
       )}

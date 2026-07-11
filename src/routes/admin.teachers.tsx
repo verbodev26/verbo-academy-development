@@ -9,7 +9,8 @@ import {
   PAYMENT_FREQUENCIES, paymentFrequency, defaultPaymentRecords, financialSummary,
   type QualifiedProduct, type TeacherStatus, type PaymentFrequency,
 } from "@/lib/teacher-model";
-import { isBonusEligible } from "@/lib/teacher-kpis";
+import { computeTeacherKpis } from "@/lib/teacher-kpis";
+import { BonusBadge } from "@/components/verbo/BonusBadge";
 import { useAvatar } from "@/lib/avatar-store";
 import {
   activeStrikeCount, recentStrikes, justifyStrike, subscribeStrikes,
@@ -689,7 +690,8 @@ function cycleLabel(base = new Date()) {
 function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (u: User) => void; onAddAdjustment: () => void }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [bonusAmount, setBonusAmount] = useState("");
-  const bonusEligible = isBonusEligible(t);
+  const kpis = computeTeacherKpis(t);
+  const bonusEligible = kpis.bonusEligible;
   const summary = financialSummary(t);
   const records = t.payment_records && t.payment_records.length > 0
     ? t.payment_records
@@ -787,6 +789,11 @@ function FinancialTab({ t, onPersist, onAddAdjustment }: { t: User; onPersist: (
 
   return (
     <div className="space-y-6">
+      {/* Bonus streak status — visible for every state so admins understand
+          why (or why not) the bonus authorization banner is showing. */}
+      <div className="flex justify-end">
+        <BonusBadge status={kpis.bonusStatus} glow={bonusEligible} />
+      </div>
       {/* Authorized bonus banner (only when KPIs mark the teacher as eligible) */}
       {bonusEligible && (
         <div className="rounded-xl border border-success/40 bg-success/10 p-4">
@@ -1028,6 +1035,9 @@ function TeacherFormModal({
   const [showPw, setShowPw] = useState(false);
   const [rate, setRate] = useState(String(initial?.hourly_rate ?? DEFAULT_HOURLY_RATE));
   const [products, setProducts] = useState<QualifiedProduct[]>(qualifiedProducts(initial ?? ({} as User)));
+  const [hireDate, setHireDate] = useState(
+    initial?.hire_date ?? new Date().toISOString().slice(0, 10),
+  );
   const [studentIds, setStudentIds] = useState<string[]>([]);
 
   // Students with no teacher assigned (available for initial assignment)
@@ -1036,7 +1046,7 @@ function TeacherFormModal({
     [],
   );
 
-  const valid = name.trim() && email.trim() && password.trim() && products.length > 0;
+  const valid = name.trim() && email.trim() && password.trim() && products.length > 0 && !!hireDate;
 
   const handleSave = () => {
     if (!valid) return;
@@ -1049,6 +1059,7 @@ function TeacherFormModal({
       role: "teacher",
       hourly_rate: Number(rate) || DEFAULT_HOURLY_RATE,
       qualified_products: products,
+      hire_date: hireDate,
       teacher_status: initial?.teacher_status ?? "active",
       plan_punctuality: initial?.plan_punctuality ?? 100,
       report_punctuality: initial?.report_punctuality ?? 100,
@@ -1092,6 +1103,17 @@ function TeacherFormModal({
               <input type="number" min={0} value={rate} onChange={(e) => setRate(e.target.value)} className="w-32 bg-transparent py-2 pr-3 text-sm text-foreground focus:outline-none" />
               <span className="pr-3 text-xs text-muted-foreground">MXN/h</span>
             </div>
+          </Field>
+          <Field label="Hire date">
+            <input
+              type="date"
+              value={hireDate}
+              onChange={(e) => setHireDate(e.target.value)}
+              className={inputCls}
+            />
+            <p className="mt-1 text-[10.5px] text-muted-foreground">
+              KPI tracking activates in week 2 of the hire month. The 6-month bonus streak counts from the first full calendar month after the hire month.
+            </p>
           </Field>
           <Field label="Qualified products (at least one)">
             <div className="flex flex-wrap gap-2">

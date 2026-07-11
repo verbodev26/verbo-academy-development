@@ -12,6 +12,7 @@ import { loadLevels, subscribeLevels } from "@/lib/courses-store";
 import { loadLessonPlans, saveLessonPlan, subscribeLessonPlans, getLessonPlan, type LessonPlan } from "@/lib/lesson-plans-store";
 import { markVipUnitDone, clearVipUnitDoneForSession } from "@/lib/vip-courses-store";
 import { computeTeacherKpis, getBonusThreshold, ratingBand } from "@/lib/teacher-kpis";
+import { BonusBadge } from "@/components/verbo/BonusBadge";
 import { avgRating } from "@/lib/teacher-model";
 import { activeStrikeCount } from "@/lib/strikes-store";
 import { listChangeRequests, isTeacherAvailableAt, subscribeAvailability } from "@/lib/availability-store";
@@ -451,11 +452,7 @@ function TeacherDashboard() {
           <div className="flex items-start justify-between gap-2">
             <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Performance</div>
             <div className="flex flex-wrap justify-end gap-1">
-              {kpis?.bonusEligible && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-semibold text-success">
-                  <Trophy className="h-3 w-3" /> Bonus Eligible
-                </span>
-              )}
+              {kpis && <BonusBadge status={kpis.bonusStatus} size="sm" />}
               {warningLevel === "yellow" && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
                   <AlertTriangle className="h-3 w-3" /> 1 KPI Below Target
