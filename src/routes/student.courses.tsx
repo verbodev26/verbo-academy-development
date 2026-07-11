@@ -752,6 +752,7 @@ function UnitDetail({
         <ActivityRunner
           unit={unit}
           activities={activities}
+          studentId={studentId}
           readOnly={readOnly}
           onClose={() => { setOpen(false); onChange(); }}
         />
