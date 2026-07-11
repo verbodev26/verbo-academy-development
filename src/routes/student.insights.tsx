@@ -46,10 +46,12 @@ function Page() {
   const freemium = useCoreFreemiumGate(user);
 
   const events = useMemo<CalendarEvent[]>(() => {
+    if (!user) return [];
     return loadClubs()
       .filter((c) => c.type === "insight" && c.status !== "cancelled")
-      .map(clubToEvent);
-  }, []);
+      .map((c) => clubToEvent(c, user.id));
+  }, [user]);
+
 
   if (!user) return null;
 
