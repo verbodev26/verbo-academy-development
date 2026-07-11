@@ -90,7 +90,23 @@ function Page() {
   const policy = parseReschedulePolicy(user);
   const quota = rescheduleQuota(user);
   const used = reschedulesUsedThisMonth(user.id);
-  const spotlightCap = user.addon_spotlight_per_month ?? 0;
+  const isSignature = user.access_plan === "Signature";
+  const isCore = user.access_plan === "Core";
+  const spotlightCapNum = resolvedMonthlyCap(user.id, "spotlight");
+  const spotlightCapDisplay = isSignature ? "∞" : String(spotlightCapNum);
+  const spotlightVisible = isSignature || spotlightCapNum > 0;
+
+  // Dynamic kinds — for Advance/Elite/Signature, only include a consumable
+  // kind when the student has effective access to it. Core keeps all three
+  // visible for now (freemium gating lands in a separate change). "class" is
+  // always included.
+  const studentKinds: CalendarEventKind[] = ["class"];
+  const hasInsight = isCore ? true : (isSignature || resolvedRemainingSeats(user.id, "insight") > 0 || resolvedMonthlyCap(user.id, "insight") > 0);
+  const hasBook = isCore ? true : (isSignature || resolvedRemainingSeats(user.id, "book") > 0 || resolvedMonthlyCap(user.id, "book") > 0);
+  const hasSpot = isCore ? true : (isSignature || spotlightCapNum > 0);
+  if (hasInsight) studentKinds.push("insight");
+  if (hasBook) studentKinds.push("book_club");
+  if (hasSpot) studentKinds.push("spotlight");
 
   const handleEventClick = (ev: CalendarEvent) => {
     if (ev.club && (ev.kind === "insight" || ev.kind === "book_club")) {
@@ -127,7 +143,7 @@ function Page() {
         <CalendarView
           events={events}
           onEventClick={handleEventClick}
-          availableKinds={STUDENT_KINDS}
+          availableKinds={studentKinds}
         />
       </Card>
 
@@ -139,13 +155,14 @@ function Page() {
           <div className="text-muted-foreground">
             Used this cycle: <span className="font-semibold text-foreground">{used}/{quota}</span>
           </div>
-          {spotlightCap > 0 && (
+          {spotlightVisible && (
             <div className="text-muted-foreground">
-              Spotlight cap: <span className="font-semibold text-foreground">{spotlightCap}/month</span>
+              Spotlight cap: <span className="font-semibold text-foreground">{spotlightCapDisplay}/month</span>
             </div>
           )}
         </div>
       </Card>
+
 
       {selected && (
         <EventDetailsModal
