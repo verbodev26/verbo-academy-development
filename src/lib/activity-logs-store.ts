@@ -402,6 +402,21 @@ export function buildActivityLog(): ActivityEntry[] {
     });
   }
 
+  // ---- Manual KPI overrides (super_admin / coordinator_ops) -----------
+  for (const o of loadKpiOverrides()) {
+    const teacher = userName(o.teacher_id);
+    const metricLabel = KPI_METRIC_LABELS[o.metric] ?? o.metric;
+    out.push({
+      id: `kpi-override:${o.id}`,
+      kind: "kpi_manual_override",
+      action: "KPI manually adjusted",
+      detail: `${teacher} · ${metricLabel} · ${monthLabel(o.month_key)} · ${o.previous_value}% → ${o.new_value}%${o.justification ? ` — "${o.justification.slice(0, 80)}"` : ""}`,
+      timestamp: o.created_at,
+      actorId: o.admin_id, actorName: o.admin_name, actorRole: "admin",
+      personId: o.teacher_id,
+    });
+  }
+
   // Sort newest first, de-dupe by id (defensive).
   const seen = new Set<string>();
   return out
