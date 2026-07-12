@@ -471,7 +471,7 @@ function TeacherDashboard() {
               )}
             </div>
           </div>
-          <div className="mt-3 text-3xl font-semibold tracking-tight text-black">{kpis?.composite ?? 0}%</div>
+          <div className="mt-3 text-3xl font-semibold tracking-tight text-black">{kpis?.composite ?? 0}%{kpis?.onboarding && <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wider text-blue-700">Onboarding</span>}</div>
           <div className="mt-1 flex items-center gap-1.5 text-xs">
             <span
               className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold"
