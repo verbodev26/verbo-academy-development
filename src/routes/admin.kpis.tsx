@@ -168,6 +168,10 @@ function Page() {
                 teacher={t}
                 kpis={kpis}
                 pending={pending}
+                canOverride={canOverride}
+                onOverride={(metric, currentValue) =>
+                  setOverrideTarget({ teacher: t, metric, currentValue })
+                }
                 onOpenChart={() => setChartFor(t)}
               />
             ))}
@@ -176,6 +180,16 @@ function Page() {
       </section>
 
       {chartFor && <RatingChartModal teacher={chartFor} onClose={() => setChartFor(null)} />}
+      {overrideTarget && (
+        <KpiOverrideModal
+          teacher={overrideTarget.teacher}
+          metric={overrideTarget.metric}
+          currentValue={overrideTarget.currentValue}
+          admin={admin}
+          onClose={() => setOverrideTarget(null)}
+          onSaved={() => forceTick((n) => n + 1)}
+        />
+      )}
     </div>
   );
 }
