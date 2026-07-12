@@ -30,6 +30,7 @@ export {
   getBonusThreshold,
   setBonusThreshold,
 } from "./teacher-kpis-threshold";
+import { getBonusThreshold } from "./teacher-kpis-threshold";
 import { overridesForMonth, type KpiMetric } from "./teacher-kpi-overrides-store";
 
 // ----- Deterministic pseudo-random helpers ----------------------------------
