@@ -129,7 +129,7 @@ export function overridesForMonth(teacherId: string, monthKey: string): Record<K
 export function useKpiOverrides(): KpiOverride[] {
   return useSyncExternalStore(
     (cb) => subscribeKpiOverrides(cb),
-    () => loadKpiOverrides(),
+    getSnapshot,
     () => [],
   );
 }
