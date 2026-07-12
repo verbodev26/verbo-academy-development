@@ -45,6 +45,8 @@ export interface KpiOverride {
 export const KPI_OVERRIDES_KEY = "verbo:kpi-overrides";
 export const KPI_OVERRIDES_EVENT = "verbo:kpi-overrides-updated";
 
+let cachedSnapshot: KpiOverride[] | null = null;
+
 // ----- Persistence ---------------------------------------------------------
 export function loadKpiOverrides(): KpiOverride[] {
   if (typeof window === "undefined") return [];
@@ -56,10 +58,16 @@ export function loadKpiOverrides(): KpiOverride[] {
   }
 }
 
+function getSnapshot(): KpiOverride[] {
+  if (cachedSnapshot === null) cachedSnapshot = loadKpiOverrides();
+  return cachedSnapshot;
+}
+
 function persist(list: KpiOverride[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(KPI_OVERRIDES_KEY, JSON.stringify(list));
+    cachedSnapshot = null;
     window.dispatchEvent(new CustomEvent(KPI_OVERRIDES_EVENT));
   } catch {
     /* noop */
@@ -68,11 +76,12 @@ function persist(list: KpiOverride[]) {
 
 export function subscribeKpiOverrides(cb: () => void): () => void {
   if (typeof window === "undefined") return () => {};
-  const onStorage = (e: StorageEvent) => { if (e.key === KPI_OVERRIDES_KEY) cb(); };
-  window.addEventListener(KPI_OVERRIDES_EVENT, cb);
+  const invalidate = () => { cachedSnapshot = null; cb(); };
+  const onStorage = (e: StorageEvent) => { if (e.key === KPI_OVERRIDES_KEY) invalidate(); };
+  window.addEventListener(KPI_OVERRIDES_EVENT, invalidate);
   window.addEventListener("storage", onStorage);
   return () => {
-    window.removeEventListener(KPI_OVERRIDES_EVENT, cb);
+    window.removeEventListener(KPI_OVERRIDES_EVENT, invalidate);
     window.removeEventListener("storage", onStorage);
   };
 }
