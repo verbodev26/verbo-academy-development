@@ -472,6 +472,22 @@ El propio comentario del archivo aclara: **no es una tabla de pagos paralela**, 
 ### `User.hire_date` (`src/lib/mock-data.ts`)
 Fecha ISO (YYYY-MM-DD) de ingreso del profesor. Editable desde Admin > Teachers (form de alta/edición). Es el input único de la ventana de tracking del bono.
 
+### `KpiOverride` (`src/lib/teacher-kpi-overrides-store.ts`)
+Corrección manual retroactiva a un KPI para arreglar la racha de bono cuando una señal real fue injusta. Solo `super_admin` y `coordinator_ops` pueden crearlas (coordinator_fin excluido por separación de responsabilidades).
+
+Campos: `id, teacher_id, month_key ("YYYY-MM"), metric, previous_value, new_value, justification (obligatorio), evidence_name? (opcional, solo nombre del archivo por ahora), admin_id, admin_name (signature), created_at`.
+
+`metric ∈ { connectionPunctuality | planningPunctuality | completionRate | ratingNormalized | cancellationScore | responsiveness | composite }`.
+
+**Aplicación**:
+- Mes en curso, `metric` sub-métrica → `computeTeacherKpis` reemplaza el valor crudo antes de recalcular `baseComposite`.
+- Cualquier mes, `metric = "composite"` → `monthlySnapshot` reemplaza el composite final del mes; `bonusStatus` lo lee así, permitiendo corregir la racha retroactivamente.
+- `metric = "responsiveness"` en cualquier mes → reemplaza `responsiveness` del snapshot (informativo; no re-inyecta al composite del pasado).
+
+**Log**: derivado on-demand como `ActivityKind = "kpi_manual_override"` desde este store (patrón derivado, no log paralelo).
+
+
+
 ---
 
 ## 10. Configuración y Taxonomías
