@@ -15,6 +15,8 @@ import { listChangeRequests, AVAIL_EVENT } from "./availability-store";
 import { teacherStatus } from "./teacher-model";
 import { loadStudentReports, REPORTS_EVENT } from "./student-reports-store";
 import { loadFinancialIssues, FIN_ISSUES_EVENT } from "./financial-issues-store";
+import { loadKpiOverrides, KPI_OVERRIDES_EVENT, KPI_METRIC_LABELS } from "./teacher-kpi-overrides-store";
+import { monthLabel } from "./teacher-kpi-history-store";
 
 export type ActivityKind =
   | "session_scheduled"
