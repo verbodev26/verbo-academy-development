@@ -164,8 +164,9 @@ function TeacherDashboard() {
   const KPI_CRITICAL = 70;
   const signals = kpis
     ? [
-        kpis.connectionPunctuality, kpis.planningPunctuality, kpis.reportPunctuality,
+        kpis.connectionPunctuality, kpis.planningPunctuality,
         kpis.completionRate, kpis.ratingNormalized, kpis.cancellationScore,
+        kpis.responsiveness,
       ]
     : [];
   const belowTarget = signals.filter((v) => v < KPI_GOOD).length;
