@@ -12,7 +12,14 @@ import { type User } from "./mock-data";
 import { loadSessions } from "./sessions-store";
 import { avgRating } from "./teacher-model";
 import { activeStrikeCount } from "./strikes-store";
-import { bonusStatus, type BonusStatus } from "./teacher-kpi-history-store";
+import {
+  bonusStatus,
+  isOnboardingMonth,
+  monthKeyOf,
+  ONBOARDING_COMPOSITE,
+  penaltyStateAt,
+  type BonusStatus,
+} from "./teacher-kpi-history-store";
 
 // Re-export the threshold helpers so existing imports from teacher-kpis keep
 // working after the extraction. New code should import them directly from
