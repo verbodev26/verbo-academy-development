@@ -41,10 +41,21 @@ function read<T>(key: string, fallback: T): T {
 function Page() {
   const { teacher: focusTeacher } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const { user } = useAuth();
+  const adminType = getAdminType(user);
+  // Only super_admin and coordinator_ops may override KPIs — coordinator_fin
+  // is intentionally excluded (separation of duties from the bonus payout).
+  const canOverride = adminType === "super_admin" || adminType === "coordinator_ops";
+  const admin = user ? { id: user.id, name: user.name } : { id: "", name: "" };
+  const overrides = useKpiOverrides(); // subscribe so badges/values refresh
+  void overrides;
   const [, forceTick] = useState(0);
   const [threshold, setThreshold] = useState(85);
   const [onlyReview, setOnlyReview] = useState(false);
   const [chartFor, setChartFor] = useState<User | null>(null);
+  const [overrideTarget, setOverrideTarget] = useState<
+    { teacher: User; metric: KpiMetric; currentValue: number } | null
+  >(null);
 
 
   useEffect(() => {
