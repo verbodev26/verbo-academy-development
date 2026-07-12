@@ -31,6 +31,7 @@ export {
   setBonusThreshold,
 } from "./teacher-kpis-threshold";
 import { getBonusThreshold } from "./teacher-kpis-threshold";
+import { overridesForMonth, type KpiMetric } from "./teacher-kpi-overrides-store";
 
 // ----- Deterministic pseudo-random helpers ----------------------------------
 function hashSeed(str: string): number {
@@ -154,23 +155,40 @@ export interface TeacherKpis {
 export function computeTeacherKpis(t: User, threshold = getBonusThreshold()): TeacherKpis {
   const rng = mulberry32(hashSeed(t.id));
   const rating = avgRating(t);
-  const ratingNormalized = rating != null ? Math.round((rating / 5) * 100) : 0;
+  const ratingNormalizedRaw = rating != null ? Math.round((rating / 5) * 100) : 0;
 
   // Higher-rated teachers skew slightly more punctual — keeps mock coherent.
   const bias = rating != null ? (rating - 4) * 6 : 0;
   const clamp = (n: number) => Math.max(40, Math.min(100, n));
 
-  const connectionPunctuality = clamp(pctInRange(rng(), 72, 99) + bias);
-  const planningPunctuality =
+  const connectionPunctualityRaw = clamp(pctInRange(rng(), 72, 99) + bias);
+  const planningPunctualityRaw =
     typeof t.plan_punctuality === "number" ? t.plan_punctuality : clamp(pctInRange(rng(), 70, 98) + bias);
   const reportPunctualityProxy =
     typeof t.report_punctuality === "number" ? t.report_punctuality : clamp(pctInRange(rng(), 68, 97) + bias);
 
   const completionFallback = clamp(pctInRange(rng(), 75, 99) + bias);
-  const completionRate = sessionCompletionCredit(t.id, reportPunctualityProxy, completionFallback);
+  const completionRateRaw = sessionCompletionCredit(t.id, reportPunctualityProxy, completionFallback);
   const teacherAbsenceRate = teacherCausedAbsenceRate(t.id);
   const strikes = activeStrikeCount(t.id);
-  const cancellationScore = Math.max(0, Math.round(((3 - Math.min(3, strikes)) / 3) * 100));
+  const cancellationScoreRaw = Math.max(0, Math.round(((3 - Math.min(3, strikes)) / 3) * 100));
+
+  // ---- Manual overrides for the CURRENT month --------------------------
+  // Any admin-approved retroactive correction on a sub-metric replaces the
+  // raw value BEFORE the composite is averaged. A composite override is
+  // applied at the very end (below).
+  const nowKey = monthKeyOf(new Date());
+  const monthOverrides = overridesForMonth(t.id, nowKey);
+  const pick = (metric: KpiMetric, raw: number): number => {
+    const o = monthOverrides[metric];
+    return o ? o.new_value : raw;
+  };
+
+  const connectionPunctuality = pick("connectionPunctuality", connectionPunctualityRaw);
+  const planningPunctuality = pick("planningPunctuality", planningPunctualityRaw);
+  const completionRate = pick("completionRate", completionRateRaw);
+  const ratingNormalized = pick("ratingNormalized", ratingNormalizedRaw);
+  const cancellationScore = pick("cancellationScore", cancellationScoreRaw);
 
   // Base composite = avg of the 5 real signals (no more Report punctuality row).
   const baseComposite = Math.round(
@@ -178,11 +196,16 @@ export function computeTeacherKpis(t: User, threshold = getBonusThreshold()): Te
   );
 
   // Onboarding month → composite locked at 90, penalty is 0.
-  const nowKey = monthKeyOf(new Date());
   const onboarding = isOnboardingMonth(t, nowKey);
-  const penaltyState = onboarding ? 0 : penaltyStateAt(t, nowKey);
-  const responsiveness = Math.max(0, 100 - penaltyState);
-  const composite = onboarding ? ONBOARDING_COMPOSITE : Math.max(0, baseComposite - penaltyState);
+  const penaltyStateComputed = onboarding ? 0 : penaltyStateAt(t, nowKey);
+  const responsivenessRaw = Math.max(0, 100 - penaltyStateComputed);
+  const responsiveness = pick("responsiveness", responsivenessRaw);
+  const penaltyState = onboarding ? 0 : Math.max(0, 100 - responsiveness);
+
+  const compositeComputed = onboarding
+    ? ONBOARDING_COMPOSITE
+    : Math.max(0, baseComposite - penaltyState);
+  const composite = pick("composite", compositeComputed);
 
   // Bonus eligibility is a 6-month streak on the FINAL composite (with penalty
   // already applied and onboarding baseline honoured by the history store).
@@ -206,6 +229,7 @@ export function computeTeacherKpis(t: User, threshold = getBonusThreshold()): Te
     bonusStatus: status,
   };
 }
+
 
 export function isBonusEligible(t: User, threshold = getBonusThreshold()): boolean {
   return computeTeacherKpis(t, threshold).bonusEligible;

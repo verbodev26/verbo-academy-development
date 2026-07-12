@@ -11,7 +11,14 @@ import {
 } from "@/lib/teacher-kpis";
 import { MetricCard, SectionTitle } from "@/components/verbo/ui";
 import { BonusBadge } from "@/components/verbo/BonusBadge";
-import { Star, AlertTriangle, Trophy, X, TrendingUp, SlidersHorizontal } from "lucide-react";
+import { KpiOverrideModal } from "@/components/verbo/KpiOverrideModal";
+import { useAuth } from "@/lib/auth";
+import { getAdminType } from "@/lib/admin-roles";
+import {
+  useKpiOverrides, overridesForMonth, type KpiMetric,
+} from "@/lib/teacher-kpi-overrides-store";
+import { monthKeyOf } from "@/lib/teacher-kpi-history-store";
+import { Star, AlertTriangle, TrendingUp, SlidersHorizontal, Pencil, ShieldCheck, X } from "lucide-react";
 
 export const Route = createFileRoute("/admin/kpis")({
   component: Page,
@@ -34,10 +41,21 @@ function read<T>(key: string, fallback: T): T {
 function Page() {
   const { teacher: focusTeacher } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const { user } = useAuth();
+  const adminType = getAdminType(user);
+  // Only super_admin and coordinator_ops may override KPIs — coordinator_fin
+  // is intentionally excluded (separation of duties from the bonus payout).
+  const canOverride = adminType === "super_admin" || adminType === "coordinator_ops";
+  const admin = user ? { id: user.id, name: user.name } : { id: "", name: "" };
+  const overrides = useKpiOverrides(); // subscribe so badges/values refresh
+  void overrides;
   const [, forceTick] = useState(0);
   const [threshold, setThreshold] = useState(85);
   const [onlyReview, setOnlyReview] = useState(false);
   const [chartFor, setChartFor] = useState<User | null>(null);
+  const [overrideTarget, setOverrideTarget] = useState<
+    { teacher: User; metric: KpiMetric; currentValue: number } | null
+  >(null);
 
 
   useEffect(() => {
@@ -150,6 +168,10 @@ function Page() {
                 teacher={t}
                 kpis={kpis}
                 pending={pending}
+                canOverride={canOverride}
+                onOverride={(metric, currentValue) =>
+                  setOverrideTarget({ teacher: t, metric, currentValue })
+                }
                 onOpenChart={() => setChartFor(t)}
               />
             ))}
@@ -158,6 +180,16 @@ function Page() {
       </section>
 
       {chartFor && <RatingChartModal teacher={chartFor} onClose={() => setChartFor(null)} />}
+      {overrideTarget && (
+        <KpiOverrideModal
+          teacher={overrideTarget.teacher}
+          metric={overrideTarget.metric}
+          currentValue={overrideTarget.currentValue}
+          admin={admin}
+          onClose={() => setOverrideTarget(null)}
+          onSaved={() => forceTick((n) => n + 1)}
+        />
+      )}
     </div>
   );
 }
@@ -166,14 +198,17 @@ function Page() {
 // TEACHER CARD
 // ===========================================================================
 function TeacherKpiCard({
-  teacher: t, kpis, pending, onOpenChart,
+  teacher: t, kpis, pending, onOpenChart, canOverride, onOverride,
 }: {
   teacher: User;
   kpis: ReturnType<typeof computeTeacherKpis>;
   pending: number;
   onOpenChart: () => void;
+  canOverride: boolean;
+  onOverride: (metric: KpiMetric, currentValue: number) => void;
 }) {
   const band = ratingBand(kpis.rating);
+  const monthOverrides = overridesForMonth(t.id, monthKeyOf(new Date()));
 
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-soft">
@@ -208,20 +243,38 @@ function TeacherKpiCard({
       {/* Composite score — prominent */}
       <div className="mt-4 flex items-center gap-4 rounded-xl border border-border bg-secondary/30 p-4">
         <CompositeRing value={kpis.composite} />
-        <div>
-          <div className="text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">Composite score</div>
-          <div className="text-3xl font-bold tracking-tight text-foreground">{kpis.composite}%{kpis.onboarding ? <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wider text-blue-700">Onboarding</span> : null}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">Composite score</div>
+            {canOverride && (
+              <button
+                onClick={() => onOverride("composite", kpis.composite)}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                title="Manually adjust composite score"
+                aria-label="Manually adjust composite score"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="text-3xl font-bold tracking-tight text-foreground">
+            {kpis.composite}%
+            {kpis.onboarding && (
+              <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wider text-blue-700">Onboarding</span>
+            )}
+            {monthOverrides.composite && <AdjustedBadge override={monthOverrides.composite} />}
+          </div>
           <div className="text-[10.5px] text-muted-foreground">avg of 5 signals{kpis.penaltyState > 0 ? ` − ${kpis.penaltyState} responsiveness penalty` : ""}</div>
         </div>
       </div>
 
       {/* Metric bars */}
       <div className="mt-4 space-y-3">
-        <KpiBar label="Connection punctuality" value={kpis.connectionPunctuality} />
-        <KpiBar label="Planning punctuality" value={kpis.planningPunctuality} />
-        <KpiBar label="Session completion rate" value={kpis.completionRate} />
-        <KpiBar label="Cancellations / No-Shows" value={kpis.cancellationScore} sub={`${Math.min(3, kpis.activeStrikes)}/3 (last 6 months)`} />
-        <KpiBar label="Reschedule/Substitute Responsiveness" value={kpis.responsiveness} sub={kpis.penaltyState > 0 ? `−${kpis.penaltyState} cumulative penalty this month` : "No penalty this month"} />
+        <KpiBar label="Connection punctuality" value={kpis.connectionPunctuality} metric="connectionPunctuality" canOverride={canOverride} onOverride={onOverride} override={monthOverrides.connectionPunctuality} />
+        <KpiBar label="Planning punctuality" value={kpis.planningPunctuality} metric="planningPunctuality" canOverride={canOverride} onOverride={onOverride} override={monthOverrides.planningPunctuality} />
+        <KpiBar label="Session completion rate" value={kpis.completionRate} metric="completionRate" canOverride={canOverride} onOverride={onOverride} override={monthOverrides.completionRate} />
+        <KpiBar label="Cancellations / No-Shows" value={kpis.cancellationScore} sub={`${Math.min(3, kpis.activeStrikes)}/3 (last 6 months)`} metric="cancellationScore" canOverride={canOverride} onOverride={onOverride} override={monthOverrides.cancellationScore} />
+        <KpiBar label="Reschedule/Substitute Responsiveness" value={kpis.responsiveness} sub={kpis.penaltyState > 0 ? `−${kpis.penaltyState} cumulative penalty this month` : "No penalty this month"} metric="responsiveness" canOverride={canOverride} onOverride={onOverride} override={monthOverrides.responsiveness} />
         <KpiBar label="Teacher-caused absence rate" value={kpis.teacherAbsenceRate} invert />
       </div>
     </div>
@@ -237,15 +290,51 @@ function barColor(value: number, invert: boolean) {
   return "#ef4444";
 }
 
-function KpiBar({ label, value, invert = false, sub }: { label: string; value: number; invert?: boolean; sub?: string }) {
+function AdjustedBadge({ override }: { override: { admin_name: string; created_at: string; previous_value: number; new_value: number; justification: string } }) {
+  const when = new Date(override.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return (
+    <span
+      className="ml-2 inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wider text-purple-700"
+      title={`Manually adjusted from ${override.previous_value}% to ${override.new_value}% by ${override.admin_name} on ${when} — "${override.justification}"`}
+    >
+      <ShieldCheck className="h-3 w-3" /> Manually adjusted
+    </span>
+  );
+}
+
+function KpiBar({
+  label, value, invert = false, sub, metric, canOverride, onOverride, override,
+}: {
+  label: string;
+  value: number;
+  invert?: boolean;
+  sub?: string;
+  metric?: KpiMetric;
+  canOverride?: boolean;
+  onOverride?: (metric: KpiMetric, currentValue: number) => void;
+  override?: { admin_name: string; created_at: string; previous_value: number; new_value: number; justification: string };
+}) {
   return (
     <div>
-      <div className="mb-1 flex justify-between text-xs">
-        <span className="text-muted-foreground">
+      <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+        <span className="min-w-0 text-muted-foreground">
           {label}
           {sub && <span className="ml-2 text-[10px] text-muted-foreground/70">{sub}</span>}
+          {override && <AdjustedBadge override={override} />}
         </span>
-        <span className="font-semibold text-foreground">{value}%</span>
+        <span className="inline-flex shrink-0 items-center gap-1.5">
+          <span className="font-semibold text-foreground">{value}%</span>
+          {metric && canOverride && onOverride && (
+            <button
+              onClick={() => onOverride(metric, value)}
+              className="rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              title={`Manually adjust ${label}`}
+              aria-label={`Manually adjust ${label}`}
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          )}
+        </span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
         <div className="h-full rounded-full" style={{ width: `${value}%`, backgroundColor: barColor(value, invert) }} />

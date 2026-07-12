@@ -10,6 +10,7 @@
 // ============================================================================
 import { type User } from "./mock-data";
 import { loadSessions } from "./sessions-store";
+import { latestOverride } from "./teacher-kpi-overrides-store";
 import { getBonusThreshold } from "./teacher-kpis-threshold";
 
 // ----- Month-key helpers ----------------------------------------------------
@@ -185,8 +186,14 @@ export function monthlySnapshot(
       ? currentMonthBase
       : mockCompositeFor(teacher.id, monthKey);
   const penaltyState = penaltyStateAt(teacher, monthKey, currentMonthRefusals);
-  const composite = Math.max(0, baseComposite - penaltyState);
-  const responsiveness = Math.max(0, 100 - penaltyState);
+  const rawComposite = Math.max(0, baseComposite - penaltyState);
+  const rawResponsiveness = Math.max(0, 100 - penaltyState);
+
+  // Manual admin overrides win over the derived values for this month.
+  const compositeOverride = latestOverride(teacher.id, monthKey, "composite");
+  const responsivenessOverride = latestOverride(teacher.id, monthKey, "responsiveness");
+  const composite = compositeOverride ? compositeOverride.new_value : rawComposite;
+  const responsiveness = responsivenessOverride ? responsivenessOverride.new_value : rawResponsiveness;
   return { monthKey, baseComposite, penaltyState, composite, responsiveness, onboarding: false };
 }
 

@@ -15,6 +15,8 @@ import { listChangeRequests, AVAIL_EVENT } from "./availability-store";
 import { teacherStatus } from "./teacher-model";
 import { loadStudentReports, REPORTS_EVENT } from "./student-reports-store";
 import { loadFinancialIssues, FIN_ISSUES_EVENT } from "./financial-issues-store";
+import { loadKpiOverrides, KPI_OVERRIDES_EVENT, KPI_METRIC_LABELS } from "./teacher-kpi-overrides-store";
+import { monthLabel } from "./teacher-kpi-history-store";
 
 export type ActivityKind =
   | "session_scheduled"
@@ -38,7 +40,8 @@ export type ActivityKind =
   | "avail_request_approved"
   | "avail_request_rejected"
   | "release_request_submitted"
-  | "report_filed";
+  | "report_filed"
+  | "kpi_manual_override";
 
 export type ActorRole = "admin" | "teacher" | "student" | "system";
 
@@ -399,6 +402,21 @@ export function buildActivityLog(): ActivityEntry[] {
     });
   }
 
+  // ---- Manual KPI overrides (super_admin / coordinator_ops) -----------
+  for (const o of loadKpiOverrides()) {
+    const teacher = userName(o.teacher_id);
+    const metricLabel = KPI_METRIC_LABELS[o.metric] ?? o.metric;
+    out.push({
+      id: `kpi-override:${o.id}`,
+      kind: "kpi_manual_override",
+      action: "KPI manually adjusted",
+      detail: `${teacher} · ${metricLabel} · ${monthLabel(o.month_key)} · ${o.previous_value}% → ${o.new_value}%${o.justification ? ` — "${o.justification.slice(0, 80)}"` : ""}`,
+      timestamp: o.created_at,
+      actorId: o.admin_id, actorName: o.admin_name, actorRole: "admin",
+      personId: o.teacher_id,
+    });
+  }
+
   // Sort newest first, de-dupe by id (defensive).
   const seen = new Set<string>();
   return out
@@ -412,7 +430,7 @@ export function buildActivityLog(): ActivityEntry[] {
 const SOURCE_EVENTS = [
   SESSIONS_EVENT, CLUBS_EVENT, RELEASE_REQUESTS_EVENT,
   CLUB_REPORTS_EVENT, STRIKES_EVENT, AVAIL_EVENT,
-  REPORTS_EVENT, FIN_ISSUES_EVENT,
+  REPORTS_EVENT, FIN_ISSUES_EVENT, KPI_OVERRIDES_EVENT,
 ];
 
 function subscribe(cb: () => void): () => void {
@@ -468,6 +486,7 @@ export const ACTIVITY_KIND_LABELS: Record<ActivityKind, string> = {
   avail_request_rejected: "Availability rejected",
   release_request_submitted: "Release request",
   report_filed: "Report filed",
+  kpi_manual_override: "KPI manually adjusted",
 };
 
 export const ACTOR_ROLE_LABELS: Record<ActorRole, string> = {
