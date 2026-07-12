@@ -486,6 +486,7 @@ export const ACTIVITY_KIND_LABELS: Record<ActivityKind, string> = {
   avail_request_rejected: "Availability rejected",
   release_request_submitted: "Release request",
   report_filed: "Report filed",
+  kpi_manual_override: "KPI manually adjusted",
 };
 
 export const ACTOR_ROLE_LABELS: Record<ActorRole, string> = {
