@@ -531,17 +531,40 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 
 /* ---------------- Badges tab ---------------- */
 
-const BADGE_ICON_MAP: Record<BadgeIconId, React.ComponentType<{ className?: string }>> = {
-  trophy: Trophy,
-  star: Star,
-  flame: Flame,
-  target: Target,
-  award: Award,
-  medal: Medal,
-  crown: Crown,
-  zap: Zap,
-  sparkles: Sparkles,
-};
+const BADGE_IMAGE_ACCEPT = "image/gif,image/png,image/jpeg,image/webp";
+const BADGE_IMAGE_MAX_BYTES = 1024 * 1024; // 1 MB
+
+function readImageAsDataUrl(file: File): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (!BADGE_IMAGE_ACCEPT.split(",").includes(file.type)) {
+      alert("Please upload a GIF, PNG, JPG or WebP image.");
+      resolve(null);
+      return;
+    }
+    if (file.size > BADGE_IMAGE_MAX_BYTES) {
+      alert("Image is too large (max 1 MB).");
+      resolve(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
+    reader.onerror = () => { alert("Could not read the image file."); resolve(null); };
+    reader.readAsDataURL(file);
+  });
+}
+
+function BadgeImage({ src, size = "md" }: { src: string; size?: "md" | "lg" }) {
+  const box = size === "lg" ? "h-20 w-20" : "h-12 w-12";
+  const inner = size === "lg" ? "h-8 w-8" : "h-6 w-6";
+  if (src) {
+    return <img src={src} alt="" className={`${box} rounded-full object-cover ring-2 ring-amber-400/40`} />;
+  }
+  return (
+    <span className={`${box} flex items-center justify-center rounded-full bg-secondary text-muted-foreground ring-2 ring-border`}>
+      <ImageIcon className={inner} />
+    </span>
+  );
+}
 
 function TabsBar({ tab, setTab }: { tab: "challenges" | "badges"; setTab: (t: "challenges" | "badges") => void }) {
   const btn = (id: "challenges" | "badges", label: string) => (
