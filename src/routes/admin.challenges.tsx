@@ -629,13 +629,11 @@ function BadgesManager() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {badges.map((b) => {
-            const Icon = BADGE_ICON_MAP[b.icon] ?? Trophy;
             return (
               <div key={b.id} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5 shadow-sm">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600 ring-2 ring-amber-400/40">
-                    <Icon className="h-6 w-6" />
-                  </span>
+                  <BadgeImage src={b.image} />
+
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-foreground">{b.name}</div>
                     <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{b.description}</p>
