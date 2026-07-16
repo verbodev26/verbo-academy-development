@@ -69,6 +69,13 @@ import {
 } from "@/lib/students-store";
 import { USERS } from "@/lib/mock-data";
 import { groupsByStudentId } from "@/lib/groups-store";
+import { useAvatar } from "@/lib/avatar-store";
+import {
+  getLeaderboardIdentity,
+  subscribeLeaderboardIdentity,
+  colorFromString,
+  initialsOf,
+} from "@/lib/leaderboard-identity-store";
 
 export const Route = createFileRoute("/student/challenges")({ component: Page });
 
