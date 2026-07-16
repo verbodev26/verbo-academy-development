@@ -1,8 +1,13 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { Award, Crown, Flame, Lock, Trophy, Camera } from "lucide-react";
 import { setAvatar, useAvatar } from "@/lib/avatar-store";
+import {
+  getLeaderboardIdentity,
+  setLeaderboardIdentity,
+  type LeaderboardIdentityMode,
+} from "@/lib/leaderboard-identity-store";
 
 interface Props {
   open: boolean;
@@ -47,6 +52,16 @@ export function ProfileModal({ open, onOpenChange }: Props) {
   const [gallery, setGallery] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const avatar = useAvatar(user?.id);
+
+  const [lbMode, setLbMode] = useState<LeaderboardIdentityMode>("real");
+  const [lbNickname, setLbNickname] = useState("");
+
+  useEffect(() => {
+    if (!user) return;
+    const cur = getLeaderboardIdentity(user.id);
+    setLbMode(cur.mode);
+    setLbNickname(cur.nickname);
+  }, [user, open]);
 
   if (!user) return null;
   const initial = user.name?.[0] ?? "?";
@@ -165,6 +180,58 @@ export function ProfileModal({ open, onOpenChange }: Props) {
               >
                 View all achievements →
               </button>
+
+
+
+              <div className="mt-6 rounded-xl border border-border bg-card p-4">
+                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Show on leaderboard as
+                </div>
+                <div className="mt-3 space-y-2">
+                  <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background p-2.5 text-sm">
+                    <input
+                      type="radio"
+                      name="lb-mode"
+                      className="mt-0.5"
+                      checked={lbMode === "real"}
+                      onChange={() => {
+                        setLbMode("real");
+                        setLeaderboardIdentity(user.id, { mode: "real", nickname: lbNickname });
+                      }}
+                    />
+                    <span className="font-medium text-foreground">My name and photo</span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-border bg-background p-2.5 text-sm">
+                    <input
+                      type="radio"
+                      name="lb-mode"
+                      className="mt-0.5"
+                      checked={lbMode === "nickname"}
+                      onChange={() => {
+                        setLbMode("nickname");
+                        setLeaderboardIdentity(user.id, { mode: "nickname", nickname: lbNickname });
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-foreground">Custom nickname</div>
+                      {lbMode === "nickname" && (
+                        <input
+                          type="text"
+                          value={lbNickname}
+                          placeholder="Nickname"
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setLbNickname(v);
+                            setLeaderboardIdentity(user.id, { mode: "nickname", nickname: v });
+                          }}
+                          className="mt-2 w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      )}
+                    </div>
+                  </label>
+                </div>
+              </div>
+
 
               <div className="mt-8 rounded-xl border border-dashed border-border bg-secondary/30 p-4">
                 <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
