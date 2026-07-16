@@ -531,7 +531,7 @@ function Page() {
         })()}
 
 
-      <LeaderboardSection productId={productId} currentUserId={student.id} />
+      <LeaderboardSection currentUserId={student.id} />
 
       <section>
         <div className="mb-4 flex items-end justify-between">
@@ -1512,7 +1512,7 @@ interface LeaderboardRow {
   completed: number;
 }
 
-function useLeaderboardRows(productId: ChallengeProductId): LeaderboardRow[] {
+function useLeaderboardRows(): LeaderboardRow[] {
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const un1 = subscribeStudents(() => setTick((t) => t + 1));
@@ -1522,24 +1522,28 @@ function useLeaderboardRows(productId: ChallengeProductId): LeaderboardRow[] {
   return useMemo(() => {
     void tick;
     return USERS
-      .filter((u) => u.role === "student" && (u.product ?? "go") === productId)
+      .filter((u) => u.role === "student")
       .map<LeaderboardRow>((u) => {
         const id = getLeaderboardIdentity(u.id);
         const useReal = id.mode === "real" || !id.nickname.trim();
         const displayName = useReal ? u.name : id.nickname.trim();
+        const regular = u.completed_challenges?.length ?? 0;
+        const lightning = u.lightning_completions ?? 0;
+        const seasons = Object.values(u.season_completions ?? {})
+          .reduce((sum, n) => sum + (n ?? 0), 0);
         return {
           userId: u.id,
           displayName,
           useRealAvatar: useReal,
           avatarSeed: useReal ? u.name : id.nickname.trim(),
-          completed: u.completed_challenges?.length ?? 0,
+          completed: regular + lightning + seasons,
         };
       })
       .sort((a, b) =>
         b.completed - a.completed
         || a.displayName.localeCompare(b.displayName),
       );
-  }, [productId, tick]);
+  }, [tick]);
 }
 
 function NicknameAvatar({ seed, className = "" }: { seed: string; className?: string }) {
@@ -1573,13 +1577,11 @@ const PODIUM_STYLES: Record<number, { ring: string; medal: string; label: string
 };
 
 function LeaderboardSection({
-  productId,
   currentUserId,
 }: {
-  productId: ChallengeProductId;
   currentUserId: string;
 }) {
-  const rows = useLeaderboardRows(productId);
+  const rows = useLeaderboardRows();
   if (rows.length === 0) return null;
 
   const podium = rows.slice(0, 3);
@@ -1592,7 +1594,7 @@ function LeaderboardSection({
     <section>
       <div className="mb-4">
         <h2 className="text-base font-semibold tracking-tight text-foreground">Leaderboard</h2>
-        <p className="mt-1 text-xs text-muted-foreground">Challenges completed by students in your product.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Total Challenges and Flash completed by all students.</p>
       </div>
       <Card>
         <div className="p-5">
@@ -1620,7 +1622,10 @@ function LeaderboardSection({
                     {isYou && <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-accent">You</span>}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {row.completed} <span className="opacity-70">Challenges completed</span>
+                    {row.completed}{" "}
+                    <span className="opacity-70">
+                      {row.completed === 1 ? "Challenge completed" : "Challenges completed"}
+                    </span>
                   </div>
                 </div>
               );
@@ -1645,7 +1650,10 @@ function LeaderboardSection({
                       {isYou && <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-accent">You</span>}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {row.completed} <span className="opacity-70">Challenges completed</span>
+                      {row.completed}{" "}
+                      <span className="opacity-70">
+                        {row.completed === 1 ? "Challenge completed" : "Challenges completed"}
+                      </span>
                     </span>
                   </li>
                 );

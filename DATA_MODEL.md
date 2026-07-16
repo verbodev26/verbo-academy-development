@@ -336,7 +336,7 @@ Preferencia por estudiante para el Leaderboard de Challenges (Student > Challeng
 | mode | `"real" \| "nickname"` | default `"real"` — muestra `User.name` + avatar real (`avatar-store`) |
 | nickname | string | usado solo cuando `mode === "nickname"`; si está vacío se cae a nombre real. La UI renderiza avatar genérico con iniciales + color HSL determinístico derivado del nickname (nunca sube imagen) |
 
-Ranking del leaderboard: `USERS` filtrados por `role === "student"` y mismo `product` que el usuario actual, ordenados por `completed_challenges.length` desc. Sin reset periódico — acumulado histórico. Toda la lógica (filtro, orden, resolución de identidad, iniciales/color) vive en el store + el componente `LeaderboardSection` de `student.challenges.tsx`.
+Ranking del leaderboard: **global** — `USERS` filtrados solo por `role === "student"` (sin segmentar por `product`), ordenados desc por el **total combinado** `completed_challenges.length + lightning_completions + sum(season_completions)` (challenges regulares + Verbo Flash Lightning + todas las temporadas Flash). Sin reset periódico — acumulado histórico. Pluralización correcta en la UI ("1 Challenge completed" vs "N Challenges completed"). Toda la lógica (filtro, orden, resolución de identidad, iniciales/color) vive en el store + el componente `LeaderboardSection` de `student.challenges.tsx`.
 
 
 
