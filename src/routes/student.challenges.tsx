@@ -1650,7 +1650,10 @@ function LeaderboardSection({
                       {isYou && <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-accent">You</span>}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {row.completed} <span className="opacity-70">Challenges completed</span>
+                      {row.completed}{" "}
+                      <span className="opacity-70">
+                        {row.completed === 1 ? "Challenge completed" : "Challenges completed"}
+                      </span>
                     </span>
                   </li>
                 );
