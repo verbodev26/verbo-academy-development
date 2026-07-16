@@ -1494,3 +1494,166 @@ function SeasonRevealModal({
   );
 }
 
+
+/* -------------------------------------------------------------------------- */
+/* Leaderboard — top challenge completers within the same product cohort.     */
+/*                                                                            */
+/* All ranking logic runs on the raw USERS + per-user LeaderboardIdentity     */
+/* stores; the component is a pure renderer that re-derives on each render    */
+/* and re-subscribes to student + identity mutations so podium updates are    */
+/* live (nickname edited in ProfileModal, new completions, etc.).             */
+/* -------------------------------------------------------------------------- */
+
+interface LeaderboardRow {
+  userId: string;
+  displayName: string;
+  useRealAvatar: boolean;
+  avatarSeed: string; // used for the initials + color when useRealAvatar=false
+  completed: number;
+}
+
+function useLeaderboardRows(productId: ChallengeProductId): LeaderboardRow[] {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const un1 = subscribeStudents(() => setTick((t) => t + 1));
+    const un2 = subscribeLeaderboardIdentity(() => setTick((t) => t + 1));
+    return () => { un1(); un2(); };
+  }, []);
+  return useMemo(() => {
+    void tick;
+    return USERS
+      .filter((u) => u.role === "student" && (u.product ?? "go") === productId)
+      .map<LeaderboardRow>((u) => {
+        const id = getLeaderboardIdentity(u.id);
+        const useReal = id.mode === "real" || !id.nickname.trim();
+        const displayName = useReal ? u.name : id.nickname.trim();
+        return {
+          userId: u.id,
+          displayName,
+          useRealAvatar: useReal,
+          avatarSeed: useReal ? u.name : id.nickname.trim(),
+          completed: u.completed_challenges?.length ?? 0,
+        };
+      })
+      .sort((a, b) =>
+        b.completed - a.completed
+        || a.displayName.localeCompare(b.displayName),
+      );
+  }, [productId, tick]);
+}
+
+function NicknameAvatar({ seed, className = "" }: { seed: string; className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full text-white font-semibold ${className}`}
+      style={{ background: colorFromString(seed || "?") }}
+    >
+      {initialsOf(seed || "?")}
+    </span>
+  );
+}
+
+function RowAvatar({ row, size }: { row: LeaderboardRow; size: "sm" | "lg" }) {
+  const realAvatar = useAvatar(row.useRealAvatar ? row.userId : undefined);
+  const cls = size === "lg" ? "h-16 w-16 text-lg" : "h-9 w-9 text-xs";
+  if (row.useRealAvatar) {
+    if (realAvatar) {
+      return <img src={realAvatar} alt="" className={`${cls} rounded-full object-cover`} />;
+    }
+    // fall back to initials over a neutral color when the real user has no avatar
+    return <NicknameAvatar seed={row.avatarSeed} className={cls} />;
+  }
+  return <NicknameAvatar seed={row.avatarSeed} className={cls} />;
+}
+
+const PODIUM_STYLES: Record<number, { ring: string; medal: string; label: string }> = {
+  0: { ring: "ring-yellow-400", medal: "bg-yellow-400 text-yellow-950", label: "1" },
+  1: { ring: "ring-slate-300", medal: "bg-slate-300 text-slate-800", label: "2" },
+  2: { ring: "ring-amber-600", medal: "bg-amber-600 text-amber-50", label: "3" },
+};
+
+function LeaderboardSection({
+  productId,
+  currentUserId,
+}: {
+  productId: ChallengeProductId;
+  currentUserId: string;
+}) {
+  const rows = useLeaderboardRows(productId);
+  if (rows.length === 0) return null;
+
+  const podium = rows.slice(0, 3);
+  const rest = rows.slice(3);
+  // Ensure a visual "3-2-1-...” ordering: put #1 in the middle when there are 3+.
+  const podiumOrdered = podium.length === 3 ? [podium[1], podium[0], podium[2]] : podium;
+  const podiumRankOf = (r: LeaderboardRow) => podium.indexOf(r); // 0..2
+
+  return (
+    <section>
+      <div className="mb-4">
+        <h2 className="text-base font-semibold tracking-tight text-foreground">Leaderboard</h2>
+        <p className="mt-1 text-xs text-muted-foreground">Challenges completed by students in your product.</p>
+      </div>
+      <Card>
+        <div className="p-5">
+          {/* Top 3 podium */}
+          <div className={`grid gap-4 ${podium.length === 3 ? "grid-cols-3" : podium.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+            {podiumOrdered.map((row) => {
+              const rank = podiumRankOf(row);
+              const style = PODIUM_STYLES[rank];
+              const isYou = row.userId === currentUserId;
+              // Middle column (rank 0 = #1) sits taller.
+              const pad = rank === 0 ? "pt-2" : "pt-6";
+              return (
+                <div
+                  key={row.userId}
+                  className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center shadow-soft ${pad} ${isYou ? "border-accent bg-accent/5" : "border-border bg-card"}`}
+                >
+                  <div className={`absolute -top-3 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow ${style.medal}`}>
+                    {style.label}
+                  </div>
+                  <div className={`rounded-full ring-4 ${style.ring} p-0.5`}>
+                    <RowAvatar row={row} size="lg" />
+                  </div>
+                  <div className="mt-1 line-clamp-1 text-sm font-semibold text-foreground">
+                    {row.displayName}
+                    {isYou && <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-accent">You</span>}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {row.completed} <span className="opacity-70">Challenges completed</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Rest of the ranking */}
+          {rest.length > 0 && (
+            <ul className="mt-5 divide-y divide-border rounded-xl border border-border bg-background">
+              {rest.map((row, idx) => {
+                const pos = idx + 4;
+                const isYou = row.userId === currentUserId;
+                return (
+                  <li
+                    key={row.userId}
+                    className={`flex items-center gap-3 px-4 py-2.5 text-sm ${isYou ? "bg-accent/10" : ""}`}
+                  >
+                    <span className="w-6 text-right text-xs font-semibold text-muted-foreground">{pos}</span>
+                    <RowAvatar row={row} size="sm" />
+                    <span className="flex-1 truncate font-medium text-foreground">
+                      {row.displayName}
+                      {isYou && <span className="ml-1 text-[10px] font-semibold uppercase tracking-wider text-accent">You</span>}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {row.completed} <span className="opacity-70">Challenges completed</span>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </Card>
+    </section>
+  );
+}
