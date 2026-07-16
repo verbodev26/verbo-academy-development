@@ -321,11 +321,11 @@ Catálogo editable por Admin de los badges de Challenges mostrados al estudiante
 |---|---|---|
 | id | string | ej. `badge-1` |
 | name / description | string | libres |
-| icon | `BadgeIconId = "trophy"\|"star"\|"flame"\|"target"\|"award"\|"medal"\|"crown"\|"zap"\|"sparkles"` | elegido de un set curado de lucide-react |
+| image | string | data URL (`data:image/gif;base64,...` etc.). `""` = no configurada aún → UI muestra placeholder. Acepta GIF/PNG/JPG/WebP; máx. 1 MB por badge para no reventar el cupo de `localStorage`. Los GIFs se animan solos vía `<img>` |
 | rule.metric | `BadgeMetric = "completedCount"\|"longestStreak"\|"distinctCategories"\|"hasCompletedPremium"` | única métrica |
 | rule.threshold | number \| undefined | requerido para métricas numéricas; ignorado para `hasCompletedPremium` (boolean on/off) |
 
-Evaluación pura: `isBadgeEarned(badge, ctx)` — sin funciones arbitrarias, todo declarativo.
+Evaluación pura: `isBadgeEarned(badge, ctx)` — sin funciones arbitrarias, todo declarativo. Al cargar, cualquier registro con shape legacy (p. ej. el antiguo `icon: BadgeIconId`) se descarta silenciosamente y se vuelve al seed nuevo.
 
 
 ### `FlashChallenge`, `LightningState`, `FlashSeason`, `FlashConfig` (`src/lib/flash-challenges-store.ts`)
