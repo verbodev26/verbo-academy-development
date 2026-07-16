@@ -209,6 +209,7 @@ function Page() {
   const [seasonState, setSeasonState] = useState<
     { season: FlashSeason; opening: boolean; reveal: FlashChallenge | null; blocked: boolean } | null
   >(null);
+  const [badges, setBadges] = useState<BadgeDef[]>(loadBadges);
 
   useEffect(() => {
     setChallenges(loadChallenges());
@@ -216,15 +217,18 @@ function Page() {
     setFlashConfig(loadFlashConfig());
     setLightning(loadLightning());
     setSeasons(loadSeasons());
+    setBadges(loadBadges());
     const un1 = subscribeChallenges(() => setChallenges(loadChallenges()));
     const un2 = subscribeStudents(() => setTick((t) => t + 1));
     const un3 = subscribeFlashChallenges(() => setFlashList(loadFlashChallenges()));
     const un4 = subscribeFlashConfig(() => setFlashConfig(loadFlashConfig()));
     const un5 = subscribeLightning(() => setLightning(loadLightning()));
     const un6 = subscribeSeasons(() => setSeasons(loadSeasons()));
+    const un7 = subscribeBadges(() => setBadges(loadBadges()));
     const timer = setInterval(() => setNowTick(Date.now()), 1000);
-    return () => { un1(); un2(); un3(); un4(); un5(); un6(); clearInterval(timer); };
+    return () => { un1(); un2(); un3(); un4(); un5(); un6(); un7(); clearInterval(timer); };
   }, []);
+
 
   // Preload Google Fonts for active seasons so their skin renders.
   useEffect(() => {
