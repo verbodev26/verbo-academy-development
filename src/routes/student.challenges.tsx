@@ -163,31 +163,30 @@ function SkillChip({ label }: { label: string }) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Badges catalog — pure derivation from completed_challenges + longest_streak */
+/* Badges catalog — declarative rules stored in badges-store.ts                */
 /* -------------------------------------------------------------------------- */
-interface BadgeDef {
-  id: string;
-  name: string;
-  description: string;
-  earned: (ctx: BadgeContext) => boolean;
-}
-interface BadgeContext {
-  completedCount: number;
-  longestStreak: number;
-  distinctCategories: number;
-  hasCompletedPremium: boolean;
-}
+import {
+  type BadgeDef,
+  type BadgeContext,
+  type BadgeIconId,
+  loadBadges,
+  subscribeBadges,
+  isBadgeEarned,
+} from "@/lib/badges-store";
+import { Star, Flame, Target, Award, Medal, Crown } from "lucide-react";
 
-const BADGES: BadgeDef[] = [
-  { id: "first",       name: "First Challenge",     description: "You completed your first Challenge.",             earned: (c) => c.completedCount >= 1 },
-  { id: "explorer",    name: "Challenge Explorer",  description: "You've completed 5 Challenges.",                  earned: (c) => c.completedCount >= 5 },
-  { id: "master",      name: "Challenge Master",    description: "You've completed 15 Challenges.",                 earned: (c) => c.completedCount >= 15 },
-  { id: "roll",        name: "On a Roll",           description: "3 Challenges completed in a row.",                earned: (c) => c.longestStreak >= 3 },
-  { id: "streak",      name: "Challenge Streak",    description: "5 Challenges completed in a row.",                earned: (c) => c.longestStreak >= 5 },
-  { id: "unstoppable", name: "Unstoppable",         description: "10 Challenges completed in a row.",               earned: (c) => c.longestStreak >= 10 },
-  { id: "well",        name: "Well-Rounded",        description: "Completed Challenges from 6 different categories.", earned: (c) => c.distinctCategories >= 6 },
-  { id: "elite",       name: "Elite Challenger",    description: "Completed your first Premium Challenge.",         earned: (c) => c.hasCompletedPremium },
-];
+const BADGE_ICON_MAP: Record<BadgeIconId, React.ComponentType<{ className?: string }>> = {
+  trophy: Trophy,
+  star: Star,
+  flame: Flame,
+  target: Target,
+  award: Award,
+  medal: Medal,
+  crown: Crown,
+  zap: Zap,
+  sparkles: Sparkles,
+};
+
 
 /* -------------------------------------------------------------------------- */
 /* Page                                                                        */
