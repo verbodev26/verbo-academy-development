@@ -9,6 +9,7 @@ import {
   PAYMENT_FREQUENCIES, paymentFrequency, defaultPaymentRecords, financialSummary,
   type QualifiedProduct, type TeacherStatus, type PaymentFrequency,
 } from "@/lib/teacher-model";
+import { effectiveHourlyRate, teacherTier } from "@/lib/teacher-tiers";
 import { computeTeacherKpis } from "@/lib/teacher-kpis";
 import { BonusBadge } from "@/components/verbo/BonusBadge";
 import { useAvatar } from "@/lib/avatar-store";
@@ -364,7 +365,7 @@ function TeacherDetailModal({
   const meta = STATUS_META[status];
 
   // Editable fields
-  const [rate, setRate] = useState(String(t.hourly_rate ?? DEFAULT_HOURLY_RATE));
+  const [rate, setRate] = useState(String(effectiveHourlyRate(t)));
   const [freq, setFreq] = useState<PaymentFrequency>(paymentFrequency(t));
   const [products, setProducts] = useState<QualifiedProduct[]>(qualifiedProducts(t));
   const [notes, setNotes] = useState(t.admin_notes ?? "");
@@ -430,7 +431,7 @@ function TeacherDetailModal({
             )}
             <div>
               <h2 className="text-xl font-semibold tracking-tight text-white">{t.name}</h2>
-              <p className="text-xs text-white/70">{t.email} · ${t.hourly_rate ?? DEFAULT_HOURLY_RATE} MXN/h</p>
+              <p className="text-xs text-white/70">{t.email} · ${effectiveHourlyRate(t)} MXN/h · {teacherTier(t).name}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
