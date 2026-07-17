@@ -47,6 +47,7 @@ export type NotificationKind =
   | "freeze_applied"
   | "kpi_below_threshold"
   | "bonus_eligible"
+  | "tier_upgraded"
   | "announcement"
   | "student_challenge_selected"
   | "student_shared_challenge_result"
