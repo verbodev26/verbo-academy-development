@@ -385,12 +385,25 @@ function TeacherDetailModal({
   const productsDirty = JSON.stringify([...products].sort()) !== JSON.stringify([...qualifiedProducts(t)].sort());
   const otherTeachers = teachers.filter((x) => x.id !== t.id && teacherStatus(x) !== "removed");
 
+  const applyStatusPatch = (base: User, target: "active" | "frozen" | "removed"): User => {
+    const current = teacherStatus(base);
+    let patch: User = { ...base, teacher_status: target };
+    if (current === "frozen" && target !== "frozen" && base.tier_frozen_since) {
+      const since = new Date(base.tier_frozen_since);
+      const days = isNaN(since.getTime()) ? 0 : Math.max(0, Math.floor((Date.now() - since.getTime()) / 86_400_000));
+      patch = { ...patch, tier_frozen_since: null, tier_frozen_days: (base.tier_frozen_days ?? 0) + days };
+    } else if (current !== "frozen" && target === "frozen") {
+      patch = { ...patch, tier_frozen_since: new Date().toISOString() };
+    }
+    return patch;
+  };
+
   const startFlow = (target: "frozen" | "removed") => {
     if (actives.length > 0) {
       setReassignMap(Object.fromEntries(actives.map((s) => [s.id, ""])));
       setFlow(target);
     } else {
-      onPersist({ ...t, teacher_status: target });
+      onPersist(applyStatusPatch(t, target));
     }
   };
 
@@ -399,7 +412,7 @@ function TeacherDetailModal({
   const confirmFlow = () => {
     if (!flow || !flowReady) return;
     actives.forEach((s) => onReassign(s.id, reassignMap[s.id]));
-    onPersist({ ...t, teacher_status: flow });
+    onPersist(applyStatusPatch(t, flow));
     setFlow(null);
     onClose();
   };
