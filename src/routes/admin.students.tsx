@@ -10,7 +10,8 @@ import {
   suggestDuration, nextPaymentDate, daysUntil,
   type ProductId, type AccessPlanId,
 } from "@/lib/student-model";
-import { teachersForProduct } from "@/lib/teacher-model";
+import { teachersForProduct, teachersForProductSorted } from "@/lib/teacher-model";
+import { teacherTier } from "@/lib/teacher-tiers";
 import { PLAN_DEFAULTS } from "@/lib/club-bookings-store";
 
 import { Card, GhostButton, PrimaryButton } from "@/components/verbo/ui";

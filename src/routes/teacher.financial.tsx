@@ -93,7 +93,8 @@ function MyBalancePage() {
   const mkey = monthKey(viewMonth);
   const isCurrentMonth = mkey === currentMkey;
 
-  const rate = teacher?.hourly_rate ?? DEFAULT_HOURLY_RATE;
+  const rate = teacher ? effectiveHourlyRate(teacher) : 120;
+  const tier = teacher ? teacherTier(teacher) : null;
 
   // ----- Sessions taught (this month) -----
   type SessionRow = {
