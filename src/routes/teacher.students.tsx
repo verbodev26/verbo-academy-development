@@ -611,6 +611,21 @@ function StudentDetailModal({
           </div>
         </section>
 
+        {/* --- Learning Path unit access (unlock/lock any unit for this student) --- */}
+        {(s.product === "go" || s.product === "enterprise" || s.product === "international") && (
+          <section className="mt-6">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <BookOpenCheck className="h-3.5 w-3.5" /> Course Progress · Unit access
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Unlock or lock any unit. Milestone units (10, 20, 30) are locked by default until you unlock them.
+            </p>
+            <div className="mt-3">
+              <TeacherUnitAccessPanel student={s} teacherId={teacherId} />
+            </div>
+          </section>
+        )}
+
         {/* --- VIP Course Builder link --- */}
         {isVip && (
           <section className="mt-6">
