@@ -29,7 +29,12 @@ import {
 import { groupsByStudentId, groupOfStudent, removeMember, subscribeGroups, effectiveSessionCounts } from "@/lib/groups-store";
 import { logPayment, expectedAmountForStudent } from "@/lib/payments-log";
 import { setLevelReopened } from "@/lib/students-store";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Unlock as UnlockIcon, Lock as LockIcon, Trophy } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { loadCourses, subscribeCourses, type CourseLevel } from "@/lib/product-courses-store";
+import {
+  isMilestoneUnit, getUnitAccessOverride, setUnitAccess,
+} from "@/lib/activities-store";
 
 export const Route = createFileRoute("/admin/students")({
   component: Page,
@@ -1054,7 +1059,7 @@ function StudentFormModal({
 // ===========================================================================
 // DETAIL MODAL (tabs + actions)
 // ===========================================================================
-type Tab = "overview" | "performance" | "notes";
+type Tab = "overview" | "performance" | "progress" | "notes";
 
 function StudentDetailModal({
   student, teachers, onClose, onUpdate, onEdit,
@@ -1155,7 +1160,7 @@ function StudentDetailModal({
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-border px-6 pt-3">
-          {([["overview", "Overview"], ["performance", "Performance & Attendance"], ["notes", "Admin Notes"]] as [Tab, string][]).map(([id, label]) => (
+          {([["overview", "Overview"], ["performance", "Performance & Attendance"], ["progress", "Course Progress"], ["notes", "Admin Notes"]] as [Tab, string][]).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}
@@ -1287,6 +1292,8 @@ function StudentDetailModal({
           )}
 
           {tab === "performance" && <PerformanceTab student={student} />}
+
+          {tab === "progress" && <CourseProgressTab student={student} />}
 
           {tab === "notes" && (
             <div>
