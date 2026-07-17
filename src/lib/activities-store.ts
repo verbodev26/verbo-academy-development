@@ -77,7 +77,7 @@ const ACTIVITIES_KEY = "verbo:activities";
 const COMPLETION_KEY = "verbo:unit-completion";
 const ATTEMPTS_KEY = "verbo:unit-attempts";
 const SCORES_KEY = "verbo:activity-scores";
-const MILESTONE_KEY = "verbo:milestone-unlocks";
+const UNIT_ACCESS_LOG_KEY = "verbo:unit-access-log";
 
 function safeRead<T>(k: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
