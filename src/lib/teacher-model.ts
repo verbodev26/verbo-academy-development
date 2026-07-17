@@ -115,8 +115,6 @@ export function teachersForProductSorted(
   product?: string | null,
   opts: { includeRemoved?: boolean } = {},
 ): User[] {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { teacherTier } = require("./teacher-tiers") as typeof import("./teacher-tiers");
   return teachersForProduct(teachers, product, opts).slice().sort((a, b) => {
     const ta = teacherTier(a).id;
     const tb = teacherTier(b).id;
