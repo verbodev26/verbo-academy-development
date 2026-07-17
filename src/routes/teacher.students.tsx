@@ -30,8 +30,13 @@ import {
   Search, X, Filter, Crown, Users as UsersIcon,
   GraduationCap, Layers, Lightbulb, Video, Clock, Repeat, NotebookPen,
   BookOpenCheck, CalendarCheck, Flag, Mic, PenLine, Ear, BookOpen,
+  Unlock as UnlockIcon, Lock as LockIcon, Trophy,
   type LucideIcon,
 } from "lucide-react";
+import { loadCourses, subscribeCourses, type CourseLevel } from "@/lib/product-courses-store";
+import {
+  isMilestoneUnit, getUnitAccessOverride, setUnitAccess,
+} from "@/lib/activities-store";
 
 export const Route = createFileRoute("/teacher/students")({ component: Page });
 
