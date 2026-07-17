@@ -42,7 +42,6 @@ import {
   getUnitAccessOverride,
   isMandatoryCategory,
   isMilestoneUnit,
-  isMilestoneUnlocked,
   loadActivityScores,
   recordActivityScore,
   setUnitCompleted,
