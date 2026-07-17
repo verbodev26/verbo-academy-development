@@ -408,6 +408,17 @@ function StudentDetailModal({
   const hired = s.hired_sessions ?? 0;
   const remaining = s.remaining_sessions ?? 0;
 
+  type DetailTab = "overview" | "progress" | "challenges";
+  const [tab, setTab] = useState<DetailTab>("overview");
+  const showCourseProgressTab = s.product === "go" || s.product === "enterprise" || s.product === "international";
+  const showChallengesTab = !!challengeProductId;
+
+  const tabs: [DetailTab, string][] = [
+    ["overview", "Overview"],
+    ...(showCourseProgressTab ? [["progress", "Course Progress"] as [DetailTab, string]] : []),
+    ...(showChallengesTab ? [["challenges", "Suggested Challenges"] as [DetailTab, string]] : []),
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4">
       <div className="w-full max-w-3xl max-h-[92vh] overflow-y-auto rounded-2xl border border-border bg-card p-8 shadow-floating">
@@ -434,103 +445,193 @@ function StudentDetailModal({
           </button>
         </div>
 
-        {/* --- Sessions balance --- */}
-        {productType === "performance" && (
-          <section className="mt-6 rounded-xl border border-border bg-background p-5">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <GraduationCap className="h-3.5 w-3.5" /> Sessions balance (current cycle)
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-4">
-              <Stat label="Contracted" value={String(hired)} />
-              <Stat label="Remaining" value={String(remaining)} />
-              <Stat label="Used" value={String(Math.max(0, hired - remaining))} />
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Use this balance to decide how many sessions to dedicate to Additional Content, Review Session
-              or Casual Topic without compromising the fixed syllabus progression.
-            </p>
-          </section>
-        )}
+        {/* Tabs */}
+        <div className="mt-5 flex gap-1 border-b border-border">
+          {tabs.map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`relative px-3 py-2 text-sm font-medium transition-colors ${tab === id ? "text-accent" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {label}
+              {tab === id && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-accent" />}
+            </button>
+          ))}
+        </div>
 
-        {/* --- Cadence (payment info intentionally hidden from teachers) --- */}
-        <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <MiniStat icon={Repeat} label="Sessions/week" value={s.sessions_per_week ? String(s.sessions_per_week) : "—"} />
-          <MiniStat icon={Clock} label="Duration" value={s.session_duration ? `${s.session_duration} min` : "—"} />
-        </section>
+        {tab === "overview" && (
+          <>
+            {/* --- Sessions balance --- */}
+            {productType === "performance" && (
+              <section className="mt-6 rounded-xl border border-border bg-background p-5">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <GraduationCap className="h-3.5 w-3.5" /> Sessions balance (current cycle)
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-4">
+                  <Stat label="Contracted" value={String(hired)} />
+                  <Stat label="Remaining" value={String(remaining)} />
+                  <Stat label="Used" value={String(Math.max(0, hired - remaining))} />
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Use this balance to decide how many sessions to dedicate to Additional Content, Review Session
+                  or Casual Topic without compromising the fixed syllabus progression.
+                </p>
+              </section>
+            )}
 
-        {/* --- Overall Attendance --- */}
-        <section className={`mt-4 rounded-xl border p-5 ${attAlert ? "border-destructive/50 verbo-pay-glow" : "border-border"} bg-background`}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <CalendarCheck className="h-3.5 w-3.5" /> Overall Attendance
-            </div>
-            <span className="text-2xl font-bold tabular-nums" style={{ color: "#01304a" }}>{attPct}%</span>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-3">
-            <Stat label="Attended" value={String(attendance.present)} />
-            <Stat label="Late" value={String(attendance.late)} />
-            <Stat label="Cancelled-Missed" value={String(attendance.absentOrNoShow)} />
-          </div>
-          <p className="mt-3 text-[11px] text-muted-foreground">
-            "Cancelled-Missed" groups Absent, No Show and Cancelled with Student cause. Absences with Teacher cause
-            are not counted against the student. Mock data until the real Session Report is connected.
-          </p>
-        </section>
+            {/* --- Cadence (payment info intentionally hidden from teachers) --- */}
+            <section className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <MiniStat icon={Repeat} label="Sessions/week" value={s.sessions_per_week ? String(s.sessions_per_week) : "—"} />
+              <MiniStat icon={Clock} label="Duration" value={s.session_duration ? `${s.session_duration} min` : "—"} />
+            </section>
 
-        {/* --- Overall Skills (opens shared Advanced Performance Analytics modal) --- */}
-        <section className="mt-4">
-          <button
-            type="button"
-            onClick={() => setShowAnalytics(true)}
-            className={`w-full rounded-xl border p-4 text-left transition-all hover:bg-secondary/40 ${anySkillLow ? "border-destructive/40 verbo-pay-glow" : "border-border"} bg-background`}
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <Layers className="h-3.5 w-3.5" /> Overall Skills
+            {/* --- Overall Attendance --- */}
+            <section className={`mt-4 rounded-xl border p-5 ${attAlert ? "border-destructive/50 verbo-pay-glow" : "border-border"} bg-background`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <CalendarCheck className="h-3.5 w-3.5" /> Overall Attendance
+                </div>
+                <span className="text-2xl font-bold tabular-nums" style={{ color: "#01304a" }}>{attPct}%</span>
               </div>
-              <span className="text-[11px] font-semibold" style={{ color: "#f38934" }}>View Detailed Analytics →</span>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {macros.map((m) => {
-                const Icon = SKILL_ICONS[m.key] ?? Mic;
-                const low = m.overall !== null && m.overall < 70;
-                return (
-                  <div
-                    key={m.key}
-                    className={`flex items-center gap-2 rounded-lg px-2 py-2 ${low ? "bg-destructive/5" : "bg-secondary/40"}`}
-                  >
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{m.key}</div>
-                      <div className="text-sm font-bold tabular-nums" style={{ color: "#01304a" }}>
-                        {m.overall === null ? "--" : `${m.overall}%`}
+              <div className="mt-3 grid grid-cols-3 gap-3">
+                <Stat label="Attended" value={String(attendance.present)} />
+                <Stat label="Late" value={String(attendance.late)} />
+                <Stat label="Cancelled-Missed" value={String(attendance.absentOrNoShow)} />
+              </div>
+              <p className="mt-3 text-[11px] text-muted-foreground">
+                "Cancelled-Missed" groups Absent, No Show and Cancelled with Student cause. Absences with Teacher cause
+                are not counted against the student. Mock data until the real Session Report is connected.
+              </p>
+            </section>
+
+            {/* --- Overall Skills (opens shared Advanced Performance Analytics modal) --- */}
+            <section className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowAnalytics(true)}
+                className={`w-full rounded-xl border p-4 text-left transition-all hover:bg-secondary/40 ${anySkillLow ? "border-destructive/40 verbo-pay-glow" : "border-border"} bg-background`}
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <Layers className="h-3.5 w-3.5" /> Overall Skills
+                  </div>
+                  <span className="text-[11px] font-semibold" style={{ color: "#f38934" }}>View Detailed Analytics →</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {macros.map((m) => {
+                    const Icon = SKILL_ICONS[m.key] ?? Mic;
+                    const low = m.overall !== null && m.overall < 70;
+                    return (
+                      <div
+                        key={m.key}
+                        className={`flex items-center gap-2 rounded-lg px-2 py-2 ${low ? "bg-destructive/5" : "bg-secondary/40"}`}
+                      >
+                        <Icon className="h-4 w-4 text-muted-foreground" />
+                        <div className="min-w-0">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{m.key}</div>
+                          <div className="text-sm font-bold tabular-nums" style={{ color: "#01304a" }}>
+                            {m.overall === null ? "--" : `${m.overall}%`}
+                          </div>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </button>
+            </section>
+
+            {/* --- Video call link (read only) --- */}
+            {s.video_call_link && (
+              <section className="mt-4 flex items-center gap-2 rounded-xl border border-border bg-background p-4 text-sm">
+                <Video className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Video Call Link:</span>
+                <a
+                  href={s.video_call_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="truncate text-primary hover:underline"
+                >
+                  {s.video_call_link}
+                </a>
+              </section>
+            )}
+
+            {/* --- Coverage notes (editable) --- */}
+            <section className="mt-6">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <NotebookPen className="h-3.5 w-3.5" /> Coverage notes
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowReport(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/5 px-2.5 py-1 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+                >
+                  <Flag className="h-3.5 w-3.5" /> Report
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Context for any teacher covering a session for this student.
+              </p>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={4}
+                placeholder="Real level, sensitive topics, preferences, what they're working on now…"
+                className="mt-2 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <div className="mt-2 flex items-center justify-end gap-2">
+                {savedTick && <span className="text-xs text-success">Saved</span>}
+                <button
+                  onClick={handleSaveNote}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
+                >
+                  Save note
+                </button>
+              </div>
+            </section>
+
+            {/* --- VIP Course Builder link --- */}
+            {isVip && (
+              <section className="mt-6">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <BookOpenCheck className="h-3.5 w-3.5" /> Course Builder VIP
+                </div>
+                <div className="mt-2 flex items-center justify-between rounded-xl border border-border bg-background p-4">
+                  <div>
+                    <div className="text-sm font-medium text-foreground">Personalized VIP Course</div>
+                    <div className="text-xs text-muted-foreground">
+                      Build this student's units week by week.
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </button>
-        </section>
+                  <Link
+                    to="/teacher/vip"
+                    search={{ student: s.id }}
+                    className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
+                  >
+                    <BookOpenCheck className="h-3.5 w-3.5" /> Open Course Builder
+                  </Link>
+                </div>
+              </section>
+            )}
+          </>
+        )}
 
-        {/* --- Video call link (read only) --- */}
-        {s.video_call_link && (
-          <section className="mt-4 flex items-center gap-2 rounded-xl border border-border bg-background p-4 text-sm">
-            <Video className="h-4 w-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Video Call Link:</span>
-            <a
-              href={s.video_call_link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="truncate text-primary hover:underline"
-            >
-              {s.video_call_link}
-            </a>
+        {tab === "progress" && showCourseProgressTab && (
+          <section className="mt-6">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <BookOpenCheck className="h-3.5 w-3.5" /> Course Progress · Unit access
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Unlock or lock any unit. Milestone units (10, 20, 30) are locked by default until you unlock them.
+            </p>
+            <div className="mt-3">
+              <TeacherUnitAccessPanel student={s} teacherId={teacherId} />
+            </div>
           </section>
         )}
 
-        {/* --- Suggested Challenges (READ-ONLY catalog reuse) --- */}
-        {challengeProductId && (
+        {tab === "challenges" && challengeProductId && (
           <section className="mt-6">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               <Lightbulb className="h-3.5 w-3.5" /> Suggested Challenges ({product?.name})
@@ -572,84 +673,8 @@ function StudentDetailModal({
             </div>
           </section>
         )}
-
-        {/* --- Coverage notes (editable) --- */}
-        <section className="mt-6">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <NotebookPen className="h-3.5 w-3.5" /> Coverage notes
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowReport(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/40 bg-destructive/5 px-2.5 py-1 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
-            >
-              <Flag className="h-3.5 w-3.5" /> Report
-            </button>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Context for any teacher covering a session for this student.
-          </p>
-          {/* TODO: auto-clear cuando se complete la sesión reagendada asociada
-              (ver motor de reagendamiento, aún no construido). Por ahora la
-              nota persiste ligada a (teacher titular + alumno). */}
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={4}
-            placeholder="Real level, sensitive topics, preferences, what they're working on now…"
-            className="mt-2 w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-          <div className="mt-2 flex items-center justify-end gap-2">
-            {savedTick && <span className="text-xs text-success">Saved</span>}
-            <button
-              onClick={handleSaveNote}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
-            >
-              Save note
-            </button>
-          </div>
-        </section>
-
-        {/* --- Learning Path unit access (unlock/lock any unit for this student) --- */}
-        {(s.product === "go" || s.product === "enterprise" || s.product === "international") && (
-          <section className="mt-6">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <BookOpenCheck className="h-3.5 w-3.5" /> Course Progress · Unit access
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Unlock or lock any unit. Milestone units (10, 20, 30) are locked by default until you unlock them.
-            </p>
-            <div className="mt-3">
-              <TeacherUnitAccessPanel student={s} teacherId={teacherId} />
-            </div>
-          </section>
-        )}
-
-        {/* --- VIP Course Builder link --- */}
-        {isVip && (
-          <section className="mt-6">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <BookOpenCheck className="h-3.5 w-3.5" /> Course Builder VIP
-            </div>
-            <div className="mt-2 flex items-center justify-between rounded-xl border border-border bg-background p-4">
-              <div>
-                <div className="text-sm font-medium text-foreground">Personalized VIP Course</div>
-                <div className="text-xs text-muted-foreground">
-                  Build this student's units week by week.
-                </div>
-              </div>
-              <Link
-                to="/teacher/vip"
-                search={{ student: s.id }}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-medium text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
-              >
-                <BookOpenCheck className="h-3.5 w-3.5" /> Open Course Builder
-              </Link>
-            </div>
-          </section>
-        )}
       </div>
+
 
       {showAnalytics && (
         <PerformanceAnalyticsModal
