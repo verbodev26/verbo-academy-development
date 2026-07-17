@@ -1463,7 +1463,6 @@ function UnitAccessPanel({ student, actorRole }: { student: User; actorRole: "ad
             ov === "unlocked" ? "bg-success/10 text-success"
             : ov === "locked" ? "bg-destructive/10 text-destructive"
             : "bg-secondary text-muted-foreground";
-          const nextAction: "unlocked" | "locked" = isUnlocked ? "locked" : "unlocked";
           const _ = rev; void _;
           return (
             <div key={u.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
@@ -1479,13 +1478,24 @@ function UnitAccessPanel({ student, actorRole }: { student: User; actorRole: "ad
                 </div>
                 <div className="mt-0.5 truncate text-sm text-foreground">{u.title}</div>
               </div>
-              <button
-                type="button"
-                onClick={() => toggle(u.id, nextAction)}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
-              >
-                {isUnlocked ? <><LockIcon className="h-3.5 w-3.5" /> Lock</> : <><UnlockIcon className="h-3.5 w-3.5" /> Unlock</>}
-              </button>
+              <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-border bg-card">
+                <button
+                  type="button"
+                  onClick={() => toggle(u.id, "unlocked")}
+                  aria-pressed={isUnlocked}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${isUnlocked ? "bg-success/15 text-success" : "text-muted-foreground hover:bg-secondary"}`}
+                >
+                  <UnlockIcon className="h-3.5 w-3.5" /> Unlock
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggle(u.id, "locked")}
+                  aria-pressed={!isUnlocked}
+                  className={`inline-flex items-center gap-1.5 border-l border-border px-3 py-1.5 text-xs font-medium transition-colors ${!isUnlocked ? "bg-destructive/15 text-destructive" : "text-muted-foreground hover:bg-secondary"}`}
+                >
+                  <LockIcon className="h-3.5 w-3.5" /> Lock
+                </button>
+              </div>
             </div>
           );
         })}
