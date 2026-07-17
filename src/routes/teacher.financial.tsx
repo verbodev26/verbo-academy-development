@@ -9,8 +9,9 @@ import { USERS, userById } from "@/lib/mock-data";
 import { loadSessions, subscribeSessions, type ExtSession } from "@/lib/sessions-store";
 import { groupById } from "@/lib/groups-store";
 import {
-  DEFAULT_HOURLY_RATE, avgRating,
+  avgRating,
 } from "@/lib/teacher-model";
+import { effectiveHourlyRate, teacherTier } from "@/lib/teacher-tiers";
 import {
   computeTeacherKpis, ratingBand, getBonusThreshold,
 } from "@/lib/teacher-kpis";
