@@ -772,3 +772,89 @@ function MiniStat({
     </div>
   );
 }
+// ============================================================================
+// UNIT ACCESS PANEL — teacher-side unlock/lock for a student's Learning Path.
+// Mirrors the Admin > Students Course Progress tab, but authored by the teacher.
+// ============================================================================
+function TeacherUnitAccessPanel({ student, teacherId }: { student: User; teacherId: string }) {
+  const [rev, setRev] = useState(0);
+  const [courses, setCourses] = useState(() => loadCourses());
+  useEffect(() => {
+    setCourses(loadCourses());
+    return subscribeCourses(() => { setCourses(loadCourses()); setRev((r) => r + 1); });
+  }, []);
+
+  const productMap: Record<string, "go" | "enterprise" | "international"> = {
+    go: "go", enterprise: "enterprise", international: "international",
+  };
+  const productId = student.product ? productMap[student.product] : undefined;
+  const product = productId ? courses.find((c) => c.product === productId) : undefined;
+  const levels = product?.levels ?? [];
+  const initialLevelId = useMemo(() => {
+    const match = levels.find((l) => l.name === student.current_roadmap_level);
+    return (match ?? levels[0])?.id ?? "";
+  }, [levels, student.current_roadmap_level]);
+  const [levelId, setLevelId] = useState<string>(initialLevelId);
+  useEffect(() => { if (initialLevelId && !levelId) setLevelId(initialLevelId); }, [initialLevelId, levelId]);
+  const level: CourseLevel | undefined = levels.find((l) => l.id === levelId) ?? levels[0];
+
+  if (!level) return null;
+
+  const toggle = (unitId: string, nextAction: "unlocked" | "locked") => {
+    setUnitAccess(student.id, unitId, nextAction, teacherId, "teacher");
+    setRev((r) => r + 1);
+  };
+
+  return (
+    <div className="space-y-3">
+      <select
+        value={level.id}
+        onChange={(e) => setLevelId(e.target.value)}
+        className="w-full max-w-xs rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        {levels.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+      </select>
+
+      <div className="max-h-[360px] divide-y divide-border overflow-y-auto rounded-xl border border-border bg-background">
+        {level.units.map((u) => {
+          const milestone = isMilestoneUnit(u.id);
+          const ov = getUnitAccessOverride(student.id, u.id);
+          const isUnlocked = ov === "unlocked" || (!milestone && ov === null);
+          const stateLabel =
+            ov === "unlocked" ? "Unlocked"
+            : ov === "locked" ? "Locked"
+            : milestone ? "Locked (default)" : "Unlocked (default)";
+          const badgeCls =
+            ov === "unlocked" ? "bg-success/10 text-success"
+            : ov === "locked" ? "bg-destructive/10 text-destructive"
+            : "bg-secondary text-muted-foreground";
+          const nextAction: "unlocked" | "locked" = isUnlocked ? "locked" : "unlocked";
+          const _ = rev; void _;
+          return (
+            <div key={u.id} className="flex items-center justify-between gap-3 px-3 py-2">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10.5px] font-mono text-muted-foreground">{u.id}</span>
+                  {milestone && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                      <Trophy className="h-3 w-3" /> Milestone
+                    </span>
+                  )}
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badgeCls}`}>{stateLabel}</span>
+                </div>
+                <div className="mt-0.5 truncate text-sm text-foreground">{u.title}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggle(u.id, nextAction)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-foreground hover:bg-secondary"
+              >
+                {isUnlocked ? <><LockIcon className="h-3 w-3" /> Lock</> : <><UnlockIcon className="h-3 w-3" /> Unlock</>}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
