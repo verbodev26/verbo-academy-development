@@ -268,6 +268,20 @@ function teacherNotifications(teacherId: string): Notification[] {
         read: false,
       });
     }
+
+    // ---- Tier upgraded (>= tier 2) ---------------------------------------
+    const tier = teacherTier(u);
+    if (tier.id > 1) {
+      out.push({
+        id: `tier:${teacherId}:${tier.id}`,
+        kind: "tier_upgraded",
+        title: `You reached the ${tier.name} tier`,
+        body: `Your hourly rate is now $${tier.rate} MXN/h.`,
+        createdAt: new Date().toISOString(),
+        to: "/teacher/financial",
+        read: false,
+      });
+    }
   }
 
   // ---- Announcements (teacher / all audiences) ---------------------------
