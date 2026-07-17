@@ -158,22 +158,26 @@ function computeUnitStates(level: CourseLevel, studentId: string, readOnly: bool
   let previousPassed = true; // first unit is always unlockable
   for (const u of level.units) {
     const passed = unitPassed(studentId, u.id);
-    if (isMilestoneUnit(u.id)) {
-      if (passed) { states.push("passed"); previousPassed = true; continue; }
-      if (!previousPassed) { states.push("locked"); previousPassed = false; continue; }
-      // Milestone teacher-lock
-      if (isMilestoneUnlocked(studentId, u.id)) {
-        states.push("milestone_ready");
-      } else {
-        states.push("milestone_locked");
-        previousPassed = false; // hard stop
-        continue;
-      }
+    const ov = getUnitAccessOverride(studentId, u.id);
+
+    // Explicit lock always wins — overrides default progression, milestone or not.
+    if (ov === "locked") {
+      states.push("locked");
       previousPassed = false;
       continue;
     }
+
+    if (isMilestoneUnit(u.id)) {
+      if (passed) { states.push("passed"); previousPassed = true; continue; }
+      if (!previousPassed && ov !== "unlocked") { states.push("locked"); previousPassed = false; continue; }
+      if (ov === "unlocked") { states.push("milestone_ready"); }
+      else { states.push("milestone_locked"); }
+      previousPassed = false;
+      continue;
+    }
+
     if (passed) { states.push("passed"); previousPassed = true; continue; }
-    if (previousPassed) {
+    if (ov === "unlocked" || previousPassed) {
       states.push(readOnly ? "locked" : "current");
     } else {
       states.push("locked");
