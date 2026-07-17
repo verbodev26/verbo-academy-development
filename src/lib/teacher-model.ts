@@ -107,6 +107,26 @@ export function teachersForProduct(
   });
 }
 
+/**
+ * Same as teachersForProduct() but sorted so that lower-tier teachers appear
+ * first — this nudges coordinators toward newer / cheaper teachers when
+ * assigning students. Ties break by name for stability.
+ */
+export function teachersForProductSorted(
+  teachers: User[],
+  product?: string | null,
+  opts: { includeRemoved?: boolean } = {},
+): User[] {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { teacherTier } = require("./teacher-tiers") as typeof import("./teacher-tiers");
+  return teachersForProduct(teachers, product, opts).slice().sort((a, b) => {
+    const ta = teacherTier(a).id;
+    const tb = teacherTier(b).id;
+    if (ta !== tb) return ta - tb;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 // ----------------------------------------------------------------------------
 // KPI helpers
 // ----------------------------------------------------------------------------
