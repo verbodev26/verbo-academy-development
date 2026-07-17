@@ -714,6 +714,24 @@ function UnitDetail({
             )}
           </Card>
 
+          {((unit.vocabulary && unit.vocabulary.length > 0) || unit.grammar_point) && (
+            <Card>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">What you'll learn</div>
+              {unit.vocabulary && unit.vocabulary.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {unit.vocabulary.map((w) => (
+                    <span key={w} className="inline-flex items-center rounded-full border border-border bg-secondary/60 px-2.5 py-0.5 text-xs font-medium text-foreground">{w}</span>
+                  ))}
+                </div>
+              )}
+              {unit.grammar_point && (
+                <div className="mt-3 text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">Grammar focus: </span>{unit.grammar_point}
+                </div>
+              )}
+            </Card>
+          )}
+
           <Card>
             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Mandatory Categories</div>
             <ul className="mt-3 space-y-2">
