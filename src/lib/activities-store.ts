@@ -184,18 +184,59 @@ export function isMilestoneUnit(unitId: string): boolean {
   const n = unitNumberOf(unitId);
   return n === 10 || n === 20 || n === 30;
 }
-function milestoneKey(studentId: string, unitId: string) { return `${studentId}::${unitId}`; }
-export function loadMilestoneUnlocks(): Record<string, boolean> {
-  return safeRead<Record<string, boolean>>(MILESTONE_KEY, {});
+
+/* ---- Unit access overrides (generalized for ANY unit) ----
+ * A log of unlock/lock events applied by admins or teachers. The most
+ * recent event for a (studentId, unitId) pair wins. `null` means no
+ * override — the default progression rule applies (milestones locked
+ * by default, non-milestones follow sequential order).
+ */
+export type UnitAccessAction = "unlocked" | "locked";
+export interface UnitAccessEvent {
+  id: string;
+  studentId: string;
+  unitId: string;
+  action: UnitAccessAction;
+  actorId: string;
+  actorRole: "admin" | "teacher";
+  at: string;
 }
+
+export function loadUnitAccessLog(): UnitAccessEvent[] {
+  return safeRead<UnitAccessEvent[]>(UNIT_ACCESS_LOG_KEY, []);
+}
+export function setUnitAccess(
+  studentId: string,
+  unitId: string,
+  action: UnitAccessAction,
+  actorId: string,
+  actorRole: "admin" | "teacher",
+): void {
+  const log = loadUnitAccessLog();
+  log.push({
+    id: `ua-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    studentId, unitId, action, actorId, actorRole,
+    at: new Date().toISOString(),
+  });
+  safeWrite(UNIT_ACCESS_LOG_KEY, log);
+}
+export function getUnitAccessOverride(studentId: string, unitId: string): UnitAccessAction | null {
+  const log = loadUnitAccessLog();
+  for (let i = log.length - 1; i >= 0; i--) {
+    const e = log[i];
+    if (e.studentId === studentId && e.unitId === unitId) return e.action;
+  }
+  return null;
+}
+/** Backwards-compatible wrapper for existing callers. */
 export function isMilestoneUnlocked(studentId: string, unitId: string): boolean {
-  return !!loadMilestoneUnlocks()[milestoneKey(studentId, unitId)];
+  return getUnitAccessOverride(studentId, unitId) === "unlocked";
 }
-export function setMilestoneUnlocked(studentId: string, unitId: string, on: boolean) {
-  const all = loadMilestoneUnlocks();
-  if (on) all[milestoneKey(studentId, unitId)] = true;
-  else delete all[milestoneKey(studentId, unitId)];
-  safeWrite(MILESTONE_KEY, all);
+
+/** Attempts recorded against a given activity, for gating milestone retries. */
+export function attemptsFor(studentId: string, activityId: string): number {
+  const all = safeRead<Record<string, ActivityScore>>(SCORES_KEY, {});
+  return all[scopedKey(studentId, activityId)]?.attempts ?? 0;
 }
 
 /* ---- Unit pass rule ----
