@@ -973,7 +973,7 @@ function StudentFormModal({
             <Field label="Assign Initial Teacher" icon={<Users className="h-3.5 w-3.5" />} className="md:col-span-2">
               <select value={f.teacher_id} onChange={(e) => set("teacher_id", e.target.value)} className={`${inputCls} cursor-pointer`}>
                 <option value="">Select a teacher (optional)</option>
-                {teachersForProduct(teachers, f.product || null).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {teachersForProductSorted(teachers, f.product || null).map((t) => <option key={t.id} value={t.id}>{t.name} · {teacherTier(t).name}</option>)}
               </select>
               {f.product && <p className="mt-1 text-[10.5px] text-muted-foreground">Solo se muestran teachers calificados para {getProduct(f.product)?.name}.</p>}
             </Field>
@@ -1320,7 +1320,7 @@ function StudentDetailModal({
               <Field label={`Reassign teacher${product ? ` (qualified for ${product.name})` : ""}`} className="flex-1">
                 <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className={`${inputCls} cursor-pointer`}>
                   <option value="">Unassigned</option>
-                  {teachersForProduct(teachers, student.product || null).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  {teachersForProductSorted(teachers, student.product || null).map((t) => <option key={t.id} value={t.id}>{t.name} · {teacherTier(t).name}</option>)}
                 </select>
               </Field>
               <PrimaryButton onClick={() => { onUpdate(student, teacherId || undefined); setPanel("none"); }}>Apply</PrimaryButton>
