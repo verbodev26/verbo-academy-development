@@ -41,7 +41,9 @@ export type ActivityKind =
   | "avail_request_rejected"
   | "release_request_submitted"
   | "report_filed"
-  | "kpi_manual_override";
+  | "kpi_manual_override"
+  | "unit_unlocked"
+  | "unit_locked";
 
 export type ActorRole = "admin" | "teacher" | "student" | "system";
 
