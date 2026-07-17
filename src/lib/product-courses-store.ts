@@ -121,7 +121,11 @@ function seed(): ProductCourse[] {
 }
 
 export function loadCourses(): ProductCourse[] {
-  if (typeof window === "undefined") return seed();
+  if (typeof window === "undefined") {
+    const s = seed();
+    applySyllabus(s);
+    return s;
+  }
   try {
     const raw = localStorage.getItem(COURSES_KEY);
     if (raw) {
@@ -135,6 +139,9 @@ export function loadCourses(): ProductCourse[] {
           }
         }
       }
+      // Migration: merge real syllabus (titles/block/vocabulary/grammar_point)
+      // into existing units without touching hand-edited titles or media URLs.
+      if (applySyllabus(parsed)) migrated = true;
       if (migrated) {
         try { localStorage.setItem(COURSES_KEY, JSON.stringify(parsed)); } catch { /* noop */ }
       }
@@ -142,6 +149,7 @@ export function loadCourses(): ProductCourse[] {
     }
   } catch { /* noop */ }
   const initial = seed();
+  applySyllabus(initial);
   try { localStorage.setItem(COURSES_KEY, JSON.stringify(initial)); } catch { /* noop */ }
   return initial;
 }
