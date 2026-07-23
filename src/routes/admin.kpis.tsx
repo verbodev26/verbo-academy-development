@@ -210,8 +210,11 @@ function TeacherKpiCard({
   canOverrideStreak: boolean;
   onOverride: (metric: KpiMetric, currentValue: number) => void;
 }) {
-  const band = ratingBand(kpis.rating);
   const monthOverrides = overridesForMonth(t.id, monthKeyOf(new Date()));
+  const displayRating = monthOverrides.ratingNormalized
+    ? Math.max(0, Math.min(5, Math.round((monthOverrides.ratingNormalized.new_value / 100) * 5 * 10) / 10))
+    : kpis.rating;
+  const band = ratingBand(displayRating);
   const streakValue = kpis.bonusStatus.kind === "eligible"
     ? 6
     : kpis.bonusStatus.kind === "streak"
@@ -242,9 +245,10 @@ function TeacherKpiCard({
           title="View monthly rating trend"
         >
           <Star className="h-3.5 w-3.5 fill-current" />
-          {kpis.rating != null ? kpis.rating.toFixed(1) : "—"} · {band.label}
+          {displayRating != null ? displayRating.toFixed(1) : "—"} · {band.label}
           <TrendingUp className="h-3.5 w-3.5" />
         </button>
+
         {canOverride && (
           <button
             onClick={() => onOverride("ratingNormalized", kpis.ratingNormalized)}
