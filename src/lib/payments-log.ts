@@ -41,6 +41,9 @@ function write(list: PaymentLogEntry[]) {
 
 export function loadPayments(): PaymentLogEntry[] { return read(); }
 
+/** Replace the entire payments log — used by retention cleanup. */
+export function replacePayments(list: PaymentLogEntry[]) { write(list); }
+
 export function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
