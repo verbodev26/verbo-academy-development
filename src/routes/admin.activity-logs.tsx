@@ -89,6 +89,9 @@ function ActivityLogsPage() {
         </p>
       </div>
 
+      <DataRetentionSection />
+
+
       <Card>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
           <div>
