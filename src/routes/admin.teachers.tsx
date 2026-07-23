@@ -29,6 +29,8 @@ import {
   CheckCircle2, CalendarClock, ChevronRight, UserX, Wallet, FileDown, CircleDollarSign, Trophy,
   ShieldCheck,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { getAdminType } from "@/lib/admin-roles";
 
 export const Route = createFileRoute("/admin/teachers")({
   component: Page,
