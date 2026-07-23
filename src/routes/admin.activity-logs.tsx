@@ -182,3 +182,108 @@ function ActivityLogsPage() {
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Data Retention — super_admin only. Configures a single retention window
+// (months) applied to both unbounded logs, and exports+prunes old entries.
+// ---------------------------------------------------------------------------
+function useKpiOverridesLive() {
+  return useSyncExternalStore(subscribeKpiOverrides, loadKpiOverrides, () => [] as ReturnType<typeof loadKpiOverrides>);
+}
+function usePaymentsLive() {
+  return useSyncExternalStore(subscribePayments, loadPayments, () => [] as ReturnType<typeof loadPayments>);
+}
+
+function DataRetentionSection() {
+  const kpi = useKpiOverridesLive();
+  const payments = usePaymentsLive();
+  const [months, setMonths] = useState<number>(() => getRetentionMonths());
+
+  const cutoff = useMemo(() => retentionCutoffMs(months), [months, kpi, payments]);
+
+  const kpiOld = useMemo(
+    () => kpi.filter((o) => +new Date(o.created_at) < cutoff),
+    [kpi, cutoff],
+  );
+  const paymentsOld = useMemo(
+    () => payments.filter((p) => +new Date(p.paid_at) < cutoff),
+    [payments, cutoff],
+  );
+
+  const commitMonths = (v: number) => {
+    const n = Math.max(1, Math.min(120, Math.round(v || 0)));
+    setMonths(n);
+    setRetentionMonths(n);
+  };
+
+  const exportAndPruneKpi = () => {
+    if (kpiOld.length === 0) return;
+    const ok = window.confirm(
+      `Export and delete ${kpiOld.length} KPI override entr${kpiOld.length === 1 ? "y" : "ies"} older than ${months} month${months === 1 ? "" : "s"}? This cannot be undone.`,
+    );
+    if (!ok) return;
+    downloadJson(`kpi-overrides-export-${todayStamp()}.json`, kpiOld);
+    const kept = loadKpiOverrides().filter((o) => +new Date(o.created_at) >= cutoff);
+    replaceKpiOverrides(kept);
+  };
+
+  const exportAndPrunePayments = () => {
+    if (paymentsOld.length === 0) return;
+    const ok = window.confirm(
+      `Export and delete ${paymentsOld.length} payment log entr${paymentsOld.length === 1 ? "y" : "ies"} older than ${months} month${months === 1 ? "" : "s"}? This cannot be undone.`,
+    );
+    if (!ok) return;
+    downloadJson(`payments-log-export-${todayStamp()}.json`, paymentsOld);
+    const kept = loadPayments().filter((p) => +new Date(p.paid_at) >= cutoff);
+    replacePayments(kept);
+  };
+
+  const rows = [
+    { key: "kpi", name: "KPI overrides", total: kpi.length, old: kpiOld.length, onClick: exportAndPruneKpi },
+    { key: "pay", name: "Payments log", total: payments.length, old: paymentsOld.length, onClick: exportAndPrunePayments },
+  ];
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight text-foreground">Data Retention</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Export and prune unbounded logs older than the retention window. Entries within the window stay intact.
+          </p>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground">Retention period (months)</label>
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={months}
+            onChange={(e) => setMonths(Number(e.target.value))}
+            onBlur={(e) => commitMonths(Number(e.target.value))}
+            className="mt-1 w-28 rounded-md border border-border bg-background px-2.5 py-2 text-sm"
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 divide-y divide-border rounded-lg border border-border">
+        {rows.map((r) => (
+          <div key={r.key} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <div>
+              <div className="text-sm font-medium text-foreground">{r.name}</div>
+              <div className="mt-0.5 text-xs text-muted-foreground">
+                {r.total} total · {r.old} older than {months} month{months === 1 ? "" : "s"}
+              </div>
+            </div>
+            {r.old === 0 ? (
+              <GhostButton disabled className="cursor-not-allowed opacity-50">Nothing to clean up</GhostButton>
+            ) : (
+              <PrimaryButton onClick={r.onClick}>Export & Clean up</PrimaryButton>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
