@@ -127,7 +127,12 @@ export function teachersForProductSorted(
 // KPI helpers
 // ----------------------------------------------------------------------------
 export function ratedSessions(teacherId: string): Session[] {
-  return SESSIONS.filter((s) => s.teacher_id === teacherId && typeof s.student_rating === "number");
+  return SESSIONS.filter(
+    (s) =>
+      s.teacher_id === teacherId &&
+      typeof s.student_rating === "number" &&
+      (s.review_status ?? "pending") !== "discarded",
+  );
 }
 
 export function avgRating(t: User): number | null {
@@ -141,12 +146,15 @@ export function avgRating(t: User): number | null {
 
 export function flaggedReviews(teacherId: string): Session[] {
   return SESSIONS.filter(
-    (s) => s.teacher_id === teacherId && typeof s.student_rating === "number" && (s.student_rating as number) <= 2,
+    (s) => s.teacher_id === teacherId && typeof s.student_rating === "number" && (s.student_rating as number) <= 3,
   ).sort((a, b) => +new Date(b.date_time) - +new Date(a.date_time));
 }
 
 export function pendingReviews(teacherId: string): Session[] {
-  return flaggedReviews(teacherId).filter((s) => (s.review_status ?? "pending") !== "reviewed");
+  return flaggedReviews(teacherId).filter((s) => {
+    const st = s.review_status ?? "pending";
+    return st !== "reviewed" && st !== "discarded";
+  });
 }
 
 export function studentName(id: string): string {
