@@ -336,7 +336,11 @@ function TeacherDashboard() {
   // (e) Flagged reviews (1-2★) in last 7 days.
   const sevenAgo = now - 7 * 24 * 3600_000;
   const flagged = myLive.filter(
-    (s) => typeof s.student_rating === "number" && (s.student_rating as number) <= 2 && +new Date(s.date_time) >= sevenAgo,
+    (s) =>
+      typeof s.student_rating === "number" &&
+      (s.student_rating as number) <= 2 &&
+      (s.review_status ?? "pending") !== "discarded" &&
+      +new Date(s.date_time) >= sevenAgo,
   );
   for (const s of flagged.slice(0, 2)) {
     const st = userById(s.student_id);
