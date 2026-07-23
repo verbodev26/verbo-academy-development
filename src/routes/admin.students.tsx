@@ -1510,7 +1510,10 @@ function PerformanceTab({ student }: { student: User }) {
   const rows = SESSIONS.filter((s) => s.student_id === student.id);
   const completed = rows.filter((s) => s.status === "completed").length;
   const absent = rows.filter((s) => s.status === "absent").length;
-  const ratings = rows.map((s) => s.student_rating).filter((r): r is number => typeof r === "number");
+  const ratings = rows
+    .filter((s) => (s.review_status ?? "pending") !== "discarded")
+    .map((s) => s.student_rating)
+    .filter((r): r is number => typeof r === "number");
   const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : "—";
   const attendance = student.attendance_percentage ?? (completed + absent > 0 ? Math.round((completed / (completed + absent)) * 100) : 0);
 
