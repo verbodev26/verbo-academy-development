@@ -258,6 +258,8 @@ function Page() {
           onPersist={persist}
           onReassign={reassignStudent}
           onMarkReviewed={markReviewed}
+          onDiscardReview={discardReview}
+          canDiscard={canDiscard}
           onEdit={() => { const t = detail; setDetailId(null); setFormFor(t); }}
         />
       )}
