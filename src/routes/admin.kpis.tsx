@@ -400,7 +400,13 @@ function CompositeRing({ value }: { value: number }) {
 // ===========================================================================
 function RatingChartModal({ teacher: t, onClose }: { teacher: User; onClose: () => void }) {
   const data = useMemo(() => ratingHistory(t), [t]);
-  const band = ratingBand(avgRating(t));
+  const monthOverrides = overridesForMonth(t.id, monthKeyOf(new Date()));
+  const rawRating = avgRating(t);
+  const displayRating = monthOverrides.ratingNormalized
+    ? Math.max(0, Math.min(5, Math.round((monthOverrides.ratingNormalized.new_value / 100) * 5 * 10) / 10))
+    : rawRating;
+  const band = ratingBand(displayRating);
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
