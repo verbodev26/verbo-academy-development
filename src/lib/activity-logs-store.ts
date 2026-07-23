@@ -505,6 +505,7 @@ export const ACTIVITY_KIND_LABELS: Record<ActivityKind, string> = {
   release_request_submitted: "Release request",
   report_filed: "Report filed",
   kpi_manual_override: "KPI manually adjusted",
+  rating_discarded: "Rating discarded",
   unit_unlocked: "Unit unlocked",
   unit_locked: "Unit locked",
 };
