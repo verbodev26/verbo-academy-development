@@ -18,6 +18,8 @@ import {
 import { addFinancialIssue } from "@/lib/financial-issues-store";
 import { Card, SectionTitle, Pill } from "@/components/verbo/ui";
 import { BonusBadge } from "@/components/verbo/BonusBadge";
+import { overridesForMonth } from "@/lib/teacher-kpi-overrides-store";
+import { monthKeyOf } from "@/lib/teacher-kpi-history-store";
 
 export const Route = createFileRoute("/teacher/financial")({
   head: () => ({
