@@ -152,6 +152,15 @@ function Page() {
     forceTick((n) => n + 1);
   };
 
+  const discardReview = (sessionId: string, note: string) => {
+    const s = SESSIONS.find((x) => x.id === sessionId);
+    if (s) { s.review_status = "discarded"; s.review_note = note; }
+    const reviews = read<Record<string, Partial<Session>>>(REVIEW_KEY, {});
+    reviews[sessionId] = { review_status: "discarded", review_note: note };
+    write(REVIEW_KEY, reviews);
+    forceTick((n) => n + 1);
+  };
+
   const registerTeacher = (u: User, studentIds: string[]) => {
     USERS.push(u);
     studentIds.forEach((sid) => reassignStudent(sid, u.id));
