@@ -148,7 +148,10 @@ function TeacherDashboard() {
   const upcoming7dCount = upcoming7dIds.size;
   const thirtyAgo = now - 30 * 24 * 3600_000;
   const ratedLast30 = myLive.filter(
-    (s) => typeof s.student_rating === "number" && +new Date(s.date_time) >= thirtyAgo,
+    (s) =>
+      typeof s.student_rating === "number" &&
+      (s.review_status ?? "pending") !== "discarded" &&
+      +new Date(s.date_time) >= thirtyAgo,
   );
   const avgRating30 =
     ratedLast30.length === 0
