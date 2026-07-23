@@ -163,6 +163,17 @@ export function buildActivityLog(): ActivityEntry[] {
         actorId: s.student_id, actorName: student, actorRole: "student",
         personId: s.teacher_id,
       });
+      if (s.review_status === "discarded") {
+        out.push({
+          id: `rating-discarded:${s.id}`,
+          kind: "rating_discarded",
+          action: `Rating discarded (${s.student_rating}★)`,
+          detail: `${teacher} · from ${student}${s.review_note ? ` — "${s.review_note.slice(0, 80)}"` : ""}`,
+          timestamp: s.date_time,
+          actorId: null, actorName: "Admin", actorRole: "admin",
+          personId: s.teacher_id,
+        });
+      }
     }
 
     // Absent / No-Show
